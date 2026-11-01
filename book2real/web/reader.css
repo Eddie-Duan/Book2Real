@@ -160,7 +160,7 @@ body.no-pinyin .punct{padding-top:0}
 /* ---------------------------------------------------------------- word card */
 .popover{position:fixed;z-index:60;width:300px;background:color-mix(in srgb,var(--paper) 92%,white);
   border:1px solid var(--line);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow);
-  animation:rise .18s ease-out}
+  animation:rise .18s ease-out both}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .popover .x{position:absolute;right:10px;top:8px}
 .x{border:none;background:transparent;font-size:22px;line-height:1;color:var(--soft);padding:6px}

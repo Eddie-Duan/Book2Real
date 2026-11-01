@@ -24,7 +24,8 @@ from book2real.util import imread, write_json  # noqa: E402
 
 def cutout(art_path: Path, box, out_png: Path, out_plate: Path,
            white: int = 228, feather: float = 1.2,
-           fill: tuple | None = None) -> dict:
+           fill: tuple | None = None, grabcut: bool = False,
+           poly: list | None = None, floor_key: bool = False) -> dict:
     art = imread(art_path)
     h, w = art.shape[:2]
     x, y, cw, ch = box
@@ -34,13 +35,36 @@ def cutout(art_path: Path, box, out_png: Path, out_plate: Path,
 
     # Background = near-white connected to the crop border. White areas inside
     # the character (dress, eyes) are enclosed by ink and therefore stay.
-    near_white = (crop.min(axis=2) > white).astype(np.uint8)
-    n, labels = cv2.connectedComponents(near_white, connectivity=4)
-    border = set(labels[0, :]) | set(labels[-1, :]) | set(labels[:, 0]) | set(labels[:, -1])
-    border.discard(0)
-    bg = np.isin(labels, list(border))
-    char = (~bg).astype(np.uint8) * 255
+    if grabcut:
+        gc = np.zeros(crop.shape[:2], np.uint8)
+        bgm = np.zeros((1, 65), np.float64)
+        fgm = np.zeros((1, 65), np.float64)
+        rect = (2, 2, crop.shape[1] - 4, crop.shape[0] - 4)
+        cv2.grabCut(cv2.cvtColor(crop, cv2.COLOR_RGB2BGR), gc, rect, bgm, fgm, 6,
+                    cv2.GC_INIT_WITH_RECT)
+        char = np.where((gc == cv2.GC_FGD) | (gc == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
+    else:
+        near_white = (crop.min(axis=2) > white).astype(np.uint8)
+        n, labels = cv2.connectedComponents(near_white, connectivity=4)
+        border = set(labels[0, :]) | set(labels[-1, :]) | set(labels[:, 0]) | set(labels[:, -1])
+        border.discard(0)
+        bg = np.isin(labels, list(border))
+        char = (~bg).astype(np.uint8) * 255
     char = cv2.morphologyEx(char, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    if poly:
+        pm = np.zeros(crop.shape[:2], np.uint8)
+        pts = np.array([[int(px * crop.shape[1]), int(py * crop.shape[0])] for px, py in poly], np.int32)
+        cv2.fillPoly(pm, [pts], 255)
+        char = cv2.bitwise_and(char, pm)
+    if floor_key:
+        hh, ww = crop.shape[:2]
+        yy, xx = np.mgrid[0:hh, 0:ww]
+        f = crop.astype(np.int16)
+        r, g, b = f[..., 0], f[..., 1], f[..., 2]
+        sat = (np.max(f, axis=2) - np.min(f, axis=2)) / np.maximum(1, np.max(f, axis=2))
+        warm = (r > g + 12) & (g > b + 8) & (sat > 0.18)
+        floor = warm & (yy > hh * 0.62)
+        char[floor] = 0
     # keep the largest component (drop stray specks)
     n2, lab2, stats, _ = cv2.connectedComponentsWithStats(char, 8)
     if n2 > 1:
@@ -85,25 +109,33 @@ def cutout(art_path: Path, box, out_png: Path, out_plate: Path,
 
 def main():
     book = ROOT / "books" / "charlie_lola"
-    art = book / "reader" / "art" / "p16.jpg"
+    art = book / "reader" / "art"
     out = book / "reader" / "rig"
-    meta = cutout(art, (0.32, 0.12, 0.42, 0.88), out / "p16_lola.png", out / "p16_plate.png",
-                  fill=(255, 255, 255))
-    rig = {
-        "p16": {
-            "plate": "rig/p16_plate.png",
-            "image": "rig/p16_lola.png",
-            "box": [meta["x"], meta["y"], meta["w"], meta["h"]],
-            "art_w": meta["art_w"], "art_h": meta["art_h"],
+    rigs = {}
+
+    m = cutout(art / "p16.jpg", (0.32, 0.12, 0.42, 0.88),
+               out / "p16_lola.png", out / "p16_plate.png", fill=(255, 255, 255))
+    rigs["p16"] = {
+        "plate": "rig/p16_plate.png", "image": "rig/p16_lola.png",
+        "box": [m["x"], m["y"], m["w"], m["h"]],
+        "art_w": m["art_w"], "art_h": m["art_h"],
+        "characters": [{
+            "name": "劳拉",
             "handles": [
-                {"id": "head", "pivot": [0.52, 0.38], "radius": 0.26, "rot": 5.5},
-                {"id": "hand", "pivot": [0.55, 0.46], "radius": 0.20, "rot": 7.0},
-                {"id": "body", "pivot": [0.5, 0.7], "radius": 0.55, "scale": 0.012},
+                {"id": "body", "type": "scale", "pivot": [0.5, 0.7], "radius": 0.7,
+                 "amount": 0.012, "freq": 1.6},
+                {"id": "head", "type": "rot", "pivot": [0.50, 0.40], "radius": 0.36,
+                 "amp": 8.0, "freq": 1.8, "phase": 0.0},
+                {"id": "hand", "type": "rot", "pivot": [0.34, 0.42], "radius": 0.16,
+                 "amp": 12.0, "freq": 2.6, "phase": 0.7},
+                {"id": "hand2", "type": "rot", "pivot": [0.58, 0.47], "radius": 0.14,
+                 "amp": 8.0, "freq": 2.2, "phase": 2.0},
             ],
-        }
+        }],
     }
-    write_json(book / "reader" / "rig" / "rig.json", rig)
-    print(meta)
+
+    write_json(out / "rig.json", rigs)
+    print(rigs["p16"]["box"])
 
 
 if __name__ == "__main__":

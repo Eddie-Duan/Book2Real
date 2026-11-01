@@ -254,34 +254,39 @@ function renderRig(page, rig, base) {
     const nx = 10, ny = 14;
     const verts = [];
     const rad = (d) => d * Math.PI / 180;
-    const headA = rad(8.0) * Math.sin(t * 1.9);
-    const handA = rad(11.0) * Math.sin(t * 2.6 + 0.7);
-    const hand2A = rad(7.0) * Math.sin(t * 2.2 + 2.0);
-    const breath = 1 + 0.012 * Math.sin(t * 1.6);
-    const hp = [cw * 0.50, chh * 0.40];
-    const wp = [cw * 0.34, chh * 0.42];
-    const wp2 = [cw * 0.58, chh * 0.47];
+    const handles = (rig.characters && rig.characters[0] && rig.characters[0].handles) || rig.handles || [];
     const rot = (x, y, p, a, w) => {
       if (!w) return [x, y];
       const dx = x - p[0], dy = y - p[1];
       const ca = Math.cos(a * w), sa = Math.sin(a * w);
       return [p[0] + dx * ca - dy * sa, p[1] + dx * sa + dy * ca];
     };
+    const gate = (u, v, r) => {
+      if (!r) return 1;
+      const soft = 0.05;
+      const s = (a, b) => Math.max(0, Math.min(1, (a - b) / soft + 1));
+      return Math.min(1, s(u, r[0]), s(r[2], u), s(v, r[1]), s(r[3], v));
+    };
     for (let j = 0; j <= ny; j++) {
       const row = [];
       for (let i = 0; i <= nx; i++) {
         const u = i / nx, v = j / ny;
-        let px = u * cw, py = v * chh;
-        // body breath around the chest
-        px = cw * 0.5 + (px - cw * 0.5) * breath;
-        py = chh * 0.62 + (py - chh * 0.62) * breath;
+        const px = u * cw, py = v * chh;
         let q = [px, py];
-        const wh = Math.exp(-(((px - hp[0]) ** 2 + (py - hp[1]) ** 2) / (2 * (cw * 0.36) ** 2)));
-        q = rot(q[0], q[1], hp, headA, wh);
-        const w1 = Math.exp(-(((px - wp[0]) ** 2 + (py - wp[1]) ** 2) / (2 * (cw * 0.16) ** 2)));
-        q = rot(q[0], q[1], wp, handA, w1);
-        const w2 = Math.exp(-(((px - wp2[0]) ** 2 + (py - wp2[1]) ** 2) / (2 * (cw * 0.14) ** 2)));
-        q = rot(q[0], q[1], wp2, hand2A, w2);
+        for (const h of handles) {
+          const pv = [h.pivot[0] * cw, h.pivot[1] * chh];
+          const rr = (h.radius || 0.2) * Math.max(cw, chh);
+          const g = Math.exp(-(((px - pv[0]) ** 2 + (py - pv[1]) ** 2) / (2 * rr * rr)));
+          const w = g * gate(u, v, h.region);
+          const phase = h.phase || 0, freq = h.freq || 1;
+          if (h.type === "scale") {
+            const f = 1 + (h.amount || 0) * Math.sin(t * freq + phase) * w;
+            q = [pv[0] + (q[0] - pv[0]) * f, pv[1] + (q[1] - pv[1]) * f];
+          } else {
+            const a = rad(h.amp || 0) * Math.sin(t * freq + phase) * w;
+            q = rot(q[0], q[1], pv, a, 1);
+          }
+        }
         // whole-body sway
         q[0] += Math.sin(t * 1.1) * cw * 0.002 * v;
         // pin the feet: keep the contact point planted while the body moves
@@ -361,7 +366,8 @@ function showWord(i, ruby) {
   state.currentWord = word ? word.w : t.ch;
   $("#wChar").textContent = t.ch;
   $("#wPy").textContent = (word && word.py) || t.py || "";
-  $("#wPhrase").textContent = word ? word.w : "本页生字";
+  $("#wPhrase").textContent = word ? word.w : "";
+  $("#wPhrase").hidden = !word;
   $("#wMean").textContent = word ? word.mean
     : (state.book.glossary && state.book.glossary[t.ch])
       ? state.book.glossary[t.ch]

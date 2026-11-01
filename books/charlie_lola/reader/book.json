@@ -8441,33 +8441,58 @@
         ],
         "art_w": 581,
         "art_h": 461,
-        "handles": [
+        "characters": [
           {
-            "id": "head",
-            "pivot": [
-              0.52,
-              0.38
-            ],
-            "radius": 0.26,
-            "rot": 5.5
-          },
-          {
-            "id": "hand",
-            "pivot": [
-              0.55,
-              0.46
-            ],
-            "radius": 0.2,
-            "rot": 7.0
-          },
-          {
-            "id": "body",
-            "pivot": [
-              0.5,
-              0.7
-            ],
-            "radius": 0.55,
-            "scale": 0.012
+            "name": "劳拉",
+            "handles": [
+              {
+                "id": "body",
+                "type": "scale",
+                "pivot": [
+                  0.5,
+                  0.7
+                ],
+                "radius": 0.7,
+                "amount": 0.012,
+                "freq": 1.6
+              },
+              {
+                "id": "head",
+                "type": "rot",
+                "pivot": [
+                  0.5,
+                  0.4
+                ],
+                "radius": 0.36,
+                "amp": 8.0,
+                "freq": 1.8,
+                "phase": 0.0
+              },
+              {
+                "id": "hand",
+                "type": "rot",
+                "pivot": [
+                  0.34,
+                  0.42
+                ],
+                "radius": 0.16,
+                "amp": 12.0,
+                "freq": 2.6,
+                "phase": 0.7
+              },
+              {
+                "id": "hand2",
+                "type": "rot",
+                "pivot": [
+                  0.58,
+                  0.47
+                ],
+                "radius": 0.14,
+                "amp": 8.0,
+                "freq": 2.2,
+                "phase": 2.0
+              }
+            ]
           }
         ]
       }
@@ -10393,7 +10418,7 @@
       "rig": {}
     }
   ],
-  "built_at": "2026-11-01T16:11:38",
+  "built_at": "2026-11-01T16:21:42",
   "stats": {
     "pages": 23,
     "ocr_blocks": 278
