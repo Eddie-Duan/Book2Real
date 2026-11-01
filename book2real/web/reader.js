@@ -32,6 +32,9 @@ async function loadBooks(selectId) {
 async function openBook(id) {
   const data = await api(`/api/book?book=${encodeURIComponent(id)}`);
   state.book = data; state.index = 0;
+  state.artifacts = null;
+  fetch(`/books/${encodeURIComponent(id)}/reader/characters/characters.json`)
+    .then(r => r.ok ? r.json() : null).then(j => { state.artifacts = j; }).catch(() => {});
   localStorage.setItem("b2r.book", id);
   const theme = data.theme || {};
   for (const [k, v] of Object.entries(theme)) document.documentElement.style.setProperty(`--${k}`, v);
@@ -80,6 +83,13 @@ function render() {
     const r = $("ruby.r"); if (r) showWord(+r.dataset.i, r);
   }, 250);
   if (probe === "chars" && !cover) setTimeout(() => $("#btnChars").click(), 250);
+  if (probe === "puppet") setTimeout(() => {
+    const c = (state.book.characters || []).find(x => x.id === "lola");
+    if (c) {
+      openPuppet(c);
+      setTimeout(() => $("#puppetWave").click(), 900);
+    }
+  }, 350);
   if (probe === "video") setTimeout(() => $("#btnVideo").click(), 250);
 }
 
@@ -191,161 +201,6 @@ function renderArt(page) {
 /* ------------------------------------------------------------- 2.5D rig
    The cutout is drawn as a triangle mesh. A few handles (neck, hands, body)
    displace the vertices with a soft falloff; pixels are never regenerated. */
-function renderRig(page, rig, base) {
-  const layers = $("#artLayers");
-  layers.innerHTML = `<canvas class="rig-canvas"></canvas>`;
-  const canvas = $(".rig-canvas", layers);
-  const ctx = canvas.getContext("2d");
-  const stage = $("#artStage");
-  const fixed = parseFloat(new URLSearchParams(location.search).get("rigt") || "");
-  const imgs = {};
-  let ready = false;
-
-  const load = (src) => new Promise((res) => {
-    const im = new Image();
-    im.onload = () => res(im);
-    im.onerror = () => { console.error("rig image failed", src); res(null); };
-    im.src = src;
-  });
-  Promise.all([load(base + rig.plate), load(base + rig.image)]).then(([plate, char]) => {
-    if (!plate || !char) {
-      layers.innerHTML = `<div class="art-img art-one" style="background-image:url('${base}${esc(page.art)}')"></div>`;
-      return;
-    }
-    imgs.plate = plate; imgs.char = char; ready = true;
-    resize();
-    try { draw(fixed || 0.8); } catch (e) { console.error(e); toast("角色动画加载失败：" + e.message); }
-    setTimeout(() => { resize(); if (Number.isFinite(fixed)) draw(fixed); }, 350);
-  });
-
-  function resize() {
-    const r = stage.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.max(1, Math.round(r.width * dpr));
-    canvas.height = Math.max(1, Math.round(r.height * dpr));
-  }
-
-  function draw(t) {
-    if (!ready) return;
-    const rr = stage.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (Math.abs(canvas.width - rr.width * dpr) > 2 || Math.abs(canvas.height - rr.height * dpr) > 2) resize();
-    const W = canvas.width, H = canvas.height;
-    const artW = rig.art_w, artH = rig.art_h;
-    const s = Math.min(W / artW, H / artH);
-    const ox = (W - artW * s) / 2, oy = (H - artH * s) / 2;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(imgs.plate, ox, oy, artW * s, artH * s);
-
-    const [bx, by, bw, bh] = rig.box;
-    const dx0 = ox + bx * s, dy0 = oy + by * s;
-    const cw = bw * s, chh = bh * s;
-
-    // contact shadow
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = "#3a2a1c";
-    ctx.beginPath();
-    ctx.ellipse(dx0 + cw * 0.52, dy0 + chh * 0.985, cw * 0.34, chh * 0.028, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    const nx = 10, ny = 14;
-    const verts = [];
-    const rad = (d) => d * Math.PI / 180;
-    const handles = (rig.characters && rig.characters[0] && rig.characters[0].handles) || rig.handles || [];
-    const rot = (x, y, p, a, w) => {
-      if (!w) return [x, y];
-      const dx = x - p[0], dy = y - p[1];
-      const ca = Math.cos(a * w), sa = Math.sin(a * w);
-      return [p[0] + dx * ca - dy * sa, p[1] + dx * sa + dy * ca];
-    };
-    const gate = (u, v, r) => {
-      if (!r) return 1;
-      const soft = 0.05;
-      const s = (a, b) => Math.max(0, Math.min(1, (a - b) / soft + 1));
-      return Math.min(1, s(u, r[0]), s(r[2], u), s(v, r[1]), s(r[3], v));
-    };
-    for (let j = 0; j <= ny; j++) {
-      const row = [];
-      for (let i = 0; i <= nx; i++) {
-        const u = i / nx, v = j / ny;
-        const px = u * cw, py = v * chh;
-        let q = [px, py];
-        for (const h of handles) {
-          const pv = [h.pivot[0] * cw, h.pivot[1] * chh];
-          const rr = (h.radius || 0.2) * Math.max(cw, chh);
-          const g = Math.exp(-(((px - pv[0]) ** 2 + (py - pv[1]) ** 2) / (2 * rr * rr)));
-          const w = g * gate(u, v, h.region);
-          const phase = h.phase || 0, freq = h.freq || 1;
-          if (h.type === "scale") {
-            const f = 1 + (h.amount || 0) * Math.sin(t * freq + phase) * w;
-            q = [pv[0] + (q[0] - pv[0]) * f, pv[1] + (q[1] - pv[1]) * f];
-          } else {
-            const a = rad(h.amp || 0) * Math.sin(t * freq + phase) * w;
-            q = rot(q[0], q[1], pv, a, 1);
-          }
-        }
-        // whole-body sway
-        q[0] += Math.sin(t * 1.1) * cw * 0.002 * v;
-        // pin the feet: keep the contact point planted while the body moves
-        const pin = Math.max(0, Math.min(1, (v - 0.92) / 0.08));
-        q[0] = q[0] * (1 - pin) + px * pin;
-        q[1] = q[1] * (1 - pin) + py * pin;
-        row.push([dx0 + q[0], dy0 + q[1]]);
-      }
-      verts.push(row);
-    }
-
-    const srcW = imgs.char.width, srcH = imgs.char.height;
-    const tri = (sx0, sy0, sx1, sy1, sx2, sy2, dxa, dya, dxb, dyb, dxc, dyc) => {
-      const det = sx0 * (sy1 - sy2) + sx1 * (sy2 - sy0) + sx2 * (sy0 - sy1);
-      if (Math.abs(det) < 1e-6) return;
-      const a = (dxa * (sy1 - sy2) + dxb * (sy2 - sy0) + dxc * (sy0 - sy1)) / det;
-      const c = (dxa * (sx2 - sx1) + dxb * (sx0 - sx2) + dxc * (sx1 - sx0)) / det;
-      const e = (dxa * (sx1 * sy2 - sx2 * sy1) + dxb * (sx2 * sy0 - sx0 * sy2) + dxc * (sx0 * sy1 - sx1 * sy0)) / det;
-      const b = (dya * (sy1 - sy2) + dyb * (sy2 - sy0) + dyc * (sy0 - sy1)) / det;
-      const d = (dya * (sx2 - sx1) + dyb * (sx0 - sx2) + dyc * (sx1 - sx0)) / det;
-      const f = (dya * (sx1 * sy2 - sx2 * sy1) + dyb * (sx2 * sy0 - sx0 * sy2) + dyc * (sx0 * sy1 - sx1 * sy0)) / det;
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(dxa, dya); ctx.lineTo(dxb, dyb); ctx.lineTo(dxc, dyc); ctx.closePath();
-      ctx.clip();
-      ctx.transform(a, b, c, d, e, f);
-      ctx.drawImage(imgs.char, 0, 0);
-      ctx.restore();
-    };
-    for (let j = 0; j < ny; j++) {
-      for (let i = 0; i < nx; i++) {
-        const x0 = i * srcW / nx, x1 = (i + 1) * srcW / nx;
-        const y0 = j * srcH / ny, y1 = (j + 1) * srcH / ny;
-        const p00 = verts[j][i], p10 = verts[j][i + 1];
-        const p01 = verts[j + 1][i], p11 = verts[j + 1][i + 1];
-        tri(x0, y0, x1, y0, x1, y1, p00[0], p00[1], p10[0], p10[1], p11[0], p11[1]);
-        tri(x0, y0, x1, y1, x0, y1, p00[0], p00[1], p11[0], p11[1], p01[0], p01[1]);
-      }
-    }
-  }
-
-  const start = performance.now();
-  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const loop = (now) => {
-    draw(fixed ? fixed : (now - start) / 1000);
-    if (!Number.isFinite(fixed)) state._animId = requestAnimationFrame(loop);
-  };
-  if (reduce) draw(1.2);
-  else state._animId = requestAnimationFrame(loop);
-  window.addEventListener("resize", resize);
-  stage.onclick = (e) => {
-    if (e.target.closest(".spot")) return;
-    showScene(page);
-  };
-  $("#spots").innerHTML = "";
-  $("#sceneChip").style.display = "flex";
-  $("#sceneChip").innerHTML = `<span class="dot"></span> 点一下画面，看看这一页发生了什么`;
-}
-
 function showScene(page) {
   const note = $("#sceneNote");
   note.textContent = page.scene || `这一页讲的是：${page.text}`;
@@ -446,24 +301,104 @@ $("#btnChars").onclick = () => {
   const chars = state.book.characters || [];
   if (!chars.length) return toast("这本书还没有人物卡");
   const base = `/books/${encodeURIComponent(state.book.book_id)}/reader/`;
-  $("#charGrid").innerHTML = chars.map(c => `
+  const portraits = (state.artifacts && state.artifacts.portraits) || {};
+  $("#charGrid").innerHTML = chars.map(c => {
+    const src = portraits[c.id] ? base + portraits[c.id] : (c.image ? base + c.image : "");
+    return `
     <button class="char-card" data-cid="${esc(c.id)}">
-      ${c.image ? `<img src="${base}${esc(c.image)}" alt="${esc(c.name)}">` : ""}
+      ${src ? `<img src="${esc(src)}" alt="${esc(c.name)}">` : ""}
       <div class="cc-body"><b>${esc(c.name)}</b><small>${esc(c.role || "")}</small><p>${esc(c.desc || "")}</p></div>
-    </button>`).join("");
+    </button>`;
+  }).join("");
   $("#charDrawer").hidden = false; $("#modalBackdrop").hidden = false;
   $$(".char-card", $("#charGrid")).forEach(card => {
     card.onclick = () => {
       const c = chars.find(x => x.id === card.dataset.cid);
-      if (c) toast(`${c.name} · ${c.role || ""}：${c.desc || ""}`, 4200);
+      if (!c) return;
+      if (c.id === "lola" && state.artifacts && state.artifacts.puppet) openPuppet(c);
+      else openPortraitStage(c);
     };
   });
 };
 $("#charClose").onclick = closeAll;
 
+function openPortraitStage(c) {
+  const portraits = (state.artifacts && state.artifacts.portraits) || {};
+  const src = portraits[c.id] ? `/books/${encodeURIComponent(state.book.book_id)}/reader/${portraits[c.id]}` : "";
+  if (!src) return toast(`${c.name}：${c.desc || ""}`);
+  const stage = $("#puppetStage");
+  stage.classList.remove("idle", "wave");
+  stage.classList.add("portrait");
+  stage.style.transform = "";
+  $("#puppetName").textContent = c.name;
+  $("#puppetRole").textContent = c.role || "角色";
+  $("#puppetBody").src = src;
+  $("#charDrawer").hidden = true;
+  $("#puppetModal").hidden = false;
+  $("#modalBackdrop").hidden = false;
+  const bubble = $("#puppetSpeech");
+  bubble.textContent = `你好，我是${c.name}。${c.desc || ""}`;
+  bubble.classList.add("on");
+  stage.onclick = () => bubble.classList.toggle("on");
+  $("#puppetWave").hidden = true;
+}
+function openPuppet(c) {
+  const a = state.artifacts && state.artifacts.puppet;
+  if (!a) return;
+  const base = `/books/${encodeURIComponent(state.book.book_id)}/reader/`;
+  const stage = $("#puppetStage");
+  stage.classList.remove("portrait", "wave", "idle");
+  $("#puppetWave").hidden = false;
+  $("#puppetName").textContent = c.name;
+  $("#puppetRole").textContent = c.role || "角色";
+  $("#puppetBody").src = base + a.body;
+  const leftArm = a.arms.left;
+  $("#armLeft").style.display = leftArm ? "block" : "none";
+  if (leftArm) {
+    $("#armLeftImg").src = base + leftArm.image;
+    $("#armLeft").style.transformOrigin = `${leftArm.pivot[0] * 100}% ${leftArm.pivot[1] * 100}%`;
+  }
+  $("#armRightImg").src = base + a.arms.right.image;
+  $("#armRight").style.display = "block";
+  $("#armRight").style.transformOrigin = `${a.arms.right.pivot[0] * 100}% ${a.arms.right.pivot[1] * 100}%`;
+  stage.classList.remove("wave");
+  stage.classList.add("idle");
+  $("#charDrawer").hidden = true;
+  $("#puppetModal").hidden = false;
+  $("#modalBackdrop").hidden = false;
+  const bubble = $("#puppetSpeech");
+  bubble.classList.remove("on");
+  const line = "你是在叫我吗？我是劳拉。嘘——波特刚才还在这里呢。";
+  bubble.textContent = line;
+  setTimeout(() => bubble.classList.add("on"), 260);
+  stage.onclick = () => bubble.classList.toggle("on");
+  if (!stage._gaze) {
+    stage.addEventListener("mousemove", (e) => {
+      const r = stage.getBoundingClientRect();
+      const dx = (e.clientX - r.left) / r.width - 0.5;
+      const dy = (e.clientY - r.top) / r.height - 0.5;
+      stage.style.transform = `perspective(900px) rotateY(${dx * 5}deg) rotateX(${-dy * 3}deg)`;
+    });
+    stage.addEventListener("mouseleave", () => { stage.style.transform = ""; });
+    stage._gaze = true;
+  }
+  $("#puppetWave").onclick = () => {
+    stage.classList.remove("wave");
+    void stage.offsetWidth;
+    stage.classList.add("wave");
+    bubble.textContent = "嗨，看见你啦！要不要一起找波特？";
+    bubble.classList.add("on");
+    stage.classList.remove("idle");
+    setTimeout(() => { stage.classList.remove("wave"); stage.classList.add("idle"); }, 2400);
+  };
+}
+$("#puppetClose").onclick = closeAll;
+$("#puppetBack").onclick = closeAll;
+
 /* ------------------------------------------------------------- modals */
 function closeAll() {
   $("#charDrawer").hidden = true;
+  $("#puppetModal").hidden = true;
   $("#videoModal").hidden = true;
   $("#importModal").hidden = true;
   $("#modalBackdrop").hidden = true;

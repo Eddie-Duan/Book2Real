@@ -1,0 +1,24 @@
+{
+  "puppet": {
+    "body": "characters/p17_body.jpg",
+    "arms": {
+      "right": {
+        "image": "characters/p17_arm_r.png",
+        "pivot": [
+          0.72,
+          0.53
+        ],
+        "amp": 18
+      }
+    },
+    "art_w": 721,
+    "art_h": 464
+  },
+  "portraits": {
+    "lola": "characters/portrait_lola.jpg",
+    "charlie": "characters/portrait_charlie.jpg",
+    "port": "characters/portrait_port.jpg",
+    "lotta": "characters/portrait_lotta.jpg",
+    "mimi": "characters/portrait_mimi.jpg"
+  }
+}

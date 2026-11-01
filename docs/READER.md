@@ -87,36 +87,34 @@ pages/*.jpg
 
 ![点字解释](images/reader-word.png)
 
-## 4.5 角色转轴（Canvas mesh rig）
+## 4.5 人物墙与纸偶（刚性切件，不扭曲）
 
-整页推近不算"人物在动"。现在 p16 的劳拉是一个真正的**纸偶**：
+目标不是“整页在动”，而是**角色自己动**：
 
-- **抠像**：从原插画里把角色连通域抠出来（背景是连到边框的白色，衣服内部的白色被墨线包住，不会漏），背景板做成透明 PNG。
-- **转轴**：角色图铺 10×14 三角网格；脖子、两只手、胸口各有手柄，手柄用高斯权重带动周围顶点：
-  - 头：绕脖子 ±8° 摇摆；
-  - 手：绕手腕/肩 ±11° 摆动；
-  - 身体：1.2% 呼吸缩放；
-  - 整身：1.1 Hz 微摆。
-- **渲染**：HTML5 Canvas 逐三角做仿射贴图，像素仍然来自原画，**没有任何重绘**。
-- **兜底**：`prefers-reduced-motion` 时只画一帧；没有 rig 的页面仍走整页呼吸/视差。
+- **人物墙**：按页面文字和角色表整理出查理、劳拉、波特、露塔、咪咪；卡片用**完整头部的矩形肖像**，不做抠像卡片，避免“半张脸”。
+- **纸偶**：劳拉拆成 **身体 / 左手臂 / 右手臂** 三层，都是原图像素。背景是平涂红，手臂在红底上，切掉后只剩红，因此旋转不会出现“半只手”。
+- **转轴**：两只手臂 `transform-origin` 在肩点，绕肩 ±18° 摆动；身体只做 4px 上下呼吸，**不做网格/非刚性变形**。
+- **互动**：点开人物卡进入角色舞台；鼠标移动时整张纸偶做 ±5° 的 3D 转向（“看读者”），点“挥挥手”触发两轮挥手；角色用对话气泡说本页相关的话。
+- **静止页**：阅读页插图不再做推近/呼吸/视差，避免“图在晃、人不动”的廉价感。
 
-![角色转轴循环](images/rig-demo.gif)
+![角色互动](images/character-stage.gif)
 
-为什么用 mesh 而不是把身体切成头/手/躯干再 CSS 旋转？
+切图规范（这次踩过的坑）：
 
-- 切件会在脖子、肩膀留下接缝，稍微一转头就穿帮；
-- mesh 是连续变形，接缝不存在，代价是角度必须克制（2–10°），否则像橡皮人；
-- 真正需要"挥手/鞠躬"这类大动作时，再引入**骨骼层级 + 局部切件**（Inochi2D / DragonBones 的做法），并且每个关节画重叠边。
+- 肖像卡必须从**原页**裁，不从已经裁过的 art 再裁；至少保留整个头部 + 下巴。
+- 抠像只对**平涂背景**做；白底/红底用“与边框连通的背景色”判定，衣服内部的白色/红色由墨线包住，不会被误删。
+- 手臂切件必须选**在背景上的肢体**；贴着躯干的手臂要先补画肩膀重叠边，否则一转就露洞。
+- 复杂背景、遮挡、半透明水彩：交给 VLM 分割/修复（SAM、anime-segmentation、Recraft），并让 QA 检查“脸部完整率 / 背景残留率”。
 
-可用的开源参考：
+开源参考：
 
-- [Inochi2D](https://github.com/Inochi2D/inochi2d)：开源 2D 虚拟形象/骨骼，支持变形网格与参数；
-- [DragonBones](https://github.com/DragonBones/DragonBonesJS)：骨骼 + 插槽 + 时间轴，Web runtime；
-- [anime-segmentation](https://github.com/SkyTNT/anime-segmentation)：动漫角色抠像，可替换手工抠图；
+- [Inochi2D](https://github.com/Inochi2D/inochi2d)：开源 2D 骨骼/变形网格；
+- [DragonBones](https://github.com/DragonBones/DragonBonesJS)：骨骼 + 插槽 + 时间轴；
+- [anime-segmentation](https://github.com/SkyTNT/anime-segmentation)：动漫角色抠像；
 - [rembg](https://github.com/danielgatis/rembg)：通用去背景；
-- [Thin-Plate-Spline Motion Model](https://github.com/yoyo-nb/Thin-Plate-Spline-Motion-Model)：用驱动视频做薄板样条形变，适合"整人动"，但会连背景一起扭，且需要驱动视频。
+- [Thin-Plate-Spline Motion Model](https://github.com/yoyo-nb/Thin-Plate-Spline-Motion-Model)：整人驱动，但会连背景一起扭。
 
-下一步：给 p05（三个孩子站成一排）加"挥手"轴，给 p21 加"点头"；把每个角色的手柄/权重存成 `reader/rig/rig.json`，网页里可拖动手柄调参，再把同一套网格导出到 `storyfilm`，让视频与网页动作一致。大动作（走、转身）不建议硬做，留给 I2V 关键镜头。
+下一步：把“找角色 → 裁肖像 → 判断可切肢体 → 生成转轴 → QA”做成 agent 工具链；现在的劳拉纸偶是这条链的第一个产物，不再由人逐页手写动作。
 
 ## 5 视频：把同一套版式拍成 16:9
 
