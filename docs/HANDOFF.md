@@ -1,231 +1,181 @@
-# 交接文档 · Book2Real
+﻿# 浜ゆ帴鏂囨。 路 Book2Real
 
-> 更新于 2026-11-01。仓库：`C:\Users\DUANboyang\Desktop\Book2Real`
-> 状态：**真绘本已接入并出片；QC 已按真书重标（21/21 通过）；缓存命中已验证**；真 I2V 未接。
-
+> 鏇存柊浜?2026-11-01銆備粨搴擄細`C:\Users\DUANboyang\Desktop\Book2Real`
+> 鐘舵€侊細**鐪熺粯鏈凡鎺ュ叆骞跺嚭鐗囷紱QC 宸叉寜鐪熶功閲嶆爣锛?1/21 閫氳繃锛夛紱缂撳瓨鍛戒腑宸查獙璇?*锛涚湡 I2V 鏈帴銆?
 ---
 
-## 0 一分钟现状
+## 0 涓€鍒嗛挓鐜扮姸
 
 ```
 python scripts/import_book.py --src assets/book2 --book charlie_lola \
-       --title "我特别了解豚鼠" --subtitle "查理与劳拉 · 罗伦·乔尔德"
+       --title "鎴戠壒鍒簡瑙ｈ睔榧? --subtitle "鏌ョ悊涓庡姵鎷?路 缃椾鸡路涔斿皵寰?
 python -m book2real plan --book books/charlie_lola
 python -m book2real run  --book books/charlie_lola --out runs --jobs 2
 python -m book2real run  --book books/guoqing      --out runs --jobs 1
-python -m book2real ui   --runs runs --open       # 浏览器看片 + 质检看板
+python -m book2real ui   --runs runs --open       # 娴忚鍣ㄧ湅鐗?+ 璐ㄦ鐪嬫澘
 ```
 
-实测（本机 RTX 5070 Laptop 8G / i9-14900HX / ffmpeg 8.1.1）：
+瀹炴祴锛堟湰鏈?RTX 5070 Laptop 8G / i9-14900HX / ffmpeg 8.1.1锛夛細
 
-| 项 | book2（查理与劳拉，21 页） | book1（迎国庆，1 页） |
+| 椤?| book2锛堟煡鐞嗕笌鍔虫媺锛?1 椤碉級 | book1锛堣繋鍥藉簡锛? 椤碉級 |
 |---|---|---|
-| 成片 | `runs/charlie_lola/<run>/film.mp4`，**114.0 s / 1280×720 / 24fps** | `runs/guoqing/<run>/film.mp4`，**12.0 s** |
-| 镜头 | 21 个，页面覆盖 **100%**，降级 0 次 | 1 个 |
-| 首跑耗时 | **195.4 s**（`--jobs 2`） | **20.5 s** |
-| 复跑（全缓存） | **15.8 s**，`cache_hits = 21/21` | 同上（复跑仍会重编码） |
-| 平均质检分 | **0.911**，**21/21 `ok`** | 0.877，1/1 `ok` |
+| 鎴愮墖 | `runs/charlie_lola/<run>/film.mp4`锛?*114.0 s / 1280脳720 / 24fps** | `runs/guoqing/<run>/film.mp4`锛?*12.0 s** |
+| 闀滃ご | 21 涓紝椤甸潰瑕嗙洊 **100%**锛岄檷绾?0 娆?| 1 涓?|
+| 棣栬窇鑰楁椂 | **195.4 s**锛坄--jobs 2`锛?| **20.5 s** |
+| 澶嶈窇锛堝叏缂撳瓨锛?| **15.8 s**锛宍cache_hits = 21/21` | 鍚屼笂锛堝璺戜粛浼氶噸缂栫爜锛?|
+| 骞冲潎璐ㄦ鍒?| **0.911**锛?*21/21 `ok`** | 0.877锛?/1 `ok` |
 
-**结论**：这台笔记本能跑完一本 21 页真书，3 分 15 秒首跑、16 秒复跑，远低于 15 分钟预算。
-
-**关键取舍**：真书页面带印刷文字，分层会让文字被拆到不同层、出现重影（旧版实测可见）。
-两本真书因此在 `book.json` 里写 `"layers": false`：整页作为一块刚性板做运镜（推/摇/缩放），
-不再做前景视差。**画质优先于分层炫技**；文字 mask + inpaint 接通前，不要对带字页开分层。
-样张 `books/moon_rabbit` 仍走 2–3 层视差，用来验证分层链路。
-
+**缁撹**锛氳繖鍙扮瑪璁版湰鑳借窇瀹屼竴鏈?21 椤电湡涔︼紝3 鍒?15 绉掗璺戙€?6 绉掑璺戯紝杩滀綆浜?15 鍒嗛挓棰勭畻銆?
+**鍏抽敭鍙栬垗**锛氱湡涔﹂〉闈㈠甫鍗板埛鏂囧瓧锛屽垎灞備細璁╂枃瀛楄鎷嗗埌涓嶅悓灞傘€佸嚭鐜伴噸褰憋紙鏃х増瀹炴祴鍙锛夈€?涓ゆ湰鐪熶功鍥犳鍦?`book.json` 閲屽啓 `"layers": false`锛氭暣椤典綔涓轰竴鍧楀垰鎬ф澘鍋氳繍闀滐紙鎺?鎽?缂╂斁锛夛紝
+涓嶅啀鍋氬墠鏅宸€?*鐢昏川浼樺厛浜庡垎灞傜偒鎶€**锛涙枃瀛?mask + inpaint 鎺ラ€氬墠锛屼笉瑕佸甯﹀瓧椤靛紑鍒嗗眰銆?鏍峰紶 `books/moon_rabbit` 浠嶈蛋 2鈥? 灞傝宸紝鐢ㄦ潵楠岃瘉鍒嗗眰閾捐矾銆?
 ---
 
-## 1 已验证 / 未验证（别把未验证当完成）
-
-| 能力 | 状态 | 证据 |
+## 1 宸查獙璇?/ 鏈獙璇侊紙鍒妸鏈獙璇佸綋瀹屾垚锛?
+| 鑳藉姏 | 鐘舵€?| 璇佹嵁 |
 |---|---|---|
-| 真书导入 + 按创建时间排序 | ✅ 验证 | `scripts/import_book.py`，21 页 `ORDER.csv` 可追溯 |
-| 平面板运镜（`layers:false`） | ✅ 验证 | 114 s 成片，逐镜帧检查文字无重影 |
-| 帧 → mp4（ffmpeg 管道） | ✅ 验证 | `ffprobe`: h264 1280×720 24fps 114.0s |
-| 片头 / 尾卡 / 拼接 | ✅ 验证 | 中文标题与尾卡正常（旧版 mojibake 已修） |
-| 缓存键 + 命中 | ✅ 验证 | 复跑 `cache_hits=21`，195.4 s → 15.8 s |
-| QC 判据（按真书重标） | ✅ 验证 | 21/21 accept；static/black/wrong-page 三个负控全部拒绝 |
-| `fill` 画幅（跨页） | ✅ 验证 | 12 个跨页全幅无黑边（修了 `fit` 按卡片尺寸算的 bug） |
-| 降级链 | ⚠️ 未触发 | 无 fallback 记录（没有坏镜头，属预期） |
-| 预算守门（deadline） | ⚠️ 未触发 | 未跑到 900 s |
-| Web 播放器 | ⚠️ 部分验证 | `/` 200、`/api/manifest` 21 chapters、`/media` Range 206；浏览器 JS 未点 |
-| 真 I2V（Wan/Kling） | ❌ 未接 | 仅 `pregen` 接口 |
-| 带字页视差 | ❌ 主动关闭 | 见上；需要文字 mask + 分层固定文字后才能开 |
+| 鐪熶功瀵煎叆 + 鎸夊垱寤烘椂闂存帓搴?| 鉁?楠岃瘉 | `scripts/import_book.py`锛?1 椤?`ORDER.csv` 鍙拷婧?|
+| 骞抽潰鏉胯繍闀滐紙`layers:false`锛?| 鉁?楠岃瘉 | 114 s 鎴愮墖锛岄€愰暅甯ф鏌ユ枃瀛楁棤閲嶅奖 |
+| 甯?鈫?mp4锛坒fmpeg 绠￠亾锛?| 鉁?楠岃瘉 | `ffprobe`: h264 1280脳720 24fps 114.0s |
+| 鐗囧ご / 灏惧崱 / 鎷兼帴 | 鉁?楠岃瘉 | 涓枃鏍囬涓庡熬鍗℃甯革紙鏃х増 mojibake 宸蹭慨锛?|
+| 缂撳瓨閿?+ 鍛戒腑 | 鉁?楠岃瘉 | 澶嶈窇 `cache_hits=21`锛?95.4 s 鈫?15.8 s |
+| QC 鍒ゆ嵁锛堟寜鐪熶功閲嶆爣锛?| 鉁?楠岃瘉 | 21/21 accept锛泂tatic/black/wrong-page 涓変釜璐熸帶鍏ㄩ儴鎷掔粷 |
+| `fill` 鐢诲箙锛堣法椤碉級 | 鉁?楠岃瘉 | 12 涓法椤靛叏骞呮棤榛戣竟锛堜慨浜?`fit` 鎸夊崱鐗囧昂瀵哥畻鐨?bug锛?|
+| 闄嶇骇閾?| 鈿狅笍 鏈Е鍙?| 鏃?fallback 璁板綍锛堟病鏈夊潖闀滃ご锛屽睘棰勬湡锛?|
+| 棰勭畻瀹堥棬锛坉eadline锛?| 鈿狅笍 鏈Е鍙?| 鏈窇鍒?900 s |
+| Web 鎾斁鍣?| 鈿狅笍 閮ㄥ垎楠岃瘉 | `/` 200銆乣/api/manifest` 21 chapters銆乣/media` Range 206锛涙祻瑙堝櫒 JS 鏈偣 |
+| 鐪?I2V锛圵an/Kling锛?| 鉂?鏈帴 | 浠?`pregen` 鎺ュ彛 |
+| 甯﹀瓧椤佃宸?| 鉂?涓诲姩鍏抽棴 | 瑙佷笂锛涢渶瑕佹枃瀛?mask + 鍒嗗眰鍥哄畾鏂囧瓧鍚庢墠鑳藉紑 |
 
 
 ---
 
-## 2 目录地图
+## 2 鐩綍鍦板浘
 
 ```
 Book2Real/
-├─ book2real/                 # 包（约 2400 行）
-│  ├─ contracts.py            # ★ 数据契约：ShotSpec / ClipOut / Manifest / QCVerdict
-│  ├─ config.py               # 片长、画幅、QC 阈值、预算
-│  ├─ storyboard.py           # ★ book.json → ShotSpec[]（选轨、定时长、字幕）
-│  ├─ layers.py               # ★ 图/底分离 + 补洞 → 2–3 个 RGBA 层
-│  ├─ imgops.py               # 纯 numpy+Pillow 的图像原语（无 OpenCV）
-│  ├─ camera.py               # 运动轨迹 + 每层视差系数
-│  ├─ render.py               # ★ 层+相机 → 1280×720 帧（卡片构图）
-│  ├─ backends.py             # ★ 四个后端：parallax / procedural / pregen / static
-│  ├─ encode.py               # 帧→mp4；mp4→小帧（给 QC）
-│  ├─ qc.py                   # ★ 6 项指标 + accept/retry 判定
-│  ├─ assemble.py             # 片头/尾卡/ASS 字幕/拼接/封装
-│  ├─ pipeline.py             # ★ 编排：缓存、并行、预算、降级、manifest
-│  ├─ cache.py                # 内容寻址 + shot 缓存键
-│  ├─ cli.py / __main__.py    # plan / run / ui / sample / doctor
-│  ├─ webapp.py + web/        # 标准库 HTTP + 播放器（Range 请求已实现）
-│  └─ util.py                 # 哈希、原子写、事件日志、ffmpeg 封装
-├─ books/charlie_lola/        # 真书①：21 页（含 12 个跨页）+ book.json + ORDER.csv
-├─ books/guoqing/             # 真书②：单页《迎国庆》
-├─ books/moon_rabbit/         # 合成样张（8 页，走分层视差）
-├─ runs/<id>/<run>/           # 产物：film.mp4、manifest.json、timeline.json、events.jsonl、thumbs/
-├─ configs/default.json       # 阈值都在这里，改这里不用改代码
-├─ samples/make_book.py       # 样张生成器（可当画风模板）
-├─ scripts/                   # setup_env.ps1 / run_demo.ps1 / import_book.py
-├─ tests/test_smoke.py        # 9 个纯 CPU 冒烟测试（无需 ffmpeg）
-└─ docs/ARCHITECTURE.md       # 设计理由与取舍
-```
+鈹溾攢 book2real/                 # 鍖咃紙绾?2400 琛岋級
+鈹? 鈹溾攢 contracts.py            # 鈽?鏁版嵁濂戠害锛歋hotSpec / ClipOut / Manifest / QCVerdict
+鈹? 鈹溾攢 config.py               # 鐗囬暱銆佺敾骞呫€丵C 闃堝€笺€侀绠?鈹? 鈹溾攢 storyboard.py           # 鈽?book.json 鈫?ShotSpec[]锛堥€夎建銆佸畾鏃堕暱銆佸瓧骞曪級
+鈹? 鈹溾攢 layers.py               # 鈽?鍥?搴曞垎绂?+ 琛ユ礊 鈫?2鈥? 涓?RGBA 灞?鈹? 鈹溾攢 imgops.py               # 绾?numpy+Pillow 鐨勫浘鍍忓師璇紙鏃?OpenCV锛?鈹? 鈹溾攢 camera.py               # 杩愬姩杞ㄨ抗 + 姣忓眰瑙嗗樊绯绘暟
+鈹? 鈹溾攢 render.py               # 鈽?灞?鐩告満 鈫?1280脳720 甯э紙鍗＄墖鏋勫浘锛?鈹? 鈹溾攢 backends.py             # 鈽?鍥涗釜鍚庣锛歱arallax / procedural / pregen / static
+鈹? 鈹溾攢 encode.py               # 甯р啋mp4锛沵p4鈫掑皬甯э紙缁?QC锛?鈹? 鈹溾攢 qc.py                   # 鈽?6 椤规寚鏍?+ accept/retry 鍒ゅ畾
+鈹? 鈹溾攢 assemble.py             # 鐗囧ご/灏惧崱/ASS 瀛楀箷/鎷兼帴/灏佽
+鈹? 鈹溾攢 pipeline.py             # 鈽?缂栨帓锛氱紦瀛樸€佸苟琛屻€侀绠椼€侀檷绾с€乵anifest
+鈹? 鈹溾攢 cache.py                # 鍐呭瀵诲潃 + shot 缂撳瓨閿?鈹? 鈹溾攢 cli.py / __main__.py    # plan / run / ui / sample / doctor
+鈹? 鈹溾攢 webapp.py + web/        # 鏍囧噯搴?HTTP + 鎾斁鍣紙Range 璇锋眰宸插疄鐜帮級
+鈹? 鈹斺攢 util.py                 # 鍝堝笇銆佸師瀛愬啓銆佷簨浠舵棩蹇椼€乫fmpeg 灏佽
+鈹溾攢 books/charlie_lola/        # 鐪熶功鈶狅細21 椤碉紙鍚?12 涓法椤碉級+ book.json + ORDER.csv
+鈹溾攢 books/guoqing/             # 鐪熶功鈶★細鍗曢〉銆婅繋鍥藉簡銆?鈹溾攢 books/moon_rabbit/         # 鍚堟垚鏍峰紶锛? 椤碉紝璧板垎灞傝宸級
+鈹溾攢 runs/<id>/<run>/           # 浜х墿锛歠ilm.mp4銆乵anifest.json銆乼imeline.json銆乪vents.jsonl銆乼humbs/
+鈹溾攢 configs/default.json       # 闃堝€奸兘鍦ㄨ繖閲岋紝鏀硅繖閲屼笉鐢ㄦ敼浠ｇ爜
+鈹溾攢 samples/make_book.py       # 鏍峰紶鐢熸垚鍣紙鍙綋鐢婚妯℃澘锛?鈹溾攢 scripts/                   # setup_env.ps1 / run_demo.ps1 / import_book.py
+鈹溾攢 tests/test_smoke.py        # 9 涓函 CPU 鍐掔儫娴嬭瘯锛堟棤闇€ ffmpeg锛?鈹斺攢 docs/ARCHITECTURE.md       # 璁捐鐞嗙敱涓庡彇鑸?```
 
-★ = 改代码时最常动的文件。
-
+鈽?= 鏀逛唬鐮佹椂鏈€甯稿姩鐨勬枃浠躲€?
 ---
 
-## 3 三个核心概念
+## 3 涓変釜鏍稿績姒傚康
 
-1. **A 轨 vs B 轨**
-   - A `parallax`：分层 + 虚拟相机。**确定性、快、像素忠实**，负责覆盖率。
-     `layers:false` 时退化为单块刚性板的运镜（真书带字页的默认），仍属 A 轨。
-   - B `procedural`：单层 + 光影/粒子/呼吸微动。负责"有生气"。
-   - B `pregen`：外部生成的片段（Wan/可灵/Seedance），按 `clips/<shot_id>.mp4` 放入即可接入。
-2. **契约先行**：`ShotSpec` 进、`ClipOut` 出。任何后端只要遵守这两张表就能插进来。
-3. **缓存键**：`sha256(shot 规格 + 页图哈希 + 轨道 + 画幅参数)`。同一页永远出同一段，二次运行 0 秒。
-
+1. **A 杞?vs B 杞?*
+   - A `parallax`锛氬垎灞?+ 铏氭嫙鐩告満銆?*纭畾鎬с€佸揩銆佸儚绱犲繝瀹?*锛岃礋璐ｈ鐩栫巼銆?     `layers:false` 鏃堕€€鍖栦负鍗曞潡鍒氭€ф澘鐨勮繍闀滐紙鐪熶功甯﹀瓧椤电殑榛樿锛夛紝浠嶅睘 A 杞ㄣ€?   - B `procedural`锛氬崟灞?+ 鍏夊奖/绮掑瓙/鍛煎惛寰姩銆傝礋璐?鏈夌敓姘?銆?   - B `pregen`锛氬閮ㄧ敓鎴愮殑鐗囨锛圵an/鍙伒/Seedance锛夛紝鎸?`clips/<shot_id>.mp4` 鏀惧叆鍗冲彲鎺ュ叆銆?2. **濂戠害鍏堣**锛歚ShotSpec` 杩涖€乣ClipOut` 鍑恒€備换浣曞悗绔彧瑕侀伒瀹堣繖涓ゅ紶琛ㄥ氨鑳芥彃杩涙潵銆?3. **缂撳瓨閿?*锛歚sha256(shot 瑙勬牸 + 椤靛浘鍝堝笇 + 杞ㄩ亾 + 鐢诲箙鍙傛暟)`銆傚悓涓€椤垫案杩滃嚭鍚屼竴娈碉紝浜屾杩愯 0 绉掋€?
 ---
 
-## 4 换一本真实绘本（三步）
-
-1. **导入页面**（自动按文件创建时间排序，适合从相册/聊天记录顺序复制出来的图）：
+## 4 鎹竴鏈湡瀹炵粯鏈紙涓夋锛?
+1. **瀵煎叆椤甸潰**锛堣嚜鍔ㄦ寜鏂囦欢鍒涘缓鏃堕棿鎺掑簭锛岄€傚悎浠庣浉鍐?鑱婂ぉ璁板綍椤哄簭澶嶅埗鍑烘潵鐨勫浘锛夛細
    ```
    python scripts/import_book.py --src assets/book2 --book mybook \
-          --title "书名" --subtitle "副标题"
+          --title "涔﹀悕" --subtitle "鍓爣棰?
    ```
-   产物：`books/<id>/pages/p01.jpg…`、`book.json`、`ORDER.csv`（页码 ↔ 源文件 ↔ 创建时间）。
-2. 按需改 `book.json` 的 `move` / `duration` / `mode` / `layers`：
-
+   浜х墿锛歚books/<id>/pages/p01.jpg鈥銆乣book.json`銆乣ORDER.csv`锛堥〉鐮?鈫?婧愭枃浠?鈫?鍒涘缓鏃堕棿锛夈€?2. 鎸夐渶鏀?`book.json` 鐨?`move` / `duration` / `mode` / `layers`锛?
 ```jsonc
 {
-  "book_id": "mybook", "title": "书名", "fps": 24,
-  "layers": false,                 // 带印刷文字的扫描页：必须 false，避免文字重影
-  "pages": [
+  "book_id": "mybook", "title": "涔﹀悕", "fps": 24,
+  "layers": false,                 // 甯﹀嵃鍒锋枃瀛楃殑鎵弿椤碉細蹇呴』 false锛岄伩鍏嶆枃瀛楅噸褰?  "pages": [
     { "file": "p01.jpg", "move": "dolly_in", "mode": "card", "duration": 3.5 },
     { "file": "p06.jpg", "move": "pan_lr",   "mode": "fill", "duration": 6.0 }
-    // 跨页（宽高比 ≥1.2）用 fill 满幅；单页用 card 卡片
+    // 璺ㄩ〉锛堝楂樻瘮 鈮?.2锛夌敤 fill 婊″箙锛涘崟椤电敤 card 鍗＄墖
   ]
 }
 ```
 
-3. `python -m book2real plan --book books/mybook` 先看分镜表，再 `run`。
-
-**拍照页建议**：正对拍摄、四边留 5% 白边、避免反光和手指。分层算法靠"边框主色"判背景，歪着拍会掉精度。
-
+3. `python -m book2real plan --book books/mybook` 鍏堢湅鍒嗛暅琛紝鍐?`run`銆?
+**鎷嶇収椤靛缓璁?*锛氭瀵规媿鎽勩€佸洓杈圭暀 5% 鐧借竟銆侀伩鍏嶅弽鍏夊拰鎵嬫寚銆傚垎灞傜畻娉曢潬"杈规涓昏壊"鍒よ儗鏅紝姝潃鎷嶄細鎺夌簿搴︺€?
 ---
 
-## 5 常见改法
+## 5 甯歌鏀规硶
 
-| 想改什么 | 改哪里 |
+| 鎯虫敼浠€涔?| 鏀瑰摢閲?|
 |---|---|
-| 运镜种类/幅度 | `book.json` 的 `move`/`amount`，或 `camera.py:pose()` 加分支 |
-| 画幅/卡片大小/背景压暗 | `configs/default.json` 的 `film.*` |
-| 微动强度 | `book.json` 的 `motion: {light, dust, breathe}`（0–1） |
-| 分层灵敏度 | `layers.py:decompose()` 的 `min_area_frac` / Otsu 前权重 0.68/0.32 |
-| QC 判据 | `configs/default.json` 的 `qc.*`（当前值已按两本真书重标，见 §6.1） |
-| 是否分层 | `book.json` 的 `layers`（默认 true；带字扫描页设 false） |
-| 加一个新后端 | 继承 `backends.Backend`，实现 `render()`，注册进 `REGISTRY` |
+| 杩愰暅绉嶇被/骞呭害 | `book.json` 鐨?`move`/`amount`锛屾垨 `camera.py:pose()` 鍔犲垎鏀?|
+| 鐢诲箙/鍗＄墖澶у皬/鑳屾櫙鍘嬫殫 | `configs/default.json` 鐨?`film.*` |
+| 寰姩寮哄害 | `book.json` 鐨?`motion: {light, dust, breathe}`锛?鈥?锛?|
+| 鍒嗗眰鐏垫晱搴?| `layers.py:decompose()` 鐨?`min_area_frac` / Otsu 鍓嶆潈閲?0.68/0.32 |
+| QC 鍒ゆ嵁 | `configs/default.json` 鐨?`qc.*`锛堝綋鍓嶅€煎凡鎸変袱鏈湡涔﹂噸鏍囷紝瑙?搂6.1锛?|
+| 鏄惁鍒嗗眰 | `book.json` 鐨?`layers`锛堥粯璁?true锛涘甫瀛楁壂鎻忛〉璁?false锛?|
+| 鍔犱竴涓柊鍚庣 | 缁ф壙 `backends.Backend`锛屽疄鐜?`render()`锛屾敞鍐岃繘 `REGISTRY` |
 
 ---
 
-## 6 已知问题（按"最便宜先修"排序）
+## 6 宸茬煡闂锛堟寜"鏈€渚垮疁鍏堜慨"鎺掑簭锛?
+### 6.1 QC 宸查噸鏍囷紙2026-11-01锛屼袱鏈湡涔?+ 涓変釜璐熸帶锛?
+鏃х増 8/8 璇垽锛屾牴鍥犱笌鏂板垽鎹細
 
-### 6.1 QC 已重标（2026-11-01，两本真书 + 三个负控）
-
-旧版 8/8 误判，根因与新判据：
-
-| 规则 | 旧问题 | 新做法 | 真书实测 |
+| 瑙勫垯 | 鏃ч棶棰?| 鏂板仛娉?| 鐪熶功瀹炴祴 |
 |---|---|---|---|
-| `still_ratio` | `Δ<0.0015` 把慢运镜当静止 | 只统计"连续 ≥3 帧 Δ<1e-5"的冻结段 | 0.000–0.012 |
-| `sharpness_ratio` | 整帧(含背景)比整页，不可比 | 只测卡片/满幅区域，原页缩到同一尺寸 | 0.788–0.931 |
-| `drift_ncc` | 推/摇让首尾帧天然不同 | **不再作为判据**，仅留作诊断 | 0.36–0.97 |
-| `color_sim`（新增） | — | 卡片区域与源页的 RGB 直方图交集 | 0.801–0.963 |
+| `still_ratio` | `螖<0.0015` 鎶婃參杩愰暅褰撻潤姝?| 鍙粺璁?杩炵画 鈮? 甯?螖<1e-5"鐨勫喕缁撴 | 0.000鈥?.012 |
+| `sharpness_ratio` | 鏁村抚(鍚儗鏅?姣旀暣椤碉紝涓嶅彲姣?| 鍙祴鍗＄墖/婊″箙鍖哄煙锛屽師椤电缉鍒板悓涓€灏哄 | 0.788鈥?.931 |
+| `drift_ncc` | 鎺?鎽囪棣栧熬甯уぉ鐒朵笉鍚?| **涓嶅啀浣滀负鍒ゆ嵁**锛屼粎鐣欎綔璇婃柇 | 0.36鈥?.97 |
+| `color_sim`锛堟柊澧烇級 | 鈥?| 鍗＄墖鍖哄煙涓庢簮椤电殑 RGB 鐩存柟鍥句氦闆?| 0.801鈥?.963 |
 
-21/21 accept，均分 0.911。负控（2 s / 24fps，`runs/_qc_*.mp4` 可复现）：
-
-| 负控 | 结果 | 触发理由 |
+21/21 accept锛屽潎鍒?0.911銆傝礋鎺э紙2 s / 24fps锛宍runs/_qc_*.mp4` 鍙鐜帮級锛?
+| 璐熸帶 | 缁撴灉 | 瑙﹀彂鐞嗙敱 |
 |---|---|---|
-| 静态帧重复 | 拒绝 | `motion 0.0001`、`still 0.70` |
-| 全黑 | 拒绝 | black 1.00 + 4 条 |
-| 用 p12 的片比 p17 的页 | 拒绝 | `color 0.17`、`sharpness 0.46` |
+| 闈欐€佸抚閲嶅 | 鎷掔粷 | `motion 0.0001`銆乣still 0.70` |
+| 鍏ㄩ粦 | 鎷掔粷 | black 1.00 + 4 鏉?|
+| 鐢?p12 鐨勭墖姣?p17 鐨勯〉 | 鎷掔粷 | `color 0.17`銆乣sharpness 0.46` |
 
-复现负控的脚本没有入库（一次性验证）；`tests/test_smoke.py` 覆盖了 `still` 与 `color_sim` 的纯函数逻辑。
+澶嶇幇璐熸帶鐨勮剼鏈病鏈夊叆搴擄紙涓€娆℃€ч獙璇侊級锛沗tests/test_smoke.py` 瑕嗙洊浜?`still` 涓?`color_sim` 鐨勭函鍑芥暟閫昏緫銆?
+### 6.2 鎬ц兘锛堝崟椤靛钩闈㈡澘 8鈥?1 s锛岄璺?195 s / 21 椤碉級
 
-### 6.2 性能（单页平面板 8–21 s，首跑 195 s / 21 页）
+- 鐪熶功鐢ㄥ钩闈㈡澘锛堝崟灞傦級锛屽崟闀滃ご 3鈥? s 鍐呭瑕?8鈥?1 s 娓叉煋锛沗--jobs 2` 涓嬫暣鏈?195 s銆?- 璺ㄩ〉 `fill` 鐢?1280 瀹界殑鏉匡紝姣斿崱鐗囨ā寮忔參绾?30%锛坧13 18.5 s vs p05 14.2 s锛夈€?- B 杞?`procedural` 浠嶆槸 35鈥?8 s/闀滐紱鐪熶功娌＄敤 B 杞紝鐣欎綔楂樺厜闀滃ご銆?- 澶嶈窇鍛戒腑缂撳瓨鍙 15.8 s锛堝惈鏁寸墖閲嶇紪鐮侊級銆?
+### 6.3 鍏朵綑缂哄彛
 
-- 真书用平面板（单层），单镜头 3–6 s 内容要 8–21 s 渲染；`--jobs 2` 下整本 195 s。
-- 跨页 `fill` 用 1280 宽的板，比卡片模式慢约 30%（p13 18.5 s vs p05 14.2 s）。
-- B 轨 `procedural` 仍是 35–98 s/镜；真书没用 B 轨，留作高光镜头。
-- 复跑命中缓存只要 15.8 s（含整片重编码）。
-
-### 6.3 其余缺口
-
-| 缺口 | 影响 | 建议 |
+| 缂哄彛 | 褰卞搷 | 寤鸿 |
 |---|---|---|
-| 带字页不能开分层 | 目前整页刚性运镜，没有前景视差 | 先做文字 mask（行检测）+ 把文字固定到 far 层，再按组件排除含字前景；`decompose()` 里已有逐组件过滤的位置 |
-| 无字幕/旁白 | 页上已有印刷字，未再叠字幕；成片无音轨 | 接 TTS 出 wav → `assemble.finish(audio=...)`；字幕另起一层，别重复页上文字 |
-| 未接角色一致性度量 | 无"跨页一致率"证据 | 加 DINO/CLIP 嵌入（需 torch），或先用颜色直方图占位 |
-| Web 未在浏览器点过 | JS 可能报错 | 起 `ui` 后开 F12 看 console（API/Range 已测通） |
+| 甯﹀瓧椤典笉鑳藉紑鍒嗗眰 | 鐩墠鏁撮〉鍒氭€ц繍闀滐紝娌℃湁鍓嶆櫙瑙嗗樊 | 鍏堝仛鏂囧瓧 mask锛堣妫€娴嬶級+ 鎶婃枃瀛楀浐瀹氬埌 far 灞傦紝鍐嶆寜缁勪欢鎺掗櫎鍚瓧鍓嶆櫙锛沗decompose()` 閲屽凡鏈夐€愮粍浠惰繃婊ょ殑浣嶇疆 |
+| 鏃犲瓧骞?鏃佺櫧 | 椤典笂宸叉湁鍗板埛瀛楋紝鏈啀鍙犲瓧骞曪紱鎴愮墖鏃犻煶杞?| 鎺?TTS 鍑?wav 鈫?`assemble.finish(audio=...)`锛涘瓧骞曞彟璧蜂竴灞傦紝鍒噸澶嶉〉涓婃枃瀛?|
+| 鏈帴瑙掕壊涓€鑷存€у害閲?| 鏃?璺ㄩ〉涓€鑷寸巼"璇佹嵁 | 鍔?DINO/CLIP 宓屽叆锛堥渶 torch锛夛紝鎴栧厛鐢ㄩ鑹茬洿鏂瑰浘鍗犱綅 |
+| Web 鏈湪娴忚鍣ㄧ偣杩?| JS 鍙兘鎶ラ敊 | 璧?`ui` 鍚庡紑 F12 鐪?console锛圓PI/Range 宸叉祴閫氾級 |
 
 
 ---
 
-## 7 接真 I2V 的两条路
+## 7 鎺ョ湡 I2V 鐨勪袱鏉¤矾
 
-**路线 1（零代码，今天就能用）**：`pregen` 后端
-1. 在任意有卡/有额度的地方跑 Wan / 可灵 / Seedance，得到 `p06.mp4` 等；
-2. 放进 `books/<id>/clips/`，文件名 = `shot_id`；
-3. `book.json` 里把该页写成 `"track": "pregen"`；
-4. `run` 会自动把它归一化到 1280×720/24fps、跑 QC、参与拼接。
-
-**路线 2（写后端）**：`backends.py` 里加 `WanLocalBackend`，`produces="video"`，返回 `ShotRender(video_path=...)`。
-接口已经能同时吃"逐帧"和"整段文件"，不需要改编排。
-
-> 本机 8 GB VRAM 跑 14B 级 I2V 不现实，建议预生成 + 缓存（现场断网也有片可放）。
-
+**璺嚎 1锛堥浂浠ｇ爜锛屼粖澶╁氨鑳界敤锛?*锛歚pregen` 鍚庣
+1. 鍦ㄤ换鎰忔湁鍗?鏈夐搴︾殑鍦版柟璺?Wan / 鍙伒 / Seedance锛屽緱鍒?`p06.mp4` 绛夛紱
+2. 鏀捐繘 `books/<id>/clips/`锛屾枃浠跺悕 = `shot_id`锛?3. `book.json` 閲屾妸璇ラ〉鍐欐垚 `"track": "pregen"`锛?4. `run` 浼氳嚜鍔ㄦ妸瀹冨綊涓€鍖栧埌 1280脳720/24fps銆佽窇 QC銆佸弬涓庢嫾鎺ャ€?
+**璺嚎 2锛堝啓鍚庣锛?*锛歚backends.py` 閲屽姞 `WanLocalBackend`锛宍produces="video"`锛岃繑鍥?`ShotRender(video_path=...)`銆?鎺ュ彛宸茬粡鑳藉悓鏃跺悆"閫愬抚"鍜?鏁存鏂囦欢"锛屼笉闇€瑕佹敼缂栨帓銆?
+> 鏈満 8 GB VRAM 璺?14B 绾?I2V 涓嶇幇瀹烇紝寤鸿棰勭敓鎴?+ 缂撳瓨锛堢幇鍦烘柇缃戜篃鏈夌墖鍙斁锛夈€?
 ---
 
-## 8 排障
+## 8 鎺掗殰
 
-| 症状 | 原因 | 处理 |
+| 鐥囩姸 | 鍘熷洜 | 澶勭悊 |
 |---|---|---|
-| `ffmpeg not found` | 不在 PATH | `winget install Gyan.FFmpeg` 或设 `BOOK2REAL_FFMPEG` |
-| 字幕/中文变方块 | 缺字体 | 装微软雅黑；`assemble._font()` 会回退 simhei |
-| 所有镜头都 `static` | 预算到点 | 看 `events.jsonl` 的 `budget.exceeded`，调大 `--budget` |
-| 分层没效果（还是整张动） | 该页/该书 `layers:false`，或前景与背景同色 | 真书带字页是**故意**关闭的；要开先解决文字 mask（§9） |
-| 画面边缘有拖影 | 分层补洞的扩散填充 | 属已知代价，高频区域建议换 patch-match |
-| `plan` 里时长都是 6.0s | 文案长度普遍 >15 字，被 clamp 到 6.2 | `storyboard.plan()` 里改 `clamp(3.2+0.20*len, 3.6, 6.2)` |
+| `ffmpeg not found` | 涓嶅湪 PATH | `winget install Gyan.FFmpeg` 鎴栬 `BOOK2REAL_FFMPEG` |
+| 瀛楀箷/涓枃鍙樻柟鍧?| 缂哄瓧浣?| 瑁呭井杞泤榛戯紱`assemble._font()` 浼氬洖閫€ simhei |
+| 鎵€鏈夐暅澶撮兘 `static` | 棰勭畻鍒扮偣 | 鐪?`events.jsonl` 鐨?`budget.exceeded`锛岃皟澶?`--budget` |
+| 鍒嗗眰娌℃晥鏋滐紙杩樻槸鏁村紶鍔級 | 璇ラ〉/璇ヤ功 `layers:false`锛屾垨鍓嶆櫙涓庤儗鏅悓鑹?| 鐪熶功甯﹀瓧椤垫槸**鏁呮剰**鍏抽棴鐨勶紱瑕佸紑鍏堣В鍐虫枃瀛?mask锛埪?锛?|
+| 鐢婚潰杈圭紭鏈夋嫋褰?| 鍒嗗眰琛ユ礊鐨勬墿鏁ｅ～鍏?| 灞炲凡鐭ヤ唬浠凤紝楂橀鍖哄煙寤鸿鎹?patch-match |
+| `plan` 閲屾椂闀块兘鏄?6.0s | 鏂囨闀垮害鏅亶 >15 瀛楋紝琚?clamp 鍒?6.2 | `storyboard.plan()` 閲屾敼 `clamp(3.2+0.20*len, 3.6, 6.2)` |
 
 ---
 
-## 9 建议的下一步（一周内）
-
-1. **带字页的视差恢复**（1–2 天）：在 `layers.py` 加文字行检测（水平连通域），把文字钉到 far 层并在近层 alpha 上挖洞；先拿 book2 的 p06/p13 两页试，逐帧看有没有重影。这是目前唯一挡住"真书也能分层"的问题。
-2. **旁白 + 字幕**（1 天）：TTS 出 wav → `assemble.finish(audio=...)`；字幕只放页外/底部，别复述页上印刷字。
-3. **Web 播放器实测**（半天）：`python -m book2real ui --runs runs --open`，点开 21 镜的 timeline，F12 看 console。
-4. **I2V 高光镜头**：先 `pregen` 跑通 4 个跨页，再考虑本地后端。
-5. **性能**：只有重启 B 轨时才需要（光影蒙版降采样、`jobs=2` 固定）。
-
+## 9 寤鸿鐨勪笅涓€姝ワ紙涓€鍛ㄥ唴锛?
+1. **甯﹀瓧椤电殑瑙嗗樊鎭㈠**锛?鈥? 澶╋級锛氬湪 `layers.py` 鍔犳枃瀛楄妫€娴嬶紙姘村钩杩為€氬煙锛夛紝鎶婃枃瀛楅拤鍒?far 灞傚苟鍦ㄨ繎灞?alpha 涓婃寲娲烇紱鍏堟嬁 book2 鐨?p06/p13 涓ら〉璇曪紝閫愬抚鐪嬫湁娌℃湁閲嶅奖銆傝繖鏄洰鍓嶅敮涓€鎸′綇"鐪熶功涔熻兘鍒嗗眰"鐨勯棶棰樸€?2. **鏃佺櫧 + 瀛楀箷**锛? 澶╋級锛歍TS 鍑?wav 鈫?`assemble.finish(audio=...)`锛涘瓧骞曞彧鏀鹃〉澶?搴曢儴锛屽埆澶嶈堪椤典笂鍗板埛瀛椼€?3. **Web 鎾斁鍣ㄥ疄娴?*锛堝崐澶╋級锛歚python -m book2real ui --runs runs --open`锛岀偣寮€ 21 闀滅殑 timeline锛孎12 鐪?console銆?4. **I2V 楂樺厜闀滃ご**锛氬厛 `pregen` 璺戦€?4 涓法椤碉紝鍐嶈€冭檻鏈湴鍚庣銆?5. **鎬ц兘**锛氬彧鏈夐噸鍚?B 杞ㄦ椂鎵嶉渶瑕侊紙鍏夊奖钂欑増闄嶉噰鏍枫€乣jobs=2` 鍥哄畾锛夈€?
 ---
 
-## 10 一句话提醒
+## 10 涓€鍙ヨ瘽鎻愰啋
 
-这套东西的**卖点不是"能生成视频"，是"整本书都在动且不会崩"**。
-任何让覆盖率下降、让画面出现伪字的改动，都比"多一个炫技镜头"更亏。
+杩欏涓滆タ鐨?*鍗栫偣涓嶆槸"鑳界敓鎴愯棰?锛屾槸"鏁存湰涔﹂兘鍦ㄥ姩涓斾笉浼氬穿"**銆?浠讳綍璁╄鐩栫巼涓嬮檷銆佽鐢婚潰鍑虹幇浼瓧鐨勬敼鍔紝閮芥瘮"澶氫竴涓偒鎶€闀滃ご"鏇翠簭銆?
