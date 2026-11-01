@@ -1,0 +1,17 @@
+# runtime output
+runs/
+.stage/
+.b2r_cache/
+*.tmp
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+pyenv/
+build/
+*.egg-info/
+
+# os
+Thumbs.db
+.DS_Store

@@ -1,0 +1,10 @@
+{
+  "book_id": "guoqing",
+  "title": "迎国庆",
+  "subtitle": "儿歌三百首精选 · 节日儿歌",
+  "fps": 24,
+  "layers": false,
+  "pages": [
+    { "file": "p01.jpg", "move": "dolly_in", "mode": "card", "duration": 7.0 }
+  ]
+}

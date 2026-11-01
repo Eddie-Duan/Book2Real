@@ -1,0 +1,30 @@
+{
+  "film": {
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "card_ratio": 0.86,
+    "backdrop_blur": 0.055,
+    "backdrop_dim": 0.62,
+    "shadow": 0.55,
+    "chapter_fade": 0.45,
+    "title_seconds": 3.0
+  },
+  "qc": {
+    "min_motion": 0.003,
+    "max_flicker": 0.035,
+    "max_still_ratio": 0.75,
+    "min_sharpness_ratio": 0.55,
+    "min_color_sim": 0.65
+  },
+  "runtime": {
+    "runs_dir": "runs",
+    "books_dir": "books",
+    "cas_dir": "cas",
+    "jobs": 2,
+    "budget_s": 900.0,
+    "max_retries": 1,
+    "allow_external_api": false,
+    "opencv_dir": ""
+  }
+}

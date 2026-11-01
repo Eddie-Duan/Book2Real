@@ -1,0 +1,30 @@
+{
+  "book_id": "charlie_lola",
+  "title": "我特别了解豚鼠",
+  "subtitle": "查理与劳拉 · 罗伦·乔尔德",
+  "fps": 24,
+  "layers": false,
+  "pages": [
+    { "file": "p01.jpg", "move": "dolly_in",  "mode": "card", "duration": 3.5 },
+    { "file": "p02.jpg", "move": "kenburns",  "mode": "card", "duration": 3.0 },
+    { "file": "p03.jpg", "move": "dolly_out", "mode": "card", "duration": 5.0 },
+    { "file": "p04.jpg", "move": "pan_lr",    "mode": "card", "duration": 6.0 },
+    { "file": "p05.jpg", "move": "kenburns",  "mode": "card", "duration": 5.0 },
+    { "file": "p06.jpg", "move": "pan_rl",    "mode": "fill", "duration": 6.0 },
+    { "file": "p07.jpg", "move": "dolly_in",  "mode": "fill", "duration": 5.0 },
+    { "file": "p08.jpg", "move": "pan_lr",    "mode": "fill", "duration": 6.0 },
+    { "file": "p09.jpg", "move": "dolly_out", "mode": "fill", "duration": 6.0 },
+    { "file": "p10.jpg", "move": "kenburns",  "mode": "card", "duration": 5.0 },
+    { "file": "p11.jpg", "move": "dolly_in",  "mode": "card", "duration": 6.0 },
+    { "file": "p12.jpg", "move": "pan_lr",    "mode": "fill", "duration": 5.0 },
+    { "file": "p13.jpg", "move": "pan_rl",    "mode": "fill", "duration": 5.5 },
+    { "file": "p14.jpg", "move": "kenburns",  "mode": "fill", "duration": 5.0 },
+    { "file": "p15.jpg", "move": "dolly_in",  "mode": "fill", "duration": 5.5 },
+    { "file": "p16.jpg", "move": "dolly_out", "mode": "card", "duration": 5.0 },
+    { "file": "p17.jpg", "move": "kenburns",  "mode": "card", "duration": 4.5 },
+    { "file": "p18.jpg", "move": "pan_lr",    "mode": "fill", "duration": 5.5 },
+    { "file": "p19.jpg", "move": "pan_rl",    "mode": "fill", "duration": 5.5 },
+    { "file": "p20.jpg", "move": "dolly_in",  "mode": "fill", "duration": 5.0 },
+    { "file": "p21.jpg", "move": "kenburns",  "mode": "card", "duration": 6.0 }
+  ]
+}

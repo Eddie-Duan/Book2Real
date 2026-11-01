@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "book2real"
+version = "0.1.0"
+description = "Turn static picture-book pages into a playable story film"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "Pillow>=10.0"]
+
+[project.scripts]
+book2real = "book2real.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["book2real*"]
+
+[tool.setuptools.package-data]
+book2real = ["web/*"]

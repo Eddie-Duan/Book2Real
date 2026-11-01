@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Book2Real · 绘本成片</title>
+<link rel="stylesheet" href="/a/style.css" />
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <span class="mark">B2R</span>
+    <div>
+      <h1>Book2Real</h1>
+      <p class="sub">静态绘本 → 可播放的故事片</p>
+    </div>
+  </div>
+  <div class="picker">
+    <label for="run">运行记录</label>
+    <select id="run"></select>
+  </div>
+</header>
+
+<main id="app">
+  <section class="stage">
+    <div class="screen">
+      <video id="film" playsinline preload="metadata"></video>
+      <div id="empty" class="empty hidden">
+        <p>还没有成片</p>
+        <code>python -m book2real sample --out books</code>
+        <code>python -m book2real run --book books/moon_rabbit --open</code>
+      </div>
+    </div>
+    <div class="transport">
+      <button id="play" class="play" title="播放/暂停">▶</button>
+      <div class="scrub"><div id="scrub-fill"></div></div>
+      <span id="clock" class="clock">0:00 / 0:00</span>
+    </div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <aside class="rail">
+    <h2>分镜</h2>
+    <ol id="chapters" class="chapters"></ol>
+  </aside>
+</main>
+
+<section class="panel">
+  <button class="reveal" id="toggle-qc">质检明细 <span class="caret">▾</span></button>
+  <div id="qc" class="qc hidden"></div>
+</section>
+
+<script src="/a/app.js"></script>
+</body>
+</html>

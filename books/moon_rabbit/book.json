@@ -1,0 +1,56 @@
+{
+  "book_id": "moon_rabbit",
+  "title": "小兔子找月亮",
+  "subtitle": "Book2Real · 纸书成片",
+  "fps": 24,
+  "pages": [
+    {
+      "file": "p01.png",
+      "text": "夜晚，小兔子推开窗户，发现月亮不见了。",
+      "hero": true,
+      "move": "dolly_in"
+    },
+    {
+      "file": "p02.png",
+      "text": "他背上小背包，走进了安静的森林。",
+      "hero": false,
+      "move": "pan_lr"
+    },
+    {
+      "file": "p03.png",
+      "text": "树上的猫头鹰眨眨眼睛：月亮往山那边去了。",
+      "hero": true,
+      "move": "dolly_out"
+    },
+    {
+      "file": "p04.png",
+      "text": "小溪里漂着亮晶晶的碎片，像碎掉的月亮。",
+      "hero": false,
+      "move": "kenburns"
+    },
+    {
+      "file": "p05.png",
+      "text": "他爬上山顶，云很厚，风把云吹得很快。",
+      "hero": false,
+      "move": "tilt_up"
+    },
+    {
+      "file": "p06.png",
+      "text": "云散开了——月亮一直挂在那里，从来没有消失。",
+      "hero": true,
+      "move": "dolly_in"
+    },
+    {
+      "file": "p07.png",
+      "text": "小兔子躺在草地上，觉得月亮离他很近。",
+      "hero": true,
+      "move": "kenburns"
+    },
+    {
+      "file": "p08.png",
+      "text": "晚安，月亮。晚安，小兔子。",
+      "hero": false,
+      "move": "dolly_out"
+    }
+  ]
+}
