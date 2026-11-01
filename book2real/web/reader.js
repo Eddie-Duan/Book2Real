@@ -2,6 +2,10 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const state = { books: [], book: null, index: 0, pinyin: true, size: 46, wordAt: [], currentWord: null };
+window.addEventListener("error", (e) => {
+  const t = document.getElementById("toast");
+  if (t) { t.textContent = "脚本错误：" + (e.message || "unknown"); t.hidden = false; }
+});
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -115,8 +119,13 @@ function renderStory(page) {
 
 function renderArt(page) {
   const layers = $("#artLayers");
+  if (state._animId) { cancelAnimationFrame(state._animId); state._animId = null; }
   layers.innerHTML = "";
   const base = `/books/${encodeURIComponent(state.book.book_id)}/reader/`;
+  if (page.rig && page.rig.image) {
+    renderRig(page, page.rig, base);
+    return;
+  }
   if (page.art_fg && page.art_bg) {
     layers.innerHTML = `<div class="art-img art-bg" style="background-image:url('${base}${esc(page.art_bg)}')"></div>
       <div class="art-img art-fg" style="background-image:url('${base}${esc(page.art_fg)}')"></div>`;
@@ -177,6 +186,159 @@ function renderArt(page) {
     });
     stage._parallax = true;
   }
+}
+
+/* ------------------------------------------------------------- 2.5D rig
+   The cutout is drawn as a triangle mesh. A few handles (neck, hands, body)
+   displace the vertices with a soft falloff; pixels are never regenerated. */
+function renderRig(page, rig, base) {
+  const layers = $("#artLayers");
+  layers.innerHTML = `<canvas class="rig-canvas"></canvas>`;
+  const canvas = $(".rig-canvas", layers);
+  const ctx = canvas.getContext("2d");
+  const stage = $("#artStage");
+  const fixed = parseFloat(new URLSearchParams(location.search).get("rigt") || "");
+  const imgs = {};
+  let ready = false;
+
+  const load = (src) => new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => { console.error("rig image failed", src); res(null); };
+    im.src = src;
+  });
+  Promise.all([load(base + rig.plate), load(base + rig.image)]).then(([plate, char]) => {
+    if (!plate || !char) {
+      layers.innerHTML = `<div class="art-img art-one" style="background-image:url('${base}${esc(page.art)}')"></div>`;
+      return;
+    }
+    imgs.plate = plate; imgs.char = char; ready = true;
+    resize();
+    try { draw(fixed || 0.8); } catch (e) { console.error(e); toast("角色动画加载失败：" + e.message); }
+    setTimeout(() => { resize(); if (Number.isFinite(fixed)) draw(fixed); }, 350);
+  });
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.max(1, Math.round(r.width * dpr));
+    canvas.height = Math.max(1, Math.round(r.height * dpr));
+  }
+
+  function draw(t) {
+    if (!ready) return;
+    const rr = stage.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (Math.abs(canvas.width - rr.width * dpr) > 2 || Math.abs(canvas.height - rr.height * dpr) > 2) resize();
+    const W = canvas.width, H = canvas.height;
+    const artW = rig.art_w, artH = rig.art_h;
+    const s = Math.min(W / artW, H / artH);
+    const ox = (W - artW * s) / 2, oy = (H - artH * s) / 2;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(imgs.plate, ox, oy, artW * s, artH * s);
+
+    const [bx, by, bw, bh] = rig.box;
+    const dx0 = ox + bx * s, dy0 = oy + by * s;
+    const cw = bw * s, chh = bh * s;
+
+    // contact shadow
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = "#3a2a1c";
+    ctx.beginPath();
+    ctx.ellipse(dx0 + cw * 0.52, dy0 + chh * 0.985, cw * 0.34, chh * 0.028, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    const nx = 10, ny = 14;
+    const verts = [];
+    const rad = (d) => d * Math.PI / 180;
+    const headA = rad(8.0) * Math.sin(t * 1.9);
+    const handA = rad(11.0) * Math.sin(t * 2.6 + 0.7);
+    const hand2A = rad(7.0) * Math.sin(t * 2.2 + 2.0);
+    const breath = 1 + 0.012 * Math.sin(t * 1.6);
+    const hp = [cw * 0.50, chh * 0.40];
+    const wp = [cw * 0.34, chh * 0.42];
+    const wp2 = [cw * 0.58, chh * 0.47];
+    const rot = (x, y, p, a, w) => {
+      if (!w) return [x, y];
+      const dx = x - p[0], dy = y - p[1];
+      const ca = Math.cos(a * w), sa = Math.sin(a * w);
+      return [p[0] + dx * ca - dy * sa, p[1] + dx * sa + dy * ca];
+    };
+    for (let j = 0; j <= ny; j++) {
+      const row = [];
+      for (let i = 0; i <= nx; i++) {
+        const u = i / nx, v = j / ny;
+        let px = u * cw, py = v * chh;
+        // body breath around the chest
+        px = cw * 0.5 + (px - cw * 0.5) * breath;
+        py = chh * 0.62 + (py - chh * 0.62) * breath;
+        let q = [px, py];
+        const wh = Math.exp(-(((px - hp[0]) ** 2 + (py - hp[1]) ** 2) / (2 * (cw * 0.36) ** 2)));
+        q = rot(q[0], q[1], hp, headA, wh);
+        const w1 = Math.exp(-(((px - wp[0]) ** 2 + (py - wp[1]) ** 2) / (2 * (cw * 0.16) ** 2)));
+        q = rot(q[0], q[1], wp, handA, w1);
+        const w2 = Math.exp(-(((px - wp2[0]) ** 2 + (py - wp2[1]) ** 2) / (2 * (cw * 0.14) ** 2)));
+        q = rot(q[0], q[1], wp2, hand2A, w2);
+        // whole-body sway
+        q[0] += Math.sin(t * 1.1) * cw * 0.002 * v;
+        // pin the feet: keep the contact point planted while the body moves
+        const pin = Math.max(0, Math.min(1, (v - 0.92) / 0.08));
+        q[0] = q[0] * (1 - pin) + px * pin;
+        q[1] = q[1] * (1 - pin) + py * pin;
+        row.push([dx0 + q[0], dy0 + q[1]]);
+      }
+      verts.push(row);
+    }
+
+    const srcW = imgs.char.width, srcH = imgs.char.height;
+    const tri = (sx0, sy0, sx1, sy1, sx2, sy2, dxa, dya, dxb, dyb, dxc, dyc) => {
+      const det = sx0 * (sy1 - sy2) + sx1 * (sy2 - sy0) + sx2 * (sy0 - sy1);
+      if (Math.abs(det) < 1e-6) return;
+      const a = (dxa * (sy1 - sy2) + dxb * (sy2 - sy0) + dxc * (sy0 - sy1)) / det;
+      const c = (dxa * (sx2 - sx1) + dxb * (sx0 - sx2) + dxc * (sx1 - sx0)) / det;
+      const e = (dxa * (sx1 * sy2 - sx2 * sy1) + dxb * (sx2 * sy0 - sx0 * sy2) + dxc * (sx0 * sy1 - sx1 * sy0)) / det;
+      const b = (dya * (sy1 - sy2) + dyb * (sy2 - sy0) + dyc * (sy0 - sy1)) / det;
+      const d = (dya * (sx2 - sx1) + dyb * (sx0 - sx2) + dyc * (sx1 - sx0)) / det;
+      const f = (dya * (sx1 * sy2 - sx2 * sy1) + dyb * (sx2 * sy0 - sx0 * sy2) + dyc * (sx0 * sy1 - sx1 * sy0)) / det;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(dxa, dya); ctx.lineTo(dxb, dyb); ctx.lineTo(dxc, dyc); ctx.closePath();
+      ctx.clip();
+      ctx.transform(a, b, c, d, e, f);
+      ctx.drawImage(imgs.char, 0, 0);
+      ctx.restore();
+    };
+    for (let j = 0; j < ny; j++) {
+      for (let i = 0; i < nx; i++) {
+        const x0 = i * srcW / nx, x1 = (i + 1) * srcW / nx;
+        const y0 = j * srcH / ny, y1 = (j + 1) * srcH / ny;
+        const p00 = verts[j][i], p10 = verts[j][i + 1];
+        const p01 = verts[j + 1][i], p11 = verts[j + 1][i + 1];
+        tri(x0, y0, x1, y0, x1, y1, p00[0], p00[1], p10[0], p10[1], p11[0], p11[1]);
+        tri(x0, y0, x1, y1, x0, y1, p00[0], p00[1], p11[0], p11[1], p01[0], p01[1]);
+      }
+    }
+  }
+
+  const start = performance.now();
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const loop = (now) => {
+    draw(fixed ? fixed : (now - start) / 1000);
+    if (!Number.isFinite(fixed)) state._animId = requestAnimationFrame(loop);
+  };
+  if (reduce) draw(1.2);
+  else state._animId = requestAnimationFrame(loop);
+  window.addEventListener("resize", resize);
+  stage.onclick = (e) => {
+    if (e.target.closest(".spot")) return;
+    showScene(page);
+  };
+  $("#spots").innerHTML = "";
+  $("#sceneChip").style.display = "flex";
+  $("#sceneChip").innerHTML = `<span class="dot"></span> 点一下画面，看看这一页发生了什么`;
 }
 
 function showScene(page) {

@@ -351,6 +351,8 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
             })
 
     characters = curation.get("characters", [])
+    rig_path = out_dir / "rig" / "rig.json"
+    rigs = json.loads(rig_path.read_text(encoding="utf-8")) if rig_path.exists() else {}
     for idx, ch in enumerate(characters):
         crop = ch.get("crop")
         if crop:
@@ -378,7 +380,7 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
         "theme": curation.get("theme", {}),
         "characters": characters,
         "glossary": {**DEFAULT_GLOSSARY, **(curation.get("glossary") or {})},
-        "pages": pages,
+        "pages": [{**p, "rig": rigs.get(p["id"].split("-")[0], {})} for p in pages],
         "built_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "stats": {"pages": len(pages), "ocr_blocks": sum(len(p["ocr_lines"]) for p in pages)},
     }

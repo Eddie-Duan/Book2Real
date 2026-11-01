@@ -7,6 +7,11 @@
 
 ![互动阅读页](docs/images/reader-page.png)
 
+人物不再只是"整页推近"：p16 的劳拉是**Canvas 网格转轴**——头绕脖子摇、手绕腕摆、身体呼吸，像素仍然来自原画。
+原理、取舍与开源参考见 [READER.md §4.5](docs/READER.md)。
+
+![角色转轴循环](docs/images/rig-demo.gif)
+
 ## 快速开始
 
 ```bash
@@ -34,7 +39,7 @@ python -m book2real film    --book books/charlie_lola
 | 点字 | 读音 + 本页词义 + 朗读 |
 | 点画 | 场景讲解 + 人物热点 |
 | 人物卡 | 从原图裁出，作为一致性/后续 I2V 的参考 |
-| 2.5D | 缓慢推近 + 指针视差 + 漂浮微尘 |
+| 2.5D | 整页呼吸/视差；p16 角色为 Canvas 网格转轴（摇头、摆手、呼吸） |
 | 旁白 | edge-tts 晓晓，缓存复用；失败回退浏览器语音 |
 | 视频 | 16:9，左文右图，按旁白时长切镜，AAC 音轨 |
 

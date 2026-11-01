@@ -1,0 +1,43 @@
+{
+  "p16": {
+    "plate": "rig/p16_plate.png",
+    "image": "rig/p16_lola.png",
+    "box": [
+      233,
+      107,
+      192,
+      319
+    ],
+    "art_w": 581,
+    "art_h": 461,
+    "handles": [
+      {
+        "id": "head",
+        "pivot": [
+          0.52,
+          0.38
+        ],
+        "radius": 0.26,
+        "rot": 5.5
+      },
+      {
+        "id": "hand",
+        "pivot": [
+          0.55,
+          0.46
+        ],
+        "radius": 0.2,
+        "rot": 7.0
+      },
+      {
+        "id": "body",
+        "pivot": [
+          0.5,
+          0.7
+        ],
+        "radius": 0.55,
+        "scale": 0.012
+      }
+    ]
+  }
+}

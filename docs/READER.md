@@ -87,6 +87,37 @@ pages/*.jpg
 
 ![点字解释](images/reader-word.png)
 
+## 4.5 角色转轴（Canvas mesh rig）
+
+整页推近不算"人物在动"。现在 p16 的劳拉是一个真正的**纸偶**：
+
+- **抠像**：从原插画里把角色连通域抠出来（背景是连到边框的白色，衣服内部的白色被墨线包住，不会漏），背景板做成透明 PNG。
+- **转轴**：角色图铺 10×14 三角网格；脖子、两只手、胸口各有手柄，手柄用高斯权重带动周围顶点：
+  - 头：绕脖子 ±8° 摇摆；
+  - 手：绕手腕/肩 ±11° 摆动；
+  - 身体：1.2% 呼吸缩放；
+  - 整身：1.1 Hz 微摆。
+- **渲染**：HTML5 Canvas 逐三角做仿射贴图，像素仍然来自原画，**没有任何重绘**。
+- **兜底**：`prefers-reduced-motion` 时只画一帧；没有 rig 的页面仍走整页呼吸/视差。
+
+![角色转轴循环](images/rig-demo.gif)
+
+为什么用 mesh 而不是把身体切成头/手/躯干再 CSS 旋转？
+
+- 切件会在脖子、肩膀留下接缝，稍微一转头就穿帮；
+- mesh 是连续变形，接缝不存在，代价是角度必须克制（2–10°），否则像橡皮人；
+- 真正需要"挥手/鞠躬"这类大动作时，再引入**骨骼层级 + 局部切件**（Inochi2D / DragonBones 的做法），并且每个关节画重叠边。
+
+可用的开源参考：
+
+- [Inochi2D](https://github.com/Inochi2D/inochi2d)：开源 2D 虚拟形象/骨骼，支持变形网格与参数；
+- [DragonBones](https://github.com/DragonBones/DragonBonesJS)：骨骼 + 插槽 + 时间轴，Web runtime；
+- [anime-segmentation](https://github.com/SkyTNT/anime-segmentation)：动漫角色抠像，可替换手工抠图；
+- [rembg](https://github.com/danielgatis/rembg)：通用去背景；
+- [Thin-Plate-Spline Motion Model](https://github.com/yoyo-nb/Thin-Plate-Spline-Motion-Model)：用驱动视频做薄板样条形变，适合"整人动"，但会连背景一起扭，且需要驱动视频。
+
+下一步：给 p05（三个孩子站成一排）加"挥手"轴，给 p21 加"点头"；把每个角色的手柄/权重存成 `reader/rig/rig.json`，网页里可拖动手柄调参，再把同一套网格导出到 `storyfilm`，让视频与网页动作一致。大动作（走、转身）不建议硬做，留给 I2V 关键镜头。
+
 ## 5 视频：把同一套版式拍成 16:9
 
 - 左栏大字 + 拼音，右栏插图卡片；与阅读器同一套内容，不重新生成画面。
