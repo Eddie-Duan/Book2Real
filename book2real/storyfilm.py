@@ -142,9 +142,9 @@ def _text_panel(page: dict, bg: np.ndarray, theme: dict) -> np.ndarray:
     # scene caption at the bottom, kept quiet
     scene = (page.get("scene") or "").strip()
     if scene:
-        d.line((x0, H - 118, x0 + 520, H - 118), fill=(120, 95, 70, 42), width=1)
+        d.line((x0, H - 76, x0 + 520, H - 76), fill=(120, 95, 70, 42), width=1)
         cap = scene if len(scene) <= 44 else scene[:44] + "…"
-        d.text((x0, H - 104), cap, font=_font(14), fill=soft)
+        d.text((x0, H - 62), cap, font=_font(14), fill=soft)
     return np.asarray(img)
 
 
