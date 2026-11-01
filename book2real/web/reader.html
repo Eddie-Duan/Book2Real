@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>小书匠 · 互动绘本</title>
+<link rel="stylesheet" href="/static/reader.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="mark">书</span>
+    <div class="brand-text"><b>小书匠</b><small>纸书智伴 · 把绘本读活</small></div>
+  </div>
+  <label class="book-pick">
+    <span>正在读</span>
+    <select id="bookSelect"></select>
+  </label>
+  <div class="actions">
+    <button class="ghost" id="btnChars" title="人物卡">人物卡</button>
+    <button class="ghost" id="btnImport" title="导入新的绘本">导入绘本</button>
+    <button class="primary" id="btnVideo">生成视频</button>
+  </div>
+</header>
+
+<main class="reader" id="reader">
+  <section class="text-panel">
+    <div class="page-kicker" id="kicker">第 1 页</div>
+    <h1 class="cover-title" id="coverTitle" hidden></h1>
+    <div class="cover-meta" id="coverMeta" hidden></div>
+    <div class="story" id="story" aria-live="polite"></div>
+    <div class="story-tools" id="storyTools">
+      <button class="tool" id="btnRead"><span class="ico">▶</span> 朗读这一页</button>
+      <button class="tool" id="btnPinyin" aria-pressed="true">拼音 <b>开</b></button>
+      <div class="size-tools">
+        <button class="tool tiny" id="fontSmall" title="字小一点">A−</button>
+        <button class="tool tiny" id="fontBig" title="字大一点">A＋</button>
+      </div>
+    </div>
+    <div class="hint" id="hint">点一点文字，听读音、看解释</div>
+    <div class="scene-note" id="sceneNote" hidden></div>
+  </section>
+
+  <section class="art-panel">
+    <div class="art-stage" id="artStage">
+      <div class="art-halo"></div>
+      <div class="art-layers" id="artLayers"></div>
+      <div class="art-vignette"></div>
+      <div class="spots" id="spots"></div>
+      <button class="scene-chip" id="sceneChip">
+        <span class="dot"></span> 点一下画面，看看这一页发生了什么
+      </button>
+    </div>
+  </section>
+</main>
+
+<footer class="navbar">
+  <button class="nav" id="btnPrev">← 上一页</button>
+  <div class="progress">
+    <div class="dots" id="dots"></div>
+    <div class="count" id="pagecount"></div>
+  </div>
+  <button class="nav" id="btnNext">下一页 →</button>
+</footer>
+
+<div class="popover" id="wordCard" hidden>
+  <button class="x" id="wordClose">×</button>
+  <div class="word-head"><span class="big-char" id="wChar">字</span><span class="py" id="wPy"></span></div>
+  <div class="word-phrase" id="wPhrase"></div>
+  <p class="word-mean" id="wMean"></p>
+  <button class="say" id="wordSay">🔊 读一读</button>
+</div>
+
+<aside class="drawer" id="charDrawer" hidden>
+  <div class="drawer-head"><h2>这本书里的人物</h2><button class="x" id="charClose">×</button></div>
+  <div class="char-grid" id="charGrid"></div>
+</aside>
+
+<div class="modal-backdrop" id="modalBackdrop" hidden></div>
+
+<section class="modal" id="videoModal" hidden>
+  <button class="x" id="videoClose">×</button>
+  <div class="step-label">AI 导演台</div>
+  <h2>把这一页一页，变成一段小电影</h2>
+  <p class="modal-copy">文字和插图会重新排成 16:9：左边是大字和拼音，右边是 2.5D 运镜的插图。生成期间可以继续阅读。</p>
+  <div class="video-plan" id="videoPlan"></div>
+  <div class="video-stage" id="videoStage">
+    <div class="progress-bar"><i id="videoBar"></i></div>
+    <div class="stage-line" id="videoStageLine">等待开始</div>
+    <button class="primary wide" id="btnMakeFilm">开始生成</button>
+  </div>
+  <div class="video-result" id="videoResult" hidden>
+    <video id="filmPlayer" controls playsinline></video>
+    <div class="video-actions"><a id="filmDownload" download>下载影片</a></div>
+  </div>
+</section>
+
+<section class="modal" id="importModal" hidden>
+  <button class="x" id="importClose">×</button>
+  <div class="step-label">快速改造</div>
+  <h2>导入一本新的绘本</h2>
+  <p class="modal-copy">按页面顺序选择图片即可。系统会自动识别文字、标注拼音、清理插图上的印刷字，并生成可点的互动绘本。</p>
+  <label class="field">书名<input id="importTitle" placeholder="例如：我特别了解豚鼠"></label>
+  <label class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept="image/*" multiple hidden>
+    <b>选择或拖入页面图片</b>
+    <span id="fileHint">支持 jpg / png，按文件时间排序</span>
+  </label>
+  <div class="file-strip" id="fileStrip"></div>
+  <div class="import-stage" id="importStage" hidden>
+    <div class="progress-bar"><i id="importBar"></i></div>
+    <div class="stage-line" id="importStageLine">准备中</div>
+  </div>
+  <button class="primary wide" id="btnDoImport" disabled>开始制作互动绘本</button>
+</section>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/static/reader.js"></script>
+</body>
+</html>

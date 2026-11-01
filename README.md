@@ -1,59 +1,75 @@
-# Book2Real
+# 小书匠 · Book2Real
 
-A multimodal AI tool that converts static picture books into vivid story videos.
+把一本扫描的纸质绘本变成**可点的互动绘本**，再一键导出**带旁白的 16:9 短片**。
 
-把一页静态绘本拆成 2–3 个深度层，用虚拟相机"重拍"，再给少数高光镜头叠加
-光影/粒子微动；输出是标准 H.264 电影文件，而不是"会动的图"。
-带印刷文字的扫描页默认走**刚性板运镜**（`layers:false`），避免文字被分层拆开产生重影。
+不是"整页图加个运镜"：文字、拼音、插图、人物会被重新拆开、排版和关联。
+左栏是大字 + 逐字拼音，右栏是清洗过的原插画；点字听读音、看含义，点画看这一页发生了什么，点人物卡认识角色。
+
+![互动阅读页](docs/images/reader-page.png)
+
+## 快速开始
 
 ```bash
-python scripts/import_book.py --src assets/book2 --book charlie_lola \
-       --title "我特别了解豚鼠" --subtitle "查理与劳拉 · 罗伦·乔尔德"   # 按创建时间排序导入
-python -m book2real plan   --book books/charlie_lola          # 看分镜表
-python -m book2real run    --book books/charlie_lola --jobs 2 # 21 页真书 ~195 s
-python -m book2real run    --book books/guoqing --jobs 1      # 单页 ~20 s
-python -m book2real ui     --runs runs --open                 # 播放器 + 质检看板
+python -m book2real reader --books books --port 8770 --open
 
-python -m book2real sample --out books                        # 8 页合成样张（走分层）
-python -m book2real run    --book books/moon_rabbit --jobs 3
+# 或先手动分析 / 出片
+python -m book2real analyze --book books/charlie_lola
+python -m book2real film    --book books/charlie_lola
 ```
 
-依赖只有 `numpy` + `Pillow` + `ffmpeg`（无 torch、无 OpenCV、无 node）。
+打开页面后：
 
-## 它做/不做什么
+1. 选择书目（内置《我特别了解豚鼠》《迎国庆》）；
+2. **导入绘本**：多选页面图片，自动按文件时间排序 → OCR → 拼音 → 清字 → 排版；
+3. **生成视频**：后台逐页配音、排版、运镜、编码，完成后在弹窗里播放/下载。
 
-| 做 | 不做 |
+## 已有能力
+
+| 能力 | 实现 |
 |---|---|
-| 页面覆盖 100%（分层视差/刚性板运镜都是确定性轨道） | 不重演剧情、不生成新场景 |
-| 相机运动 + 前景/背景视差 + 微动 | 不做角色走位、转身、口型 |
-| 字幕、片头片尾、章节时间轴 | 不做 ASR/TTS/问答（预留接口） |
-| 逐镜头缓存、降级、可审计 manifest | 不做端到端黑盒 |
+| 页面排序 | 按 `st_ctime` 归档，`ORDER.csv` 可追溯 |
+| 文字识别 | rapidocr_onnxruntime（PP-OCR，离线） |
+| 拼音 | pypinyin，逐字声调；按词换行（jieba） |
+| 插画清字 | OpenCV Telea inpaint，去掉页上印刷字 |
+| 点字 | 读音 + 本页词义 + 朗读 |
+| 点画 | 场景讲解 + 人物热点 |
+| 人物卡 | 从原图裁出，作为一致性/后续 I2V 的参考 |
+| 2.5D | 缓慢推近 + 指针视差 + 漂浮微尘 |
+| 旁白 | edge-tts 晓晓，缓存复用；失败回退浏览器语音 |
+| 视频 | 16:9，左文右图，按旁白时长切镜，AAC 音轨 |
 
-## 两条轨道
+## 两条产品线
 
-- **A · 分层视差**（`parallax`）：把页面分成 2–3 个 RGBA 层，按深度给不同视差系数，虚拟相机带动。
-  带字扫描页设 `"layers": false`，退化为单块板的推/摇/缩放，文字不会重影。
-- **B · 微动**（`procedural` / `pregen`）：单层上的光影扫过、尘埃漂移、呼吸缩放；或直接吃外部
-  I2V 生成的片段（放进 `books/<id>/clips/<shot_id>.mp4`）。
+- **互动阅读**：`book2real/storybook.py` 生成 `reader/book.json` + 清洗后的插图，`reader_app.py` + `web/reader.*` 提供阅读器。
+- **成片导出**：`book2real/storyfilm.py` 复用同一份 reader 包，渲染 16:9 短片；旧的 `run` 管线（分层视差 / 程序化微动 / pregen）仍在，用于样张与 I2V 预留。
 
 ## 文档
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 设计取舍（为什么主轨不是生成模型）
-- [`docs/HANDOFF.md`](docs/HANDOFF.md) — 交接：实测数据、已知问题、下一步
+- [`docs/READER.md`](docs/READER.md) — 互动绘本的产品设计、分析管线、视频版式、开源选型与许可证
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 旧版 2.5D 渲染与编排
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — 实测数据、已知问题、下一步
 
 ## 目录
 
 ```
-book2real/     包（契约 / 分层 / 相机 / 渲染 / 后端 / 质检 / 编排 / Web）
-books/         绘本：<id>/pages/*.jpg|png + book.json（真书样例：charlie_lola / guoqing）
-runs/          产物（已 gitignore）：film.mp4、manifest.json、events.jsonl
-configs/       阈值与画幅（改这里不用改代码）
-samples/       合成样张生成器
-scripts/       环境安装 / 演示 / import_book.py（按创建时间归档）
-tests/         冒烟测试
+book2real/
+  storybook.py      OCR → 正文选择 → 拼音/分词 → 清字 → reader 包
+  storyfilm.py      16:9 朗读短片（文字左 / 插图右 / 旁白）
+  reader_app.py     互动阅读器 HTTP 服务 + 导入/出片任务
+  web/reader.*      阅读器界面（无构建步骤）
+  tts.py            edge-tts 旁白 + 缓存
+  ocr / pinyin / segmentation 依赖放在 vendor/（离线演示）
+books/<id>/          pages/ + book.json + curation.json + reader/
+runs/                产物（gitignore）：互动片、旧管线成片、TTS 缓存
+vendor/              pypinyin / jieba / edge-tts（比赛演示用，见许可证说明）
+docs/                设计与交接
 ```
 
 ## 环境
 
-Python ≥ 3.10，`ffmpeg` 在 PATH（或设 `BOOK2REAL_FFMPEG`）。
-`powershell -File scripts\setup_env.ps1` 一键装依赖并自检。
+Python ≥ 3.10，`ffmpeg` 在 PATH。依赖见 `requirements.txt`；仓库内 `vendor/` 已带
+pypinyin、jieba、edge-tts，离线可直接跑（edge-tts 仍需网络；无网时回退浏览器/系统语音）。
+
+```bash
+pip install -r requirements.txt
+```

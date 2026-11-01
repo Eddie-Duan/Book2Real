@@ -19,6 +19,7 @@ from book2real.contracts import Camera, ShotSpec
 from book2real.layers import decompose
 from book2real.qc import _hist_sim, _still_ratio
 from book2real.render import prepare
+from book2real.storybook import _split_text, pinyin_tokens, segments
 
 
 def _page() -> np.ndarray:
@@ -94,6 +95,29 @@ def test_color_similarity_catches_wrong_plate():
     blank = np.zeros_like(page)
     assert _hist_sim(page, page) > 0.99
     assert _hist_sim(page, blank) < 0.5
+
+
+def test_segments_keep_text_and_punctuation():
+    text = "她是个有趣的小人儿。此时，劳拉正在……“你在做什么呢，劳拉？”"
+    parts = segments(text)
+    assert "".join(parts) == text
+    assert "小人儿。" in parts
+    assert not any(p and p[0] in "，。！？" for p in parts)
+
+
+def test_split_text_does_not_break_a_quote():
+    text = "劳拉说：“我已经问过汉森老师，在假期里我可不可以把波特带回家。”" * 3
+    chunks = _split_text(text, limit=60)
+    assert "".join(chunks) == text
+    assert all(not c.startswith("”") for c in chunks)
+
+
+def test_pinyin_tokens_align_to_characters():
+    text = "豚鼠。"
+    toks = pinyin_tokens(text)
+    assert [t["ch"] for t in toks] == list(text)
+    assert toks[0]["py"] == "tún"
+    assert toks[-1]["py"] == ""
 
 
 if __name__ == "__main__":

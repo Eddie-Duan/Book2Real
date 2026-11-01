@@ -5,9 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "book2real"
 version = "0.1.0"
-description = "Turn static picture-book pages into a playable story film"
+description = "Turn scanned picture books into an interactive reader and a 16:9 story film"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "Pillow>=10.0"]
+
+[project.optional-dependencies]
+reader = [
+  "pypinyin>=0.55",
+  "jieba>=0.42.1",
+  "rapidocr_onnxruntime>=1.3",
+  "opencv-python-headless>=4.8",
+  "edge-tts>=7.3.1",
+]
 
 [project.scripts]
 book2real = "book2real.cli:main"

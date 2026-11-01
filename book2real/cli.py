@@ -70,6 +70,29 @@ def cmd_ui(args) -> int:
     return serve(args.runs, port=args.port, open_browser=args.open)
 
 
+def cmd_reader(args) -> int:
+    from .reader_app import serve
+
+    return serve(args.books, port=args.port, open_browser=args.open)
+
+
+def cmd_analyze(args) -> int:
+    from .storybook import build
+
+    data = build(args.book, force=args.force)
+    print(f"reader package -> {Path(args.book) / 'reader' / 'book.json'}")
+    print(f"pages {data['stats']['pages']}  ocr blocks {data['stats']['ocr_blocks']}")
+    return 0
+
+
+def cmd_film(args) -> int:
+    from .storyfilm import render
+
+    meta = render(args.book)
+    print(f"film -> runs/{meta['path']}  {meta['duration']}s  narrated={meta['narrated']}")
+    return 0
+
+
 def cmd_sample(args) -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from samples.make_book import build
@@ -136,6 +159,21 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--port", type=int, default=8765)
     sp.add_argument("--open", action="store_true")
     sp.set_defaults(func=cmd_ui)
+
+    sp = sub.add_parser("reader", help="serve the interactive picture-book reader")
+    sp.add_argument("--books", default="books")
+    sp.add_argument("--port", type=int, default=8770)
+    sp.add_argument("--open", action="store_true")
+    sp.set_defaults(func=cmd_reader)
+
+    sp = sub.add_parser("analyze", help="OCR a book and build its reader package")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--force", action="store_true")
+    sp.set_defaults(func=cmd_analyze)
+
+    sp = sub.add_parser("film", help="render the interactive book as a 16:9 film")
+    sp.add_argument("--book", required=True)
+    sp.set_defaults(func=cmd_film)
 
     sp = sub.add_parser("sample", help="generate the demo book")
     sp.add_argument("--out", default="books")
