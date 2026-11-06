@@ -155,6 +155,7 @@ function resolveSpots(page) {
 }
 
 function renderArt(page) {
+  stopLayerIdle();
   const layers = $("#artLayers");
   if (state._animId) { cancelAnimationFrame(state._animId); state._animId = null; }
   layers.innerHTML = "";
@@ -235,6 +236,11 @@ function renderArt(page) {
   }
 }
 
+/* The near layer of a page is the characters. Give it a small, slow idle motion
+   so the story page itself breathes instead of being a still: a 2-3 px lateral
+   sway plus a tiny scale, both well under the parallax amount so it reads as
+   "alive" and never as "the picture is shaking". */
+
 /* Replace the flat page with depth layers. Amounts were baked at build time
    (depth map + figure mask), so this is pure CSS transforms: no per-frame JS. */
 function attachLayers(lay, base) {
@@ -261,6 +267,29 @@ function attachLayers(lay, base) {
   state.layoutLayers = place;
   place();
   state.layerInfo = lay;
+  startLayerIdle();
+}
+
+let layerIdleAnims = [];
+function stopLayerIdle() {
+  layerIdleAnims.forEach(a => { try { a.cancel(); } catch (_) {} });
+  layerIdleAnims = [];
+}
+function startLayerIdle() {
+  stopLayerIdle();
+  const near = $$(".art-depth").filter(el => Number(el.dataset.z || 0) > 0);
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) return;
+  near.forEach(el => {
+    const zoom = Number(el.dataset.zoom || 1);
+    try {
+      layerIdleAnims.push(el.animate(
+        [{ transform: `scale(${zoom}) translate(-1.6px, 0.8px)` },
+         { transform: `scale(${zoom * 1.008}) translate(1.6px, -1.2px)` },
+         { transform: `scale(${zoom}) translate(-1.6px, 0.8px)` }],
+        { duration: 7200, iterations: Infinity, easing: "ease-in-out" }));
+    } catch (_) {}
+  });
 }
 
 /* ------------------------------------------------------------- 2.5D rig
@@ -278,20 +307,53 @@ function showSpot(s) {
 }
 
 /* ------------------------------------------------------------- word card */
+/* The unit (word) this character belongs to: page.segments split the text, so
+   the story markup can tell us which word was clicked instead of guessing. */
+function wordSpan(i, page) {
+  const segs = (page.segments && page.segments.length) ? page.segments
+    : (page.pinyin || []).map(t => t.ch);
+  let at = 0;
+  for (const seg of segs) {
+    const end = at + seg.length;
+    if (i >= at && i < end) {
+      const clean = seg.replace(/[，。！？、；：…”’（）《》「」…—]+$/, "");
+      return { text: clean, start: at, end };
+    }
+    at = end;
+  }
+  return { text: (page.pinyin[i] || {}).ch || "", start: i, end: i + 1 };
+}
+
+/* The clause that contains this character, for the "上下文" line. */
+function clauseAround(i, page) {
+  const text = page.text || "";
+  const stops = "，。！？；：…”’\n";
+  let s = i, e = i;
+  while (s > 0 && !stops.includes(text[s - 1])) s--;
+  while (e < text.length - 1 && !stops.includes(text[e])) e++;
+  const clause = text.slice(s, Math.min(text.length, e + 1)).trim();
+  return clause || text.slice(0, 40);
+}
+
 function showWord(i, ruby) {
   const page = state.book.pages[state.index];
   const t = page.pinyin[i];
   if (!t) return;
   const word = state.wordAt[i];
-  state.currentWord = word ? word.w : t.ch;
+  const span = wordSpan(i, page);
+  state.currentWord = word ? word.w : (span.text.length > 1 ? span.text : t.ch);
   $("#wChar").textContent = t.ch;
   $("#wPy").textContent = (word && word.py) || t.py || "";
-  $("#wPhrase").textContent = word ? word.w : "";
-  $("#wPhrase").hidden = !word;
+  $("#wPhrase").textContent = word ? word.w : (span.text.length > 1 ? span.text : "");
+  $("#wPhrase").hidden = $("#wPhrase").textContent === "";
   $("#wMean").textContent = word ? word.mean
     : (state.book.glossary && state.book.glossary[t.ch])
       ? state.book.glossary[t.ch]
-      : `这个字在本页读作「${t.py || "轻声"}」。点一点旁边的词语，还能看到整句的意思。`;
+      : `这个字在这里读「${t.py || "轻声"}」。`;
+  const clause = clauseAround(i, page);
+  const ctx = $("#wCtx");
+  ctx.textContent = clause ? `在这句话里：${clause}` : "";
+  ctx.hidden = !clause;
   $$("ruby.r.active").forEach(r => r.classList.remove("active"));
   if (ruby) ruby.classList.add("active");
   const card = $("#wordCard");

@@ -5,14 +5,15 @@
   "art_h": 800,
   "depth": "layers/p11-1_depth.png",
   "inpaint": "none",
-  "outline": "sam",
-  "near_gain": 1.031,
+  "outline": "box",
+  "head_check": {},
+  "near_gain": 0.771,
   "layers": [
     {
       "id": "bg",
       "image": "layers/p11-1_bg.jpg",
       "z": 0,
-      "parallax": 0.0062,
+      "parallax": 0.0046,
       "zoom": 1.05,
       "anchor": [
         0.5,
@@ -23,7 +24,7 @@
       "id": "fg",
       "image": "layers/p11-1_fg.png",
       "z": 1,
-      "parallax": 0.0227,
+      "parallax": 0.017,
       "zoom": 1.0,
       "anchor": [
         0.5,

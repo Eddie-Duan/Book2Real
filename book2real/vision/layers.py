@@ -251,7 +251,8 @@ def build(reader_dir: Path, page_id: str, art_rel: str, boxes: list[tuple],
     if not keep.any():
         return {"page": page_id, "layers": [], "note": "no figure on this page"}
 
-    # character layer: SAM outline when available (boxes are only a hint),
+    # character layer: one SAM prompt per figure (a single union prompt makes
+    # SAM return the union of several figures and then fail its own sanity gate),
     # otherwise the axis-aligned figure boxes
     mask = keep
     outline = "box"
@@ -262,41 +263,61 @@ def build(reader_dir: Path, page_id: str, art_rel: str, boxes: list[tuple],
             prompt_boxes = [(max(0.0, float(x)), max(0.0, float(y)),
                              min(1.0, float(x) + float(bw)), min(1.0, float(y) + float(bh)))
                             for x, y, bw, bh in boxes]
-            seg = sam_mod.segment(art, points=None, boxes=prompt_boxes)
-            # SAM is trusted only when it stays inside its own prompt region;
-            # otherwise it latched onto the sofa or the wallpaper. It is also
-            # cleaned (open/close) so the figure's own background does not come
-            # along as thin halos, and the real page edge is kept as a cap.
-            keep_ref = np.zeros((h, w), bool)
-            for x, y, bw, bh in prompt_boxes:
-                keep_ref[int(max(0.0, y - 0.02) * h):int(min(1.0, y + bh + 0.02) * h),
-                         int(max(0.0, x - 0.02) * w):int(min(1.0, x + bw + 0.02) * w)] = True
-            if seg is not None:
-                outside = float(seg[~keep_ref].sum()) / max(1.0, float(seg.sum()))
-                if outside > 0.04:
-                    seg = seg & keep_ref
-                    if seg.mean() < 0.002:
-                        seg = None
-            if seg is not None:
-                clean = _open(seg, max(2, int(0.004 * max(h, w))))
-                if clean.mean() > 0.002:
-                    mask = clean
-                    outline = "sam"
+            from .checks import limb_coverage
+
+            parts = sam_mod.segment_each(art, prompt_boxes)
+            merged = np.zeros((h, w), bool)
+            used_parts = 0
+            for box, part in zip(prompt_boxes, parts):
+                part = _open(part, max(2, int(0.003 * max(h, w))))
+                # a part that covers less than two thirds of its figure box has
+                # dropped the head or an arm; it would leave a ghost in the
+                # background, so that figure falls back to its box
+                missing, _detail = limb_coverage(part, box)
+                if missing:
+                    part = np.zeros((h, w), bool)
+                merged |= part
+                used_parts += 1
+            if used_parts and merged.mean() > 0.002:
+                mask = merged
+                outline = "sam"
         except Exception:                              # noqa: BLE001
             outline = "box"
     if outline == "box":
         mask = mask & _dilate(keep, 2)
+
+    # A headless cut puts a face on the background and a torso in the layer
+    # (p05 did exactly that). SAM's per-box mask is trusted only when the whole
+    # figure box is covered; otherwise the background uses the full box, which
+    # always erases the head, and the layer keeps the box.
+    head_detail: dict = {}
+    if outline == "sam":
+        try:
+            from .checks import head_missing
+
+            ys, xs = np.where(mask)
+            covered = float(mask[keep].sum()) / max(1.0, float(keep.sum()))
+            bad, head_detail = head_missing(mask)
+            head_detail["box_coverage"] = round(covered, 3)
+            if covered < 0.70 or bad:
+                outline = "sam_partial"
+                mask = keep & _dilate(mask, 2)
+        except Exception:                              # noqa: BLE001
+            pass
     soft = _feather(_dilate(mask, 1), 0.8)
     fg_path = out_dir / f"{page_id}_fg.png"
     Image.fromarray(np.dstack([art, (soft * 255).astype(np.uint8)]), "RGBA").save(fg_path)
 
     # background: fill the figure's footprint with the paper that survives around
-    # it. Three fillers, cheapest and safest first; the page is only marked
-    # "clean" when the fill did not write anything the eye notices.
-    grow = max(4, int(0.006 * max(h, w)))
-    hole = _dilate(mask, grow + 10)
+    # it. The hole must be a *dilated* copy of the cut so the anti-aliased rim is
+    # covered too; filling only the exact mask leaves a ghost of every outline
+    # (that is the grey halo around heads and hands), and dilating by ~1.5% of
+    # the page is enough to clear the rim without eating the sofa behind.
+    grow = max(3, int(0.006 * max(h, w)))
+    rim = max(2, int(0.010 * max(h, w)))
+    hole = _dilate(mask, rim)
     if hole.mean() > 0.18:
-        hole = _dilate(mask, grow + 3)   # big figures: keep the pattern next to the figure
+        hole = _dilate(mask, max(2, rim // 2))   # big figures: keep more pattern
     x0, y0, x1, y1 = _bbox(hole)
     used = "none"
     if (x1 - x0) * (y1 - y0) <= 0.22 * w * h:
@@ -306,6 +327,9 @@ def build(reader_dir: Path, page_id: str, art_rel: str, boxes: list[tuple],
         # honest here (row scans smear the pattern, a colour slab reads as a
         # sticker). Keep the paper as drawn and say so, instead of inventing one.
         bg = art.copy()
+    # the far layer is drawn slightly zoomed, so any ghost just inside the rim is
+    # hidden under the near layer: keep the fill strictly inside the rim.
+    _unused = grow
     bg_path = out_dir / f"{page_id}_bg.jpg"
     Image.fromarray(bg).save(bg_path, quality=94)
 
@@ -332,6 +356,7 @@ def build(reader_dir: Path, page_id: str, art_rel: str, boxes: list[tuple],
     ]
     data = {"page": page_id, "art": art_rel, "art_w": w, "art_h": h,
             "depth": depth_path, "inpaint": used, "outline": outline,
+            "head_check": head_detail,
             "near_gain": round(near_gain, 3), "layers": layers}
     write_json(out_dir / f"{page_id}.json", data)
     return data

@@ -143,6 +143,24 @@ def cmd_layers(args) -> int:
     return 0
 
 
+def cmd_castcheck(args) -> int:
+    import json as _json
+
+    from .cast.castcheck import run as check
+
+    out = check(args.book)
+    print(f"characters: {out['characters']}   duplicates: {len(out['duplicates'])}")
+    for d in out["duplicates"]:
+        print(f"  {d['a']} == {d['b']}  similarity {d['similarity']}"
+              f"  (pages {d.get('page_a')} / {d.get('page_b')})")
+        if d.get("hint"):
+            print(f"    hint: {d['hint']}")
+    if args.json:
+        open(args.json, "w", encoding="utf-8").write(_json.dumps(out, ensure_ascii=False, indent=2))
+        print(f"wrote {args.json}")
+    return 0
+
+
 def cmd_film(args) -> int:
     from .storyfilm import render
 
@@ -249,6 +267,11 @@ def build_parser() -> argparse.ArgumentParser:
                     help="skip depth/inpainting (pure numpy, much faster)")
     sp.add_argument("--limit", type=int, default=0, help="stop after N pages")
     sp.set_defaults(func=cmd_layers)
+
+    sp = sub.add_parser("castcheck", help="report characters that share a portrait")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--json")
+    sp.set_defaults(func=cmd_castcheck)
 
     sp = sub.add_parser("film", help="render the interactive book as a 16:9 film")
     sp.add_argument("--book", required=True)

@@ -1,10 +1,10 @@
-"""SAM (ViT-B, 1.1 GB, ~2 GB VRAM) to turn a box into a real figure outline.
+"""SAM prompts that do not swallow the page.
 
-The deterministic cast path cuts figures with colour keys, which is exact on a
-flat paper background and useless on a painted one. SAM fixes that: give it a
-box (or a coarse mask) and it returns the object outline. At 8 GB it runs at
-~0.7 s per page for ViT-B, and it is only used by the layer builder — the cast
-chain keeps working without it.
+One box prompt for a crowd (p05: three children) returns the union of three
+objects; then the "stay inside your prompt" gate sees most of the mask outside
+the union and abandons SAM entirely. The fix is to ask for one object at a time:
+one box per figure, best mask taken *per prompt*, and every prompt's mask kept
+only if it stays inside its own box.
 """
 from __future__ import annotations
 
@@ -52,17 +52,42 @@ def unload() -> None:
         pass
 
 
-def segment(rgb: np.ndarray, points: list[tuple[float, float]] | None = None,
-            boxes: list[tuple[float, float, float, float]] | None = None,
-            *, max_side: int = 1024) -> np.ndarray | None:
-    """Union mask (bool H x W) of the objects SAM picks for the prompts.
 
-    Points are normalised (x, y); boxes are normalised (x0, y0, x1, y1). When
-    both are given SAM uses a box prompt plus a positive point per box centre,
-    which is the most reliable combination on painted art.
+
+def _post(proc, out, inputs) -> np.ndarray:
+    """post_process_masks -> numpy [num_prompts, 3, h, w] on every transformers version."""
+    raw = proc.post_process_masks(out.pred_masks.cpu(), inputs["original_sizes"].cpu(),
+                                  inputs["reshaped_input_sizes"].cpu())
+    if isinstance(raw, (list, tuple)):
+        raw = raw[0]
+    arr = raw.numpy() if hasattr(raw, "numpy") else np.asarray(raw)
+    if arr.ndim == 5:
+        arr = arr[0]
+    return arr
+
+def segment_each(rgb: np.ndarray, boxes: list[tuple[float, float, float, float]],
+                 *, max_side: int = 1024, keep_share: float = 0.18) -> list[np.ndarray]:
+    """One mask per box (normalised x0, y0, x1, y1). Empty list when unusable.
+
+    Each mask is kept only if at least `keep_share` of it lies inside its own
+    box — that is what rejects a mask that latched onto the sofa or wallpaper.
+
+    Boxes are submitted one at a time: transformers 5 batches multi-box prompts
+    into a shape its own processor rejects ("Sizes of tensors must match"), and
+    one call per figure is also what makes the per-box sanity check meaningful.
     """
-    if not available() or cuda_free_gb() < 2.5:
-        return None
+    if not available() or cuda_free_gb() < 2.5 or not boxes:
+        return []
+    out: list[np.ndarray] = []
+    for box in boxes:
+        part = _one_box(rgb, box, max_side=max_side, keep_share=keep_share)
+        if part is not None:
+            out.append(part)
+    return out
+
+
+def _one_box(rgb: np.ndarray, box: tuple[float, float, float, float], *,
+             max_side: int, keep_share: float) -> np.ndarray | None:
     import torch
 
     model, proc, device = _load()
@@ -70,56 +95,77 @@ def segment(rgb: np.ndarray, points: list[tuple[float, float]] | None = None,
     scale = min(1.0, max_side / max(h, w))
     small = (Image.fromarray(rgb).resize((int(w * scale), int(h * scale)), Image.BICUBIC)
              if scale < 1 else Image.fromarray(rgb))
-    kwargs: dict = {"return_tensors": "pt"}
-    if points:
-        kwargs["input_points"] = [[[float(x) * small.width, float(y) * small.height]
-                                   for x, y in points]]
-        kwargs["input_labels"] = [[1] * len(points)]
-    if boxes:
-        kwargs["input_boxes"] = [[[float(b[0]) * small.width, float(b[1]) * small.height,
-                                   float(b[2]) * small.width, float(b[3]) * small.height]
-                                  for b in boxes]]
-    try:
-        inputs = proc(images=small, **kwargs)
-    except Exception as exc:                          # noqa: BLE001
-        _fail(f"sam: prompt rejected ({exc.__class__.__name__})")
-        return None
+    sw, sh = small.size
+    x0, y0, x1, y1 = box
+    inputs = proc(images=small,
+                  input_boxes=[[[float(x0) * sw, float(y0) * sh,
+                                 float(x1) * sw, float(y1) * sh]]],
+                  return_tensors="pt")
     inputs = {k: (v.to(device) if torch.is_tensor(v) else v) for k, v in inputs.items()}
     try:
         with torch.inference_mode():
-            out = model(**inputs, multimask_output=True)
-        masks = proc.post_process_masks(
-            out.pred_masks.cpu(), inputs["original_sizes"].cpu(),
-            inputs["reshaped_input_sizes"].cpu())[0]          # [1, P, 3, h, w]
-        scores = out.iou_scores.cpu().numpy()[0]              # [P, 3]
+            res = model(**inputs, multimask_output=True)
+        masks = _post(proc, res, inputs)
+        scores = np.asarray(res.iou_scores.cpu().numpy()).reshape(masks.shape[0], -1)
     except Exception as exc:                          # noqa: BLE001
         _fail(f"sam: {exc.__class__.__name__}: {exc}")
         return None
-
-    m = masks.numpy()[0] if masks.ndim == 5 else masks.numpy()   # [P, 3, h, w]
-    union = np.zeros(m.shape[-2:], bool)
-    pts = m.shape[0]
-    if scores.ndim == 2 and scores.shape[0] != pts:
-        scores = scores.reshape(pts, -1)                       # box prompts return [3, P]
-    for i in range(pts):
-        row = scores[i]
-        best = int(np.argmax(row))
-        # keep the best mask of each prompt unless the model itself is unsure;
-        # the caller's background checks are what reject nonsense
-        if float(row[best]) < 0.35:
-            continue
-        part = m[i][best] > 0
-        if part.ndim != 2:                                     # defensive: pick a plane
-            part = part.reshape(part.shape[-2], part.shape[-1])
-        if not part.any():
-            continue
-        # a prompt that swallowed the whole page is not an object
-        if part.mean() > 0.8:
-            continue
-        union |= part
-    if not union.any():
+    best = int(np.argmax(scores[0]))
+    if float(scores[0][best]) < 0.35:
         return None
-    if union.shape != (h, w):
-        union = np.asarray(Image.fromarray(union.astype(np.uint8) * 255, "L")
-                           .resize((w, h), Image.NEAREST)) > 127
-    return union
+    part = masks[0][best] > 0
+    if part.ndim != 2:
+        part = part.reshape(part.shape[-2], part.shape[-1])
+    if part.shape != (h, w):
+        part = np.asarray(Image.fromarray((part * 255).astype(np.uint8), "L")
+                          .resize((w, h), Image.NEAREST)) > 127
+    if not part.any() or part.mean() > 0.8:
+        return None
+    ref = np.zeros((h, w), bool)
+    ref[int(max(0, (y0 - 0.03) * h)):int(min(h, (y1 + 0.03) * h)),
+        int(max(0, (x0 - 0.03) * w)):int(min(w, (x1 + 0.03) * w))] = True
+    inside = float(part[ref].sum()) / max(1.0, float(part.sum()))
+    if inside < keep_share:
+        return None
+    return part
+
+
+def segment(rgb: np.ndarray, points: list[tuple[float, float]] | None = None,
+            boxes: list[tuple[float, float, float, float]] | None = None,
+            *, max_side: int = 1024) -> np.ndarray | None:
+    """Union mask for point prompts, or the union of per-box masks."""
+    if boxes:
+        parts = segment_each(rgb, boxes, max_side=max_side)
+        if not parts:
+            return None
+        out = np.zeros(parts[0].shape, bool)
+        for p in parts:
+            out |= p
+        return out
+    if not points:
+        return None
+    if not available() or cuda_free_gb() < 2.5:
+        return None
+    import torch
+
+    model, proc, device = _load()
+    h, w = rgb.shape[:2]
+    small = Image.fromarray(rgb)
+    try:
+        inputs = proc(images=small, input_points=[[[float(x) * w, float(y) * h]
+                                                   for x, y in points]],
+                      input_labels=[[1] * len(points)], return_tensors="pt")
+        inputs = {k: (v.to(device) if torch.is_tensor(v) else v) for k, v in inputs.items()}
+        with torch.inference_mode():
+            out = model(**inputs, multimask_output=True)
+        masks = _post(proc, out, inputs)
+        scores = out.iou_scores.cpu().numpy()
+    except Exception as exc:                          # noqa: BLE001
+        _fail(f"sam: {exc.__class__.__name__}: {exc}")
+        return None
+    m = masks
+    if scores.ndim == 3:
+        scores = scores[0]
+    best = int(np.argmax(scores if scores.ndim == 1 else scores[0]))
+    part = m[0][best] > 0
+    return part if part.any() else None

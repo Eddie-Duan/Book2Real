@@ -160,6 +160,8 @@ body.no-pinyin .punct{padding-top:0}
 .big-char{font-family:"KaiTi","STKaiti",serif;font-size:46px;line-height:1}
 .py{color:var(--accent);font-size:17px;font-weight:600;letter-spacing:.04em}
 .word-phrase{font-size:20px;margin:10px 0 2px;letter-spacing:.12em}
+.word-context{font-size:12px;line-height:1.7;color:var(--soft);margin:8px 0 0;
+  padding-left:10px;border-left:2px solid color-mix(in srgb,var(--accent) 35%,transparent)}
 .word-mean{margin:10px 0 16px;font-size:14px;line-height:1.75;color:#5c4c3d}
 .say{border:1px solid var(--line);border-radius:999px;padding:8px 14px;background:transparent;font-size:13px}
 .say:hover{background:#fff}

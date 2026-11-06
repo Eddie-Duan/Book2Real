@@ -5,14 +5,21 @@
   "art_h": 777,
   "depth": "layers/p20_depth.png",
   "inpaint": "none",
-  "outline": "sam",
-  "near_gain": 0.437,
+  "outline": "sam_partial",
+  "head_check": {
+    "top_median": 742.0,
+    "body_median": 900.0,
+    "ratio": 0.824,
+    "height": 771,
+    "box_coverage": 0.637
+  },
+  "near_gain": 0.4,
   "layers": [
     {
       "id": "bg",
       "image": "layers/p20_bg.jpg",
       "z": 0,
-      "parallax": 0.0026,
+      "parallax": 0.0024,
       "zoom": 1.05,
       "anchor": [
         0.5,
@@ -23,7 +30,7 @@
       "id": "fg",
       "image": "layers/p20_fg.png",
       "z": 1,
-      "parallax": 0.0096,
+      "parallax": 0.0088,
       "zoom": 1.0,
       "anchor": [
         0.5,
