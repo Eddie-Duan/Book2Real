@@ -314,7 +314,9 @@ def build(reader_dir: Path, page_id: str, art_rel: str, boxes: list[tuple],
     # (that is the grey halo around heads and hands), and dilating by ~1.5% of
     # the page is enough to clear the rim without eating the sofa behind.
     grow = max(3, int(0.006 * max(h, w)))
-    rim = max(2, int(0.010 * max(h, w)))
+    # A rim of ~1% of the page clears the anti-aliased outline without eating the
+    # sofa behind the figure. Wider rims leave visible streaks from the inpainter.
+    rim = max(2, int(0.008 * max(h, w)))
     hole = _dilate(mask, rim)
     if hole.mean() > 0.18:
         hole = _dilate(mask, max(2, rim // 2))   # big figures: keep more pattern
@@ -357,6 +359,7 @@ def build(reader_dir: Path, page_id: str, art_rel: str, boxes: list[tuple],
     data = {"page": page_id, "art": art_rel, "art_w": w, "art_h": h,
             "depth": depth_path, "inpaint": used, "outline": outline,
             "head_check": head_detail,
-            "near_gain": round(near_gain, 3), "layers": layers}
+            "near_gain": round(near_gain, 3), "layers": layers,
+            "motion_gif": ""}
     write_json(out_dir / f"{page_id}.json", data)
     return data

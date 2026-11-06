@@ -80,6 +80,11 @@ def _log(rec: dict) -> None:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
+def _hard_mask(mask):
+    """Recraft only accepts pure 0/255 masks; a blurred edge is a 400 error."""
+    return mask.convert("L").point(lambda v: 255 if v >= 128 else 0)
+
+
 def _data_url(png: bytes) -> str:
     return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
 
@@ -150,7 +155,7 @@ def inpaint(image, mask, prompt: str, *, n: int = 1, usd_each: float = 0.04) -> 
     cfg = config()
     payload = {
         "image_url": _data_url(_png(image.convert("RGB"))),
-        "mask_url": _data_url(_png(mask.convert("L"))),
+        "mask_url": _data_url(_png(_hard_mask(mask))),
         "prompt": prompt,
         "n": n,
         "model": cfg["model"],
@@ -164,7 +169,7 @@ def erase(image, mask, *, usd: float = 0.002):
     cfg = config()
     payload = {
         "image_url": _data_url(_png(image.convert("RGB"))),
-        "mask_url": _data_url(_png(mask.convert("L"))),
+        "mask_url": _data_url(_png(_hard_mask(mask))),
         "response_format": "b64_json",
     }
     body = _post("/v1/images/eraseRegion", payload, usd=usd)

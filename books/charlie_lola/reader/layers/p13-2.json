@@ -7,7 +7,7 @@
   "inpaint": "none",
   "outline": "box",
   "head_check": {},
-  "near_gain": 0.741,
+  "near_gain": 0.74,
   "layers": [
     {
       "id": "bg",

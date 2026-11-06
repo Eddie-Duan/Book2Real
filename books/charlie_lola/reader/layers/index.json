@@ -1,8 +1,8 @@
 {
   "version": 1,
   "book": "charlie_lola",
-  "built_at": "2026-11-06T22:45:34",
-  "seconds": 86.6,
+  "built_at": "2026-11-06T22:57:38",
+  "seconds": 111.48,
   "models": true,
   "stats": {
     "pages": 24,
@@ -633,7 +633,8 @@
             0.5
           ]
         }
-      ]
+      ],
+      "motion_gif": "motion_gif/p17_wave.gif"
     },
     "p18": {
       "depth": "layers/p18_depth.png",

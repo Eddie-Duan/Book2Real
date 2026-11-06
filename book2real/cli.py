@@ -161,6 +161,13 @@ def cmd_castcheck(args) -> int:
     return 0
 
 
+def cmd_agent(args) -> int:
+    from .agent import main as agent_main
+
+    rest = list(args.args or [])
+    return agent_main(rest)
+
+
 def cmd_film(args) -> int:
     from .storyfilm import render
 
@@ -272,6 +279,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--book", required=True)
     sp.add_argument("--json")
     sp.set_defaults(func=cmd_castcheck)
+
+    sp = sub.add_parser("agent", help="steps an outside agent can call (rig, motion, leaf)")
+    sp.add_argument("args", nargs=argparse.REMAINDER)
+    sp.set_defaults(func=cmd_agent)
 
     sp = sub.add_parser("film", help="render the interactive book as a 16:9 film")
     sp.add_argument("--book", required=True)

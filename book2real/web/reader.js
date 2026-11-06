@@ -246,6 +246,15 @@ function renderArt(page) {
 function attachLayers(lay, base) {
   const layers = $("#artLayers");
   if (!lay || !lay.layers || !lay.layers.length) return;
+  // A page with a baked loop (cut parts swinging about a pivot) plays that loop:
+  // the characters on the page itself move, not just the camera.
+  if (lay.motion_gif) {
+    layers.innerHTML = `<img class="art-loop" alt=""
+      style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain"
+      src="${base}${esc(lay.motion_gif)}">`;
+    state.layerInfo = lay;
+    return;
+  }
   // The flat page is drawn "contain" inside the stage (letterboxed). Layer boxes
   // must use the same fitted rectangle, otherwise the near layer is redrawn at a
   // different scale and the page looks ghosted.
