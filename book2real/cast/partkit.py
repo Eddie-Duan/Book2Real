@@ -21,9 +21,10 @@ from . import cells as C
 
 
 def build(art: np.ndarray, points: list[tuple[float, float]], *, tol: float = 26.0,
-          close: int = 1, pad: int = 1) -> tuple[np.ndarray, dict]:
+          close: int = 1, pad: int = 1, keep_thick: bool = False) -> tuple[np.ndarray, dict]:
+    """Cut the cells under `points`; `keep_thick` keeps black hair as content."""
     h, w = art.shape[:2]
-    cs = C.cells(art, close=close)
+    cs = C.cells(art, close=close, keep_thick=keep_thick)
     chosen: set[int] = set()
     seeds = []
     for x, y in points:

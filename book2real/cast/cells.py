@@ -30,9 +30,19 @@ def ink_mask(rgb: np.ndarray, *, luma_rel: float = 0.62, absolute_max: int = 120
     return dark
 
 
-def cells(rgb: np.ndarray, *, close: int = 1) -> list[np.ndarray]:
-    """Connected components of the page minus the ink line."""
+def cells(rgb: np.ndarray, *, close: int = 1, keep_thick: bool = False,
+          line_width: float = 3.0) -> list[np.ndarray]:
+    """Connected components of the page minus the ink line.
+
+    `keep_thick` treats thick dark areas (black curly hair) as page content
+    instead of walls — without it a dark-haired character loses its head,
+    because hair and outline are the same colour.
+    """
     walls = ink_mask(rgb)
+    if keep_thick:
+        from .inkclass import classify
+
+        walls = classify(rgb, line_width=line_width)["walls"]
     if close > 0:
         k = 2 * close + 1
         walls = np.asarray(Image.fromarray((walls.astype(np.uint8) * 255), "L")

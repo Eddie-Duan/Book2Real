@@ -294,7 +294,8 @@ def cmd_cut(args) -> int:
 def cmd_review(args) -> int:
     rig = json.loads(Path(args.rig).read_text(encoding="utf-8"))
     part = rig["parts"][0]
-    rgba = np.asarray(Image.open(Path(part["image"]).replace("\\", "/")).convert("RGBA"))
+    img_path = Path(str(part["image"]).replace("\\", "/"))
+    rgba = np.asarray(Image.open(img_path).convert("RGBA"))
     frame = imread(Path(rig["art"]))
     meta = {"pivot": part["pivot"]}
     s = score(rgba, meta, frame)
