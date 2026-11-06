@@ -27,10 +27,14 @@ def build(art: np.ndarray, points: list[tuple[float, float]], *, tol: float = 26
     cs = C.cells(art, close=close, keep_thick=keep_thick)
     chosen: set[int] = set()
     seeds = []
+    # a seed names ONE cell. Merging same-coloured neighbours here was wrong: it
+    # joins the arm to the paint on the dress, or to the paper, because they are
+    # the same colour. Merging is a decision, so it is left to the spec (`cut`).
     for x, y in points:
         seed = C.region_of(cs, (int(x * w), int(y * h)))
         seeds.append(seed)
-        chosen.update(C.merge_like(cs, art, seed, tol=tol))
+        if seed >= 0:
+            chosen.add(seed)
     mask = np.zeros((h, w), bool)
     for i in chosen:
         mask |= cs[i]

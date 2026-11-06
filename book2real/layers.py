@@ -1,4 +1,10 @@
-"""Layer decomposition: one page image -> 2-3 plate layers with hole fill.
+"""LEGACY: the old 2.5D plate splitter used by `book2real run`.
+
+For the current layer builder use `book2real.layering` / `book2real.vision.layers`
+(SAM outline + depth + inpaint, written to `reader/layers/index.json`).
+This module is kept only so the older `run` pipeline still works.
+
+Layer decomposition: one page image -> 2-3 plate layers with hole fill.
 
 No neural depth model is required. For picture books the useful decomposition
 is *figure vs ground*, which we recover from colour distance to the border
