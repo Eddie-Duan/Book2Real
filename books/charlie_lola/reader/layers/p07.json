@@ -1,0 +1,35 @@
+{
+  "page": "p07",
+  "art": "art/p07.jpg",
+  "art_w": 1400,
+  "art_h": 777,
+  "depth": "layers/p07_depth.png",
+  "inpaint": "inpaint",
+  "outline": "box",
+  "head_check": {},
+  "near_gain": 0.874,
+  "layers": [
+    {
+      "id": "bg",
+      "image": "layers/p07_bg.jpg",
+      "z": 0,
+      "parallax": 0.0052,
+      "zoom": 1.05,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "fg",
+      "image": "layers/p07_fg.png",
+      "z": 1,
+      "parallax": 0.0192,
+      "zoom": 1.0,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    }
+  ]
+}

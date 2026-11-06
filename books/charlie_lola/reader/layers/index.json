@@ -1,16 +1,16 @@
 {
   "version": 1,
   "book": "charlie_lola",
-  "built_at": "2026-11-06T22:33:53",
-  "seconds": 59.39,
+  "built_at": "2026-11-06T22:45:34",
+  "seconds": 86.6,
   "models": true,
   "stats": {
-    "pages": 23,
+    "pages": 24,
     "inpaint": {
       "sd": 0,
       "ring": 0,
       "flat": 0,
-      "inpaint": 5,
+      "inpaint": 6,
       "none": 18
     }
   },
@@ -255,6 +255,37 @@
           "image": "layers/p06-3_fg.png",
           "z": 1,
           "parallax": 0.0118,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p07": {
+      "depth": "layers/p07_depth.png",
+      "inpaint": "inpaint",
+      "outline": "box",
+      "art_w": 1400,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p07_bg.jpg",
+          "z": 0,
+          "parallax": 0.0052,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p07_fg.png",
+          "z": 1,
+          "parallax": 0.0192,
           "zoom": 1.0,
           "anchor": [
             0.5,
