@@ -77,6 +77,12 @@ ruby.r .py{position:absolute;left:50%;top:0;transform:translateX(-50%);
 ruby.r .ch{font-family:"Microsoft YaHei","PingFang SC",sans-serif;line-height:1.18;display:block}
 ruby.r:hover{background:color-mix(in srgb,var(--accent) 12%,transparent);transform:translateY(-1px)}
 ruby.r.speaking{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+/* read-along: the character being spoken gets the accent, its neighbours stay
+   quiet, so the eye follows the voice instead of the whole paragraph */
+ruby.r.on{background:var(--accent);color:#fff8ef;transform:translateY(-2px);
+  box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 35%,transparent)}
+ruby.r.on .py{color:#ffe7d8}
+ruby.r{transition:background .12s ease-out,transform .12s ease-out}
 ruby.r.active{background:var(--accent);color:#fff8ef}
 ruby.r.active .py{color:#ffe7d8}
 body.no-pinyin ruby.r{padding-top:0}

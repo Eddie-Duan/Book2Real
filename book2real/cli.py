@@ -168,6 +168,41 @@ def cmd_agent(args) -> int:
     return agent_main(rest)
 
 
+def cmd_sync(args) -> int:
+    from .syncmedia import sync
+
+    out = sync(args.book)
+    print(f"layers synced: {out.get('pages')} pages")
+    for pid, name in (out.get("attached") or {}).items():
+        print(f"  {pid} -> {name}")
+    if out.get("dropped"):
+        print(f"  dropped missing loops: {', '.join(out['dropped'])}")
+    return 0
+
+
+def cmd_words(args) -> int:
+    from .words import build
+
+    out = build(args.book, use_llm=args.llm,
+                on_progress=lambda m: print(f"  {m}"))
+    print(f"words -> {Path(args.book) / 'reader' / 'words'}")
+    print(f"pages {out['pages']}  rule {out['rule']}  llm {out['llm']}")
+    if not args.llm:
+        print("tip: fill LLM_API_* in .env and pass --llm for kid-friendly meanings")
+    return 0
+
+
+def cmd_narrate(args) -> int:
+    from .narrate import build
+
+    out = build(args.book, synth=not args.timings_only,
+                on_progress=lambda m: print(f"  {m}"))
+    print(f"narration -> {Path(args.book) / 'reader' / 'narration'}")
+    print(f"pages {out['pages']}  synth {out['synth']}  cached {out['cached']}"
+          f"  uniform {out['uniform']}")
+    return 0
+
+
 def cmd_film(args) -> int:
     from .storyfilm import render
 
@@ -283,6 +318,20 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("agent", help="steps an outside agent can call (rig, motion, leaf)")
     sp.add_argument("args", nargs=argparse.REMAINDER)
     sp.set_defaults(func=cmd_agent)
+
+    sp = sub.add_parser("sync", help="re-attach generated loops after a layers rebuild")
+    sp.add_argument("--book", required=True)
+    sp.set_defaults(func=cmd_sync)
+
+    sp = sub.add_parser("words", help="build a per-page word list with meanings")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--llm", action="store_true", help="ask the configured LLM")
+    sp.set_defaults(func=cmd_words)
+
+    sp = sub.add_parser("narrate", help="per-character narration timings for the reader")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--timings-only", action="store_true")
+    sp.set_defaults(func=cmd_narrate)
 
     sp = sub.add_parser("film", help="render the interactive book as a 16:9 film")
     sp.add_argument("--book", required=True)

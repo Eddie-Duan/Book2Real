@@ -106,6 +106,7 @@ function render() {
     }
   }, 350);
   if (probe === "video") setTimeout(() => $("#btnVideo").click(), 250);
+  if (probe === "read") setTimeout(() => $("#btnRead").click(), 400);
 }
 
 function renderStory(page) {
@@ -412,11 +413,86 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeAll();
 });
 window.addEventListener("resize", () => { if (state.layoutSpots) state.layoutSpots(); });
+/* --------------------------------------------------- read-along highlighting
+   `reader/narration/<page>.json` carries the per-character timings edge-tts
+   reported. The ruby text already has one node per character, so the cues are
+   applied by index: a cue that covers a word lights all of its characters. */
+const narrationCache = new Map();
+async function loadNarration(pageId) {
+  if (!pageId) return null;
+  if (narrationCache.has(pageId)) return narrationCache.get(pageId);
+  const url = `${readerBase()}narration/${encodeURIComponent(pageId)}.json`;
+  const data = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+  narrationCache.set(pageId, data);
+  return data;
+}
+
+let readAlong = { audio: null, cues: [], timer: null, start: 0 };
+function stopReadAlong() {
+  if (readAlong.audio) { readAlong.audio.pause(); readAlong.audio = null; }
+  if (readAlong.timer) { clearTimeout(readAlong.timer); readAlong.timer = null; }
+  $$("ruby.r.on").forEach(r => r.classList.remove("on"));
+}
+function paintCue(tokens, cue) {
+  $$("ruby.r.on").forEach(r => r.classList.remove("on"));
+  const text = (cue && cue.text) || "";
+  if (!text) return;
+  // the cue text is one token or a short word: match it in reading order
+  let from = tokens.next;
+  for (let k = 0; k < text.length; k++) {
+    const t = tokens.list[from];
+    if (!t) break;
+    if (t.ch === text[k]) { t.el.classList.add("on"); from++; }
+  }
+  if (from === tokens.next) {
+    // fall back to "the next N characters"
+    for (let k = 0; k < text.length && tokens.list[tokens.next]; k++) {
+      tokens.list[tokens.next].el.classList.add("on");
+      tokens.next++;
+    }
+  } else {
+    tokens.next = from;
+  }
+}
+async function readAlong_(page) {
+  stopReadAlong();
+  const data = await loadNarration(page.id);
+  const rubies = $$("#story ruby.r");
+  const tokens = { list: rubies.map(el => ({ ch: el.querySelector(".ch").textContent, el })), next: 0 };
+  if (!data || !data.cues || !data.cues.length || !data.audio) {
+    // no timings: keep the old behaviour (whole text read, all tokens dimmed)
+    speak(page.text);
+    rubies.forEach(r => r.classList.add("speaking"));
+    setTimeout(() => $$("ruby.r.speaking").forEach(r => r.classList.remove("speaking")),
+               Math.max(1800, page.text.length * 260));
+    return;
+  }
+  const audio = new Audio(`${readerBase()}${data.audio}`);
+  readAlong.audio = audio;
+  let playing = false;
+  try { await audio.play(); playing = true; } catch (e) { /* autoplay blocked */ }
+  // The highlight follows the *clock*, not the audio element: if playback is
+  // blocked (headless, no device) the words still light up in time, so the page
+  // stays usable as a silent read-along.
+  let i = 0;
+  const start = performance.now();
+  const tick = () => {
+    const t = (performance.now() - start) / 1000;
+    while (i < data.cues.length && data.cues[i].t <= t) {
+      paintCue(tokens, data.cues[i]);
+      i++;
+    }
+    if (playing && audio.ended) { stopReadAlong(); return; }
+    if (t > (data.duration || 0) + 0.4) { stopReadAlong(); return; }
+    readAlong.timer = setTimeout(tick, 40);
+  };
+  tick();
+  if (!playing) speak(page.text);
+}
+
 $("#btnRead").onclick = () => {
   const p = state.book.pages[state.index];
-  speak(p.text);
-  $$("ruby.r").forEach(r => r.classList.add("speaking"));
-  setTimeout(() => $$("ruby.r.speaking").forEach(r => r.classList.remove("speaking")), Math.max(1800, p.text.length * 260));
+  readAlong_(p);
 };
 $("#btnPinyin").onclick = () => {
   state.pinyin = !state.pinyin;
