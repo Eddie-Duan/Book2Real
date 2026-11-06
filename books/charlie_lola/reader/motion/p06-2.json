@@ -1,0 +1,20 @@
+{
+  "page": "p06-2",
+  "character": "lotta",
+  "duration": 12.79,
+  "emotion": "surprise",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 12.79,
+      "loop": true
+    },
+    {
+      "t": 3.96,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "你怎么这么了解豚鼠啊？"
+    }
+  ]
+}

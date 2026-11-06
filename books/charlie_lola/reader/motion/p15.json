@@ -1,0 +1,20 @@
+{
+  "page": "p15",
+  "character": "lola",
+  "duration": 3.5,
+  "emotion": "neutral",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 3.5,
+      "loop": true
+    },
+    {
+      "t": 0.88,
+      "action": "speak",
+      "dur": 1.8,
+      "text": "预备……跑！"
+    }
+  ]
+}

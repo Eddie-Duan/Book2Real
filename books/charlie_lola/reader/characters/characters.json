@@ -1,24 +1,267 @@
 {
-  "puppet": {
-    "body": "characters/p17_body.jpg",
-    "arms": {
-      "right": {
-        "image": "characters/p17_arm_r.png",
-        "pivot": [
-          0.72,
-          0.53
+  "version": 2,
+  "generator": "cast",
+  "built_at": "2026-11-05T21:47:55+0800",
+  "characters": [
+    {
+      "id": "lola",
+      "name": "劳拉",
+      "role": "妹妹",
+      "desc": "查理的妹妹，活泼、爱幻想，特别喜欢豚鼠波特。",
+      "pages": [
+        "p03",
+        "p05",
+        "p10",
+        "p12",
+        "p14",
+        "p18",
+        "p20",
+        "p04-1",
+        "p04-3",
+        "p06-1",
+        "p06-3",
+        "p09-1",
+        "p09-2",
+        "p09-3",
+        "p09-4",
+        "p13-1",
+        "p19-1",
+        "p19-2",
+        "p21-1",
+        "p21-2"
+      ],
+      "portrait": "art/char_lola.jpg",
+      "confidence": 0.6,
+      "evidence": "curation",
+      "aliases": [],
+      "rig": {
+        "kind": "none",
+        "confidence": 0.0,
+        "art": "",
+        "art_w": 0,
+        "art_h": 0,
+        "key": [
+          250,
+          247,
+          240
         ],
-        "amp": 18
+        "parts": [],
+        "notes": []
       }
     },
-    "art_w": 721,
-    "art_h": 464
-  },
+    {
+      "id": "charlie",
+      "name": "查理",
+      "role": "哥哥",
+      "desc": "劳拉的哥哥。他会照顾妹妹，也常常给她出主意。",
+      "pages": [
+        "p10",
+        "p16",
+        "p11-2",
+        "p13-1"
+      ],
+      "portrait": "art/char_charlie.jpg",
+      "confidence": 0.6,
+      "evidence": "curation",
+      "aliases": [],
+      "rig": {
+        "kind": "none",
+        "confidence": 0.0,
+        "art": "",
+        "art_w": 0,
+        "art_h": 0,
+        "key": [
+          250,
+          247,
+          240
+        ],
+        "parts": [],
+        "notes": []
+      }
+    },
+    {
+      "id": "lotta",
+      "name": "露塔",
+      "role": "同学",
+      "desc": "劳拉的同学，知道很多关于豚鼠的知识。",
+      "pages": [
+        "p05",
+        "p06-2",
+        "p06-3",
+        "p09-4"
+      ],
+      "portrait": "art/char_lotta.jpg",
+      "confidence": 0.6,
+      "evidence": "curation",
+      "aliases": [],
+      "rig": {
+        "kind": "none",
+        "confidence": 0.0,
+        "art": "",
+        "art_w": 0,
+        "art_h": 0,
+        "key": [
+          250,
+          247,
+          240
+        ],
+        "parts": [],
+        "notes": []
+      }
+    },
+    {
+      "id": "port",
+      "name": "波特",
+      "role": "豚鼠",
+      "desc": "劳拉班里的豚鼠，棕色长毛，后来生了小宝宝。",
+      "pages": [
+        "p04-1",
+        "p04-2",
+        "p04-3"
+      ],
+      "portrait": "art/char_port.jpg",
+      "confidence": 0.8597600000000001,
+      "evidence": "spot",
+      "aliases": [],
+      "rig": {
+        "kind": "portrait",
+        "confidence": 0.639,
+        "art": "characters/port_body.jpg",
+        "art_w": 314,
+        "art_h": 238,
+        "key": [
+          187,
+          196,
+          103
+        ],
+        "parts": [],
+        "notes": [
+          "no neck line found; head split estimated at 30% height",
+          "arm_l: nothing arm-shaped beside the torso",
+          "arm_r: nothing arm-shaped beside the torso",
+          "no arm or head cut; the stage shows a plain portrait"
+        ]
+      }
+    },
+    {
+      "id": "mimi",
+      "name": "咪咪",
+      "role": "同学",
+      "desc": "劳拉的同学，家里也养了一只叫毛毛的豚鼠。",
+      "pages": [
+        "p06-1",
+        "p09-3"
+      ],
+      "portrait": "art/char_mimi.jpg",
+      "confidence": 0.6,
+      "evidence": "curation",
+      "aliases": [],
+      "rig": {
+        "kind": "none",
+        "confidence": 0.0,
+        "art": "",
+        "art_w": 0,
+        "art_h": 0,
+        "key": [
+          250,
+          247,
+          240
+        ],
+        "parts": [],
+        "notes": []
+      }
+    }
+  ],
   "portraits": {
-    "lola": "characters/portrait_lola.jpg",
-    "charlie": "characters/portrait_charlie.jpg",
-    "port": "characters/portrait_port.jpg",
-    "lotta": "characters/portrait_lotta.jpg",
-    "mimi": "characters/portrait_mimi.jpg"
+    "charlie": "art/char_charlie.jpg",
+    "lola": "art/char_lola.jpg",
+    "port": "art/char_port.jpg",
+    "lotta": "art/char_lotta.jpg",
+    "mimi": "art/char_mimi.jpg"
+  },
+  "candidates": [
+    {
+      "id": "anon_p17",
+      "page": "p17",
+      "box": [
+        0.1900138696255201,
+        0.13793103448275862,
+        0.5977808599167822,
+        0.8620689655172413
+      ],
+      "area": 0.3488,
+      "rig": {
+        "kind": "one_arm",
+        "confidence": 0.88,
+        "art": "characters/anon_p17_body.jpg",
+        "art_w": 508,
+        "art_h": 438,
+        "key": [
+          227,
+          73,
+          56
+        ],
+        "parts": [
+          {
+            "name": "arm_l",
+            "image": "characters/anon_p17_arm_l.png",
+            "pivot": [
+              0.2087,
+              0.8356
+            ],
+            "amp": 18.0
+          }
+        ],
+        "notes": [
+          "no neck line found; head split estimated at 30% height",
+          "arm_r: nothing arm-shaped beside the torso"
+        ]
+      },
+      "preview": "characters/anon_p17_preview.jpg",
+      "verdict": {
+        "target": "anon_p17",
+        "accept": true,
+        "scores": {
+          "cut_face": 0.7,
+          "bg_residue_arm_l": 0.005,
+          "seam_arm_l": 1.067,
+          "hole_arm_l": 0.0,
+          "rig_confidence": 0.88
+        },
+        "reasons": []
+      }
+    }
+  ],
+  "motion_index": {
+    "p03": "motion/p03.json",
+    "p04-1": "motion/p04-1.json",
+    "p04-2": "motion/p04-2.json",
+    "p04-3": "motion/p04-3.json",
+    "p05": "motion/p05.json",
+    "p06-1": "motion/p06-1.json",
+    "p06-2": "motion/p06-2.json",
+    "p06-3": "motion/p06-3.json",
+    "p07": "motion/p07.json",
+    "p08": "motion/p08.json",
+    "p09-1": "motion/p09-1.json",
+    "p09-2": "motion/p09-2.json",
+    "p09-3": "motion/p09-3.json",
+    "p09-4": "motion/p09-4.json",
+    "p10": "motion/p10.json",
+    "p11-1": "motion/p11-1.json",
+    "p11-2": "motion/p11-2.json",
+    "p12": "motion/p12.json",
+    "p13-1": "motion/p13-1.json",
+    "p13-2": "motion/p13-2.json",
+    "p14": "motion/p14.json",
+    "p15": "motion/p15.json",
+    "p16": "motion/p16.json",
+    "p17": "motion/p17.json",
+    "p18": "motion/p18.json",
+    "p19-1": "motion/p19-1.json",
+    "p19-2": "motion/p19-2.json",
+    "p20": "motion/p20.json",
+    "p21-1": "motion/p21-1.json",
+    "p21-2": "motion/p21-2.json"
   }
 }

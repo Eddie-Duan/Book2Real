@@ -1,0 +1,20 @@
+{
+  "page": "p04-1",
+  "character": "lola",
+  "duration": 10.17,
+  "emotion": "joy",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 10.17,
+      "loop": true
+    },
+    {
+      "t": 3.47,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "我现在是一只豚鼠。"
+    }
+  ]
+}

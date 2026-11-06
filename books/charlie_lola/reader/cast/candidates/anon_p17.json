@@ -1,0 +1,51 @@
+{
+  "id": "anon_p17",
+  "page": "p17",
+  "box": [
+    0.1900138696255201,
+    0.13793103448275862,
+    0.5977808599167822,
+    0.8620689655172413
+  ],
+  "area": 0.3488,
+  "rig": {
+    "kind": "one_arm",
+    "confidence": 0.88,
+    "art": "characters/anon_p17_body.jpg",
+    "art_w": 508,
+    "art_h": 438,
+    "key": [
+      227,
+      73,
+      56
+    ],
+    "parts": [
+      {
+        "name": "arm_l",
+        "image": "characters/anon_p17_arm_l.png",
+        "pivot": [
+          0.2087,
+          0.8356
+        ],
+        "amp": 18.0
+      }
+    ],
+    "notes": [
+      "no neck line found; head split estimated at 30% height",
+      "arm_r: nothing arm-shaped beside the torso"
+    ]
+  },
+  "preview": "characters/anon_p17_preview.jpg",
+  "verdict": {
+    "target": "anon_p17",
+    "accept": true,
+    "scores": {
+      "cut_face": 0.7,
+      "bg_residue_arm_l": 0.005,
+      "seam_arm_l": 1.067,
+      "hole_arm_l": 0.0,
+      "rig_confidence": 0.88
+    },
+    "reasons": []
+  }
+}

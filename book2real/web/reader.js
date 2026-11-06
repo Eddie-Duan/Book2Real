@@ -34,7 +34,15 @@ async function openBook(id) {
   state.book = data; state.index = 0;
   state.artifacts = null;
   fetch(`/books/${encodeURIComponent(id)}/reader/characters/characters.json`)
-    .then(r => r.ok ? r.json() : null).then(j => { state.artifacts = j; }).catch(() => {});
+    .then(r => r.ok ? r.json() : null).then(j => {
+      state.artifacts = j;
+      if (state.book) render();
+    }).catch(() => {});
+  fetch(`/books/${encodeURIComponent(id)}/reader/cast/entities.json`)
+    .then(r => r.ok ? r.json() : null).then(j => {
+      state.entities = j;
+      if (state.book) render();
+    }).catch(() => {});
   localStorage.setItem("b2r.book", id);
   const theme = data.theme || {};
   for (const [k, v] of Object.entries(theme)) document.documentElement.style.setProperty(`--${k}`, v);
@@ -83,10 +91,11 @@ function render() {
     const r = $("ruby.r"); if (r) showWord(+r.dataset.i, r);
   }, 250);
   if (probe === "chars" && !cover) setTimeout(() => $("#btnChars").click(), 250);
-  if (probe === "puppet") setTimeout(() => {
-    const c = (state.book.characters || []).find(x => x.id === "lola");
-    if (c) {
-      openPuppet(c);
+  if (probe === "puppet" && !state._probeDone) setTimeout(() => {
+    const c = castList().find(x => x.id === "lola");
+    if (c && state.artifacts) {
+      state._probeDone = true;
+      openStage(c);
       setTimeout(() => $("#puppetWave").click(), 900);
     }
   }, 350);
@@ -127,6 +136,18 @@ function renderStory(page) {
   });
 }
 
+/* curated spots win; otherwise the figures PageScout found become hotspots */
+function resolveSpots(page) {
+  if (page.spots && page.spots.length) return page.spots;
+  const pages = (state.entities && state.entities.pages) || {};
+  const ents = ((pages[page.id] || {}).entities) || [];
+  const cast = (state.artifacts && state.artifacts.characters) || [];
+  return ents.filter(e => e.name && e.area >= 0.04).slice(0, 3).map(e => {
+    const c = cast.find(x => x.name === e.name);
+    return { name: e.name, box: e.box, desc: (c && c.desc) || "", cid: c && c.id };
+  });
+}
+
 function renderArt(page) {
   const layers = $("#artLayers");
   if (state._animId) { cancelAnimationFrame(state._animId); state._animId = null; }
@@ -157,12 +178,13 @@ function renderArt(page) {
     showScene(page);
   };
   const spots = $("#spots");
+  const pageSpots = resolveSpots(page);
   spots.innerHTML = "";
-  (page.spots || []).forEach((s, i) => {
+  pageSpots.forEach((s, i) => {
     const btn = document.createElement("button");
     btn.className = "spot"; btn.dataset.i = i;
     btn.innerHTML = `<i></i><span>${esc(s.name)}</span>`;
-    btn.onclick = (e) => { e.stopPropagation(); showSpot(s); };
+    btn.onclick = (e) => { e.stopPropagation(); showSpot(s); if (s.cid) openStage(castList().find(c => c.id === s.cid)); };
     spots.appendChild(btn);
   });
   state.layoutSpots = () => {
@@ -172,13 +194,13 @@ function renderArt(page) {
     if (h > r.height) { h = r.height; w = h * ar; }
     const ox = (r.width - w) / 2, oy = (r.height - h) / 2;
     $$(".spot", spots).forEach((btn, i) => {
-      const b = (page.spots[i] && page.spots[i].box) || [0, 0, .1, .1];
+      const b = (pageSpots[i] && pageSpots[i].box) || [0, 0, .1, .1];
       btn.style.left = (ox + (b[0] + b[2] / 2) * w) + "px";
       btn.style.top = (oy + (b[1] + b[3] / 2) * h) + "px";
     });
   };
   state.layoutSpots();
-  $("#sceneChip").style.display = (page.spots || []).length ? "none" : "flex";
+  $("#sceneChip").style.display = pageSpots.length ? "none" : "flex";
 
   if (!stage._parallax) {
     stage.addEventListener("mousemove", (e) => {
@@ -296,100 +318,219 @@ function setSize(v) {
 $("#wordClose").onclick = () => $("#wordCard").hidden = true;
 $("#bookSelect").onchange = (e) => openBook(e.target.value);
 
-/* ------------------------------------------------------------- character drawer */
+/* ------------------------------------------------------- character stage */
+const readerBase = () => `/books/${encodeURIComponent(state.book.book_id)}/reader/`;
+
+/* curated cards (names, roles) merged with what the cast agents measured */
+function castList() {
+  const cast = (state.artifacts && state.artifacts.characters) || [];
+  const base = state.book.characters || [];
+  const out = base.map(c => ({ ...c, ...(cast.find(x => x.id === c.id) || {}) }));
+  for (const c of cast) if (!out.some(o => o.id === c.id)) out.push(c);
+  return out;
+}
+
+/* figures the Rigger cut but nobody could name yet */
+function candidateList() {
+  return ((state.artifacts && state.artifacts.candidates) || []).map(c => ({
+    id: c.id, name: `第 ${String(c.page).replace(/^p0*/, "")} 页的角色`,
+    role: "候选切件", desc: "agent 切好了，还没认领。在 curation.json 里写 rig_from 就能用。",
+    rig: c.rig, portrait: c.preview || c.rig.art, candidate: true,
+  }));
+}
+
 $("#btnChars").onclick = () => {
-  const chars = state.book.characters || [];
-  if (!chars.length) return toast("这本书还没有人物卡");
-  const base = `/books/${encodeURIComponent(state.book.book_id)}/reader/`;
-  const portraits = (state.artifacts && state.artifacts.portraits) || {};
+  const chars = castList();
+  const cands = candidateList();
+  if (!chars.length && !cands.length) return toast("这本书还没有人物卡");
+  const base = readerBase();
   $("#charGrid").innerHTML = chars.map(c => {
-    const src = portraits[c.id] ? base + portraits[c.id] : (c.image ? base + c.image : "");
+    const src = c.portrait ? base + c.portrait : (c.image ? base + c.image : "");
+    const live = c.rig && c.rig.parts && c.rig.parts.length;
     return `
     <button class="char-card" data-cid="${esc(c.id)}">
       ${src ? `<img src="${esc(src)}" alt="${esc(c.name)}">` : ""}
-      <div class="cc-body"><b>${esc(c.name)}</b><small>${esc(c.role || "")}</small><p>${esc(c.desc || "")}</p></div>
+      <div class="cc-body"><b>${esc(c.name)}</b>${live ? '<em class="cc-live">会动</em>' : ""}<small>${esc(c.role || "")}</small><p>${esc(c.desc || "")}</p></div>
     </button>`;
-  }).join("");
+  }).join("") + (cands.length ? `<div class="cc-group">agent 切好的候选</div>` + cands.map(c => {
+    const src = c.portrait ? base + c.portrait : "";
+    return `
+    <button class="char-card candidate" data-cid="${esc(c.id)}">
+      ${src ? `<img src="${esc(src)}" alt="">` : ""}
+      <div class="cc-body"><b>${esc(c.name)}</b><em class="cc-live">会动</em><small>${esc(c.role)}</small><p>${esc(c.desc)}</p></div>
+    </button>`;
+  }).join("") : "");
   $("#charDrawer").hidden = false; $("#modalBackdrop").hidden = false;
   $$(".char-card", $("#charGrid")).forEach(card => {
     card.onclick = () => {
-      const c = chars.find(x => x.id === card.dataset.cid);
-      if (!c) return;
-      if (c.id === "lola" && state.artifacts && state.artifacts.puppet) openPuppet(c);
-      else openPortraitStage(c);
+      const c = chars.find(x => x.id === card.dataset.cid)
+        || cands.find(x => x.id === card.dataset.cid);
+      if (c) openStage(c);
     };
   });
 };
 $("#charClose").onclick = closeAll;
 
-function openPortraitStage(c) {
-  const portraits = (state.artifacts && state.artifacts.portraits) || {};
-  const src = portraits[c.id] ? `/books/${encodeURIComponent(state.book.book_id)}/reader/${portraits[c.id]}` : "";
-  if (!src) return toast(`${c.name}：${c.desc || ""}`);
-  const stage = $("#puppetStage");
-  stage.classList.remove("idle", "wave");
-  stage.classList.add("portrait");
-  stage.style.transform = "";
-  $("#puppetName").textContent = c.name;
-  $("#puppetRole").textContent = c.role || "角色";
-  $("#puppetBody").src = src;
-  $("#charDrawer").hidden = true;
-  $("#puppetModal").hidden = false;
-  $("#modalBackdrop").hidden = false;
-  const bubble = $("#puppetSpeech");
-  bubble.textContent = `你好，我是${c.name}。${c.desc || ""}`;
-  bubble.classList.add("on");
-  stage.onclick = () => bubble.classList.toggle("on");
-  $("#puppetWave").hidden = true;
+let beatTimers = [];
+let idleAnims = [];
+
+function stopBeats() {
+  beatTimers.forEach(clearTimeout);
+  beatTimers = [];
+  idleAnims.forEach(a => { try { a.cancel(); } catch (_) {} });
+  idleAnims = [];
 }
-function openPuppet(c) {
-  const a = state.artifacts && state.artifacts.puppet;
-  if (!a) return;
-  const base = `/books/${encodeURIComponent(state.book.book_id)}/reader/`;
+
+/* Rebuild the stage from the rig: body plate + one element per cut-out part. */
+function buildStage(c) {
   const stage = $("#puppetStage");
-  stage.classList.remove("portrait", "wave", "idle");
-  $("#puppetWave").hidden = false;
+  const base = readerBase();
+  const rig = c.rig || {};
+  const parts = (rig.parts || []).filter(p => p && p.image);
+  const rigged = !!rig.art && parts.length > 0;
+  const speech = $("#puppetSpeech");
+  stage.className = rigged ? "puppet-stage rigged" : "puppet-stage portrait";
+  stage.style.aspectRatio = rigged && rig.art_w && rig.art_h ? `${rig.art_w} / ${rig.art_h}` : "";
+  stage.style.background = rigged && rig.key ? `rgb(${rig.key.join(",")})` : "";
+  stage.style.transform = "";
+  Array.from(stage.querySelectorAll(".puppet-part")).forEach(n => n.remove());
+
+  const body = $("#puppetBody");
+  const src = rigged ? base + rig.art : (c.portrait ? base + c.portrait : (c.image ? base + c.image : ""));
+  body.hidden = !src;
+  if (src) body.src = src;
+
+  parts.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "puppet-part";
+    d.dataset.part = p.name;
+    d.style.transformOrigin = `${p.pivot[0] * 100}% ${p.pivot[1] * 100}%`;
+    const img = document.createElement("img");
+    img.src = base + p.image; img.alt = "";
+    d.appendChild(img);
+    stage.insertBefore(d, speech);
+  });
+  return { rig, rigged, parts };
+}
+
+function partOf(stage, name) {
+  const want = name ? `[data-part="${name}"]` : "";
+  return Array.from(stage.querySelectorAll(".puppet-part" + want));
+}
+function armParts(stage) { return partOf(stage, "").filter(el => el.dataset.part.startsWith("arm_")); }
+
+function swing(el, deg, dur, cycles, hold) {
+  const frames = hold
+    ? [{ transform: "rotate(0deg)" }, { transform: `rotate(${deg}deg)` }]
+    : [{ transform: "rotate(0deg)" }, { transform: `rotate(${deg}deg)`, offset: .35 },
+       { transform: `rotate(${deg * .45}deg)`, offset: .65 }, { transform: "rotate(0deg)" }];
+  try {
+    return el.animate(frames, {
+      duration: Math.max(120, dur * 1000), iterations: hold ? 1 : (cycles || 1),
+      easing: "ease-in-out", fill: hold ? "forwards" : "none"
+    });
+  } catch (_) { el.style.transform = `rotate(${deg}deg)`; return null; }
+}
+
+function runBeat(stage, beat) {
+  const bubble = $("#puppetSpeech");
+  const act = beat.action;
+  if (act === "wave") {
+    armParts(stage).forEach((el, i) => {
+      const sign = el.dataset.part.endsWith("l") ? 1 : -1;
+      swing(el, sign * (beat.amp || 18), beat.dur || 1.1, beat.cycles || 2);
+    });
+  } else if (act === "point" || act === "shrug") {
+    const arms = armParts(stage);
+    const el = arms.find(a => a.dataset.part.endsWith(beat.side === "left" ? "l" : "r")) || arms[0];
+    if (el) swing(el, (el.dataset.part.endsWith("l") ? 1 : -1) * (beat.amp || 12), 0.5, 1, true);
+  } else if (act === "nod") {
+    const head = partOf(stage, "head")[0];
+    if (head) { stage.style.setProperty("--nod", `${beat.amp || 4}deg`); swing(head, beat.amp || 4, 0.5, 1.6); }
+  } else if (act === "bounce") {
+    const body = $("#puppetBody");
+    try { body.animate([{ transform: "translateY(0)" }, { transform: `translateY(-${(beat.amp || 3) * 2}px)` }, { transform: "translateY(0)" }], { duration: 520, iterations: 2, easing: "ease-in-out" }); } catch (_) {}
+  } else if (act === "speak") {
+    bubble.textContent = beat.text || "……";
+    bubble.classList.add("on");
+    clearTimeout(runBeat._bubble);
+    runBeat._bubble = setTimeout(() => bubble.classList.remove("on"), Math.max(1400, (beat.dur || 1.6) * 1000));
+  }
+}
+
+const motionCache = new Map();
+async function loadMotion(pageId) {
+  if (!pageId) return null;
+  if (motionCache.has(pageId)) return motionCache.get(pageId);
+  const url = `${readerBase()}motion/${encodeURIComponent(pageId)}.json`;
+  const plan = await fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+  motionCache.set(pageId, plan);
+  return plan;
+}
+
+async function playPageBeats(stage, page) {
+  stopBeats();
+  if (!stage.classList.contains("rigged") || !page) return;
+  const plan = await loadMotion(page.id);
+  if (!plan || !plan.beats) return;
+  for (const b of plan.beats) {
+    if (b.action === "idle") continue;
+    beatTimers.push(setTimeout(() => runBeat(stage, b), Math.max(0, b.t * 1000)));
+  }
+}
+
+function idleSway(stage) {
+  armParts(stage).forEach(el => {
+    const sign = el.dataset.part.endsWith("l") ? 1 : -1;
+    try {
+      idleAnims.push(el.animate(
+        [{ transform: `rotate(${-sign * 1.2}deg)` }, { transform: `rotate(${sign * 2}deg)` }],
+        { duration: 3800 + Math.random() * 900, iterations: Infinity, direction: "alternate", easing: "ease-in-out" }));
+    } catch (_) {}
+  });
+}
+
+function openStage(c) {
+  const stage = $("#puppetStage");
+  const { rig, rigged } = buildStage(c);
   $("#puppetName").textContent = c.name;
   $("#puppetRole").textContent = c.role || "角色";
-  $("#puppetBody").src = base + a.body;
-  const leftArm = a.arms.left;
-  $("#armLeft").style.display = leftArm ? "block" : "none";
-  if (leftArm) {
-    $("#armLeftImg").src = base + leftArm.image;
-    $("#armLeft").style.transformOrigin = `${leftArm.pivot[0] * 100}% ${leftArm.pivot[1] * 100}%`;
-  }
-  $("#armRightImg").src = base + a.arms.right.image;
-  $("#armRight").style.display = "block";
-  $("#armRight").style.transformOrigin = `${a.arms.right.pivot[0] * 100}% ${a.arms.right.pivot[1] * 100}%`;
-  stage.classList.remove("wave");
-  stage.classList.add("idle");
+  $("#puppetWave").hidden = !rigged || !(rig.parts || []).some(p => p.name.startsWith("arm_"));
   $("#charDrawer").hidden = true;
   $("#puppetModal").hidden = false;
   $("#modalBackdrop").hidden = false;
+
   const bubble = $("#puppetSpeech");
   bubble.classList.remove("on");
-  const line = "你是在叫我吗？我是劳拉。嘘——波特刚才还在这里呢。";
-  bubble.textContent = line;
-  setTimeout(() => bubble.classList.add("on"), 260);
+  bubble.textContent = rigged
+    ? `我是${c.name}。${c.desc || ""}`
+    : `你好，我是${c.name}。${c.desc || ""}`;
+  setTimeout(() => bubble.classList.add("on"), 240);
   stage.onclick = () => bubble.classList.toggle("on");
-  if (!stage._gaze) {
-    stage.addEventListener("mousemove", (e) => {
-      const r = stage.getBoundingClientRect();
-      const dx = (e.clientX - r.left) / r.width - 0.5;
-      const dy = (e.clientY - r.top) / r.height - 0.5;
-      stage.style.transform = `perspective(900px) rotateY(${dx * 5}deg) rotateX(${-dy * 3}deg)`;
-    });
-    stage.addEventListener("mouseleave", () => { stage.style.transform = ""; });
-    stage._gaze = true;
+
+  if (rigged) {
+    idleSway(stage);
+    playPageBeats(stage, state.book.pages[state.index]);
+    if (!stage._gaze) {
+      stage.addEventListener("mousemove", (e) => {
+        const r = stage.getBoundingClientRect();
+        const dx = (e.clientX - r.left) / r.width - .5;
+        const dy = (e.clientY - r.top) / r.height - .5;
+        stage.style.transform = `perspective(900px) rotateY(${dx * 5}deg) rotateX(${-dy * 3}deg)`;
+      });
+      stage.addEventListener("mouseleave", () => { stage.style.transform = ""; });
+      stage._gaze = true;
+    }
   }
+
   $("#puppetWave").onclick = () => {
-    stage.classList.remove("wave");
-    void stage.offsetWidth;
-    stage.classList.add("wave");
-    bubble.textContent = "嗨，看见你啦！要不要一起找波特？";
+    const amp = Math.max(...(rig.parts || []).filter(p => p.name.startsWith("arm_")).map(p => p.amp || 18), 18);
+    armParts(stage).forEach(el => {
+      const sign = el.dataset.part.endsWith("l") ? 1 : -1;
+      swing(el, sign * amp, 1.15, 2);
+    });
+    bubble.textContent = `嗨，我是${c.name}！`;
     bubble.classList.add("on");
-    stage.classList.remove("idle");
-    setTimeout(() => { stage.classList.remove("wave"); stage.classList.add("idle"); }, 2400);
   };
 }
 $("#puppetClose").onclick = closeAll;
@@ -397,6 +538,7 @@ $("#puppetBack").onclick = closeAll;
 
 /* ------------------------------------------------------------- modals */
 function closeAll() {
+  stopBeats();
   $("#charDrawer").hidden = true;
   $("#puppetModal").hidden = true;
   $("#videoModal").hidden = true;

@@ -1,0 +1,20 @@
+{
+  "page": "p04-3",
+  "character": "lola",
+  "duration": 6.12,
+  "emotion": "neutral",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 6.12,
+      "loop": true
+    },
+    {
+      "t": 0.91,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "她说带回家吧，绝对没问题！"
+    }
+  ]
+}

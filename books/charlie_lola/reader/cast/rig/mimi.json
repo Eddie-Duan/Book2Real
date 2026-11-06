@@ -1,0 +1,27 @@
+{
+  "kind": "one_arm",
+  "confidence": 0.851,
+  "art": "characters/mimi_body.jpg",
+  "art_w": 490,
+  "art_h": 314,
+  "key": [
+    243,
+    176,
+    199
+  ],
+  "parts": [
+    {
+      "name": "arm_l",
+      "image": "characters/mimi_arm_l.png",
+      "pivot": [
+        0.2449,
+        0.4873
+      ],
+      "amp": 12.4
+    }
+  ],
+  "notes": [
+    "no neck line found; head split estimated at 30% height",
+    "arm_r: nothing arm-shaped beside the torso"
+  ]
+}

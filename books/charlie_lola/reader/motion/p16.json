@@ -1,0 +1,20 @@
+{
+  "page": "p16",
+  "character": "charlie",
+  "duration": 6.84,
+  "emotion": "neutral",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 6.84,
+      "loop": true
+    },
+    {
+      "t": 1.71,
+      "action": "speak",
+      "dur": 1.8,
+      "text": "波特？波特？波特？！波特藏哪儿了，查理？"
+    }
+  ]
+}

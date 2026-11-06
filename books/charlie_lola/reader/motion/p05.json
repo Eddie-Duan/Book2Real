@@ -1,0 +1,20 @@
+{
+  "page": "p05",
+  "character": "lola",
+  "duration": 12.08,
+  "emotion": "anger",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 12.08,
+      "loop": true
+    },
+    {
+      "t": 2.55,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "露塔，你特别了解豚鼠吗？"
+    }
+  ]
+}

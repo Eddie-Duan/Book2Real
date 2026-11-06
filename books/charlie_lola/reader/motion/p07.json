@@ -1,0 +1,20 @@
+{
+  "page": "p07",
+  "character": "lola",
+  "duration": 11.36,
+  "emotion": "joy",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 11.36,
+      "loop": true
+    },
+    {
+      "t": 2.84,
+      "action": "speak",
+      "dur": 1.8,
+      "text": "它离这儿很远很远。在秘鲁，有很多很长的草。豚鼠喜欢很长的草，因为它们都很害羞。"
+    }
+  ]
+}

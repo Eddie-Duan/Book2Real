@@ -1,0 +1,19 @@
+{
+  "kind": "portrait",
+  "confidence": 0.651,
+  "art": "characters/lola_body.jpg",
+  "art_w": 544,
+  "art_h": 302,
+  "key": [
+    243,
+    176,
+    199
+  ],
+  "parts": [],
+  "notes": [
+    "no neck line found; head split estimated at 30% height",
+    "arm_l: nothing arm-shaped beside the torso",
+    "arm_r: nothing arm-shaped beside the torso",
+    "no arm or head cut; the stage shows a plain portrait"
+  ]
+}

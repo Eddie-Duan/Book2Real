@@ -1,0 +1,20 @@
+{
+  "page": "p06-3",
+  "character": "lotta",
+  "duration": 5.89,
+  "emotion": "neutral",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 5.89,
+      "loop": true
+    },
+    {
+      "t": 2.04,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "秘鲁在哪儿啊？"
+    }
+  ]
+}

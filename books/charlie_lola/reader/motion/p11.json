@@ -1,0 +1,14 @@
+{
+  "page": "p11",
+  "character": "charlie",
+  "duration": 14.0,
+  "emotion": "joy",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 14.0,
+      "loop": true
+    }
+  ]
+}

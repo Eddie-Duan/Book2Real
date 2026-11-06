@@ -1,13 +1,19 @@
-# 小书匠 · Book2Real
+# 纸间生灵
 
 把一本扫描的纸质绘本变成**可点的互动绘本**，再一键导出**带旁白的 16:9 短片**。
+
+纸页之间，人物活过来——这就是“纸间生灵”。
 
 不是"整页图加个运镜"：文字、拼音、插图、人物会被重新拆开、排版和关联。
 左栏是大字 + 逐字拼音，右栏是清洗过的原插画；点字听读音、看含义，点画看这一页发生了什么，点人物卡认识角色。
 
 ![互动阅读页](docs/images/reader-page.png)
 
-人物墙里的角色不是贴纸：劳拉由**原图切出的身体 + 左右手臂**组成，手臂绕肩转轴摆动、挥手，没有网格拉伸或扭曲。点开人物卡，她会转向你、说话，打破第四面墙。
+人物墙里的角色不是贴纸：有切件的角色由**原图切出的身体 + 手臂**组成，手臂绕肩转轴摆动、挥手，
+没有网格拉伸或扭曲。点开人物卡，她会转向你、说话，打破第四面墙。
+这些切件、转轴和动作现在由一条 agent 链自动产出（`python -m book2real cast`），
+Critic 不通过就退回肖像；没人认领的切件会以“agent 切好的候选”出现，写一行 `rig_from` 即可挂到角色上。
+契约与指标见 [docs/AGENTS.md](docs/AGENTS.md)。
 
 ![角色互动](docs/images/character-stage.gif)
 
@@ -16,8 +22,9 @@
 ```bash
 python -m book2real reader --books books --port 8770 --open
 
-# 或先手动分析 / 出片
+# 或先手动分析 / 出片 / 跑人物链
 python -m book2real analyze --book books/charlie_lola
+python -m book2real cast    --book books/charlie_lola
 python -m book2real film    --book books/charlie_lola
 ```
 
@@ -38,6 +45,7 @@ python -m book2real film    --book books/charlie_lola
 | 点字 | 读音 + 本页词义 + 朗读 |
 | 点画 | 场景讲解 + 人物热点 |
 | 人物卡 | 从原图裁出，作为一致性/后续 I2V 的参考 |
+| 人物 agent | `python -m book2real cast`：PageScout → CastClerk → Rigger → MotionDirector → Critic，自动切件/关节/动作/质检（[docs/AGENTS.md](docs/AGENTS.md)） |
 | 2.5D | 阅读页保持原图静止；人物墙里用原图切件做肩部转轴、挥手/说话 |
 | 旁白 | edge-tts 晓晓，缓存复用；失败回退浏览器语音 |
 | 视频 | 16:9，左文右图，按旁白时长切镜，AAC 音轨 |
@@ -70,6 +78,8 @@ docs/                设计与交接
 ```
 
 ## 环境
+
+> 仓库名仍保留 `Book2Real`（代码包名 `book2real` 不变），产品名称是**纸间生灵**。
 
 Python ≥ 3.10，`ffmpeg` 在 PATH。依赖见 `requirements.txt`；仓库内 `vendor/` 已带
 pypinyin、jieba、edge-tts，离线可直接跑（edge-tts 仍需网络；无网时回退浏览器/系统语音）。

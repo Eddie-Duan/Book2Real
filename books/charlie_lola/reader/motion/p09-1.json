@@ -1,0 +1,20 @@
+{
+  "page": "p09-1",
+  "character": "lola",
+  "duration": 9.22,
+  "emotion": "neutral",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 9.22,
+      "loop": true
+    },
+    {
+      "t": 0.91,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "我已经问过汉森老师，在假期里我可不可以把波特带回家。"
+    }
+  ]
+}

@@ -171,6 +171,14 @@ body.no-pinyin .punct{padding-top:0}
 .drawer-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
 .drawer-head h2{font-family:"Songti SC","STSong",serif;font-size:24px;margin:0;letter-spacing:.06em}
 .char-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cc-group{grid-column:1/-1;margin-top:8px;font-size:12px;letter-spacing:.1em;
+  color:var(--soft);display:flex;align-items:center;gap:10px}
+.cc-group::after{content:"";flex:1;height:1px;background:var(--line)}
+.char-card.candidate{border-style:dashed}
+.char-card.candidate img{filter:saturate(.92)}
+.cc-live{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;
+  background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);
+  font-size:10px;font-style:normal;letter-spacing:.08em;vertical-align:2px}
 .char-card{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.35);
   text-align:left;padding:0;transition:.2s}
 .char-card:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(60,40,24,.12)}
@@ -223,20 +231,15 @@ body.no-pinyin .punct{padding-top:0}
 .puppet-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
 .puppet-stage.portrait{background:color-mix(in srgb,var(--paper) 80%,#eadcc8)}
 .puppet-stage.portrait .puppet-body{object-fit:contain;padding:16px;box-sizing:border-box}
-.puppet-stage.portrait .puppet-arm{display:none}
-.puppet-arm{position:absolute;inset:0;transition:transform .5s cubic-bezier(.3,1.4,.5,1)}
-.puppet-arm.left{transform-origin:29% 53%}
-.puppet-arm.right{transform-origin:72% 53%}
-.puppet-stage.idle .left{animation:armIdleL 4.2s ease-in-out infinite alternate}
-.puppet-stage.idle .right{animation:armIdleR 4.8s ease-in-out infinite alternate}
-.puppet-stage.wave .right{animation:waveR 1.15s ease-in-out 2}
-.puppet-stage.wave .left{animation:waveL 1.15s ease-in-out 2}
+.puppet-stage.portrait .puppet-part{display:none}
+.puppet-part{position:absolute;inset:0;transition:transform .45s cubic-bezier(.3,1.4,.5,1);
+  will-change:transform}
+.puppet-part img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
 .puppet-body{animation:puppetBob 5.4s ease-in-out infinite alternate}
+.puppet-stage.portrait .puppet-body{animation:none}
+.puppet-stage.nod .puppet-part[data-part="head"]{animation:nodHead 1.1s ease-in-out}
 @keyframes puppetBob{from{transform:translateY(0)}to{transform:translateY(-4px)}}
-@keyframes armIdleL{from{transform:rotate(-1.5deg)}to{transform:rotate(2.5deg)}}
-@keyframes armIdleR{from{transform:rotate(1.5deg)}to{transform:rotate(-2.5deg)}}
-@keyframes waveR{0%{transform:rotate(0)}35%{transform:rotate(-24deg)}65%{transform:rotate(-10deg)}100%{transform:rotate(0)}}
-@keyframes waveL{0%{transform:rotate(0)}35%{transform:rotate(22deg)}65%{transform:rotate(8deg)}100%{transform:rotate(0)}}
+@keyframes nodHead{0%{transform:rotate(0)}35%{transform:rotate(var(--nod,4deg))}70%{transform:rotate(calc(var(--nod,4deg) * -.4))}100%{transform:rotate(0)}}
 .speech{position:absolute;right:5%;top:8%;max-width:260px;background:#fff8ec;color:#3a2b22;
   border-radius:18px 18px 4px 18px;padding:14px 18px;font-size:15px;line-height:1.7;
   box-shadow:0 14px 34px rgba(40,20,10,.22);opacity:0;transform:translateY(6px);

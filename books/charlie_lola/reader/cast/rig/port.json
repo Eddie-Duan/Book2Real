@@ -1,0 +1,19 @@
+{
+  "kind": "portrait",
+  "confidence": 0.639,
+  "art": "characters/port_body.jpg",
+  "art_w": 314,
+  "art_h": 238,
+  "key": [
+    187,
+    196,
+    103
+  ],
+  "parts": [],
+  "notes": [
+    "no neck line found; head split estimated at 30% height",
+    "arm_l: nothing arm-shaped beside the torso",
+    "arm_r: nothing arm-shaped beside the torso",
+    "no arm or head cut; the stage shows a plain portrait"
+  ]
+}

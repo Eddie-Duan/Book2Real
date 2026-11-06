@@ -85,6 +85,36 @@ def cmd_analyze(args) -> int:
     return 0
 
 
+def cmd_cast(args) -> int:
+    from .cast.pipeline import run
+
+    report = run(args.book, force=args.force, max_rigs=args.max_rigs,
+                 on_progress=lambda m: print(f"  {m}"))
+    stages = report["stages"]
+    print(f"\ncast -> {Path(args.book) / 'reader' / 'characters' / 'characters.json'}"
+          f"  ({report['seconds']}s)")
+    print(f"pages    : {stages['PageScout']['pages']}"
+          f"  entities {stages['PageScout']['entities']}"
+          f"  degraded {stages['PageScout']['degraded']}")
+    print(f"cast     : {stages['CastClerk']['characters']} characters"
+          f"  ({stages['CastClerk']['named_entities']} named,"
+          f" {stages['CastClerk']['anonymous_entities']} anonymous)")
+    for cid, info in stages["Rigger"].items():
+        print(f"  rig    : {cid:<10} {info['kind']:<12} parts={info['parts']}"
+              f" conf={info['confidence']:.2f}")
+    print(f"motion   : {stages['MotionDirector']['plans']} plans,"
+          f" {stages['MotionDirector']['beats']} beats")
+    cand = stages.get("RiggerCandidates", {})
+    if cand:
+        print(f"candidates: {cand['accepted']}/{cand['considered']} unnamed figures rigged")
+    crit = stages["Critic"]
+    print(f"critic   : {crit['characters_accepted']}/{crit['characters_judged']} accepted,"
+          f" text coverage {crit['text_coverage']:.0%}")
+    if crit["missing"]:
+        print(f"  missing: {', '.join(crit['missing'])}")
+    return 0
+
+
 def cmd_film(args) -> int:
     from .storyfilm import render
 
@@ -170,6 +200,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--book", required=True)
     sp.add_argument("--force", action="store_true")
     sp.set_defaults(func=cmd_analyze)
+
+    sp = sub.add_parser("cast", help="run the cast agents (page scout -> rig -> motion)")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--force", action="store_true")
+    sp.add_argument("--max-rigs", type=int, default=3,
+                    help="how many characters get a paper-puppet rig")
+    sp.set_defaults(func=cmd_cast)
 
     sp = sub.add_parser("film", help="render the interactive book as a 16:9 film")
     sp.add_argument("--book", required=True)

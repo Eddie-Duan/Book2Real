@@ -1,10 +1,10 @@
-# 交接文档 · Book2Real
+# 交接文档 · 纸间生灵（仓库仍名 Book2Real）
 
 > 更新于 2026-11-01。仓库：`C:\Users\DUANboyang\Desktop\Book2Real`
-> 状态：**互动绘本阅读器 + 16:9 朗读短片已跑通**；旧版 2.5D 管线保留；真 I2V 未接。
+> 状态：**互动绘本阅读器 + 16:9 朗读短片已跑通**；人物链已 agent 化（`python -m book2real cast`）；旧版 2.5D 管线保留；真 I2V 未接。
 
 > **2026-11-01 新增（本轮重点）**：`python -m book2real reader` 提供"导入 → 互动书 → 一键出片"。
-> 真书《我特别了解豚鼠》21 页 → 23 个阅读屏，成片 **210.5 s**、带 edge-tts 旁白。
+> 真书《我特别了解豚鼠》21 页 → 31 个阅读屏（长页按 64 字上限拆屏，每屏一张取景），成片 **210.5 s**、带 edge-tts 旁白。
 > 设计、开源选型、许可证与限制见 [`READER.md`](READER.md)。下面 §0–§10 是旧版视频管线的记录。
 
 ---
@@ -18,6 +18,15 @@ python -m book2real plan --book books/charlie_lola
 python -m book2real run  --book books/charlie_lola --out runs --jobs 2
 python -m book2real run  --book books/guoqing      --out runs --jobs 1
 python -m book2real ui   --runs runs --open       # 浏览器看片 + 质检看板
+```
+
+新版（互动绘本 + 人物 agent）：
+
+```
+python -m book2real reader --books books --port 8770 --open   # 互动阅读器
+python -m book2real analyze --book books/charlie_lola         # OCR / 拼音 / 清字
+python -m book2real cast    --book books/charlie_lola         # 人物链（本次实测 12.9 s，随环境波动）
+python -m book2real film    --book books/charlie_lola         # 16:9 短片
 ```
 
 实测（本机 RTX 5070 Laptop 8G / i9-14900HX / ffmpeg 8.1.1）：

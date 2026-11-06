@@ -1,0 +1,20 @@
+{
+  "page": "p13",
+  "character": "lola",
+  "duration": 14.0,
+  "emotion": "sad",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 14.0,
+      "loop": true
+    },
+    {
+      "t": 1.22,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "劳拉，你想和我玩纸牌吗？"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "page": "p09-4",
+  "character": "lotta",
+  "duration": 14.0,
+  "emotion": "anger",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 14.0,
+      "loop": true
+    },
+    {
+      "t": 1.77,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "我觉得汉森老师不会让我把波特带回家的。因为他们特别了解豚鼠，而我什么都不知道。"
+    }
+  ]
+}

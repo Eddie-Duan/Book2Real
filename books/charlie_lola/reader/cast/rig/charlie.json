@@ -1,0 +1,18 @@
+{
+  "kind": "portrait",
+  "confidence": 0.75,
+  "art": "characters/charlie_body.jpg",
+  "art_w": 581,
+  "art_h": 461,
+  "key": [
+    255,
+    255,
+    255
+  ],
+  "parts": [],
+  "notes": [
+    "arm_l: nothing arm-shaped beside the torso",
+    "arm_r: nothing arm-shaped beside the torso",
+    "no arm cut; falls back to a portrait / head-nod stage"
+  ]
+}

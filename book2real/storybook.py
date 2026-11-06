@@ -256,32 +256,159 @@ def _art_layers(art: np.ndarray, out_dir: Path, page_id: str) -> dict:
     return {"fg": fg_p.name, "bg": bg_p.name, "layers": pl.count}
 
 
-def _split_text(text: str, limit: int = 96) -> list[str]:
-    """Split narration into readable screens without breaking a quotation."""
+SPLIT_ART = re.compile(r"^p\d+-\d+\.jpg$")
+TEXT_LIMIT = 64          # characters per reader screen (curation.json: "text_limit")
+MAX_PARTS = 4            # screens per page; more than this gets repetitive
+ZOOMS = (1.0, 1.3, 1.55, 1.75)   # framing per screen: whole page, then closer views
+
+
+SENTENCE = re.compile(r"[^。！？；…]*[。！？；…]+[”’]?")
+CLAUSE = re.compile(r"[^，、：]*[，、：]?")
+
+
+def _sentence_units(text: str) -> list[str]:
+    units = [u for u in SENTENCE.findall(text) if u]
+    if "".join(units) != text:                       # never lose characters
+        units = [u for u in CLAUSE.findall(text) if u] or [text]
+    return units
+
+
+def _split_long_unit(unit: str, limit: int) -> list[str]:
+    """Break a long sentence at its own commas so no screen carries a wall of text."""
+    if len(unit) <= limit * 1.15:
+        return [unit]
+    pieces = [p for p in CLAUSE.findall(unit) if p]
+    if len(pieces) <= 1 or "".join(pieces) != unit:
+        return [unit]
+    out: list[str] = []
+    buf = ""
+    for p in pieces:
+        if buf and len(buf) + len(p) > limit:
+            out.append(buf)
+            buf = ""
+        buf += p
+    if buf:
+        out.append(buf)
+    return out
+
+
+def _split_text(text: str, limit: int = TEXT_LIMIT, max_parts: int = MAX_PARTS) -> list[str]:
+    """Split narration into readable screens at sentence (or comma) boundaries.
+
+    The concatenation of the result is always exactly `text`: nothing is added,
+    dropped or re-quoted, so pinyin, segments and the printed book stay in sync.
+    """
     if len(text) <= limit * 1.06:
         return [text]
-    units = [u for u in re.findall(r"[^。！？；…]*[。！？；…]+[”’]?", text) if u]
-    consumed = sum(len(u) for u in units)
-    if consumed < len(text):
-        units.append(text[consumed:])
+    units = [p for u in _sentence_units(text) for p in _split_long_unit(u, limit)]
 
-    chunks, buf, depth = [], "", 0
+    chunks: list[str] = []
+    buf = ""
     for u in units:
-        if buf and len(buf) + len(u) > limit and depth == 0:
-            chunks.append(buf)
-            buf = ""
-        elif buf and len(buf) + len(u) > limit * 1.35:
+        if buf and len(buf) + len(u) > limit and len(chunks) < max_parts - 1:
             chunks.append(buf)
             buf = ""
         buf += u
-        depth += u.count("“") - u.count("”")
     if buf:
         chunks.append(buf)
-    return chunks or [text]
+
+    while len(chunks) > max_parts:                   # merge the two shortest neighbours
+        i = min(range(len(chunks) - 1), key=lambda k: len(chunks[k]) + len(chunks[k + 1]))
+        chunks[i:i + 2] = [chunks[i] + chunks[i + 1]]
+    return [c for c in chunks if c] or [text]
+
+
+def _ink_centre(art: np.ndarray) -> tuple[float, float]:
+    """Normalised centroid of the drawn content — where a close-up should look."""
+    g = I.to_gray(art)
+    ink = g < 0.94
+    if not ink.any():
+        return 0.5, 0.5
+    h, w = g.shape[:2]
+    ys, xs = np.where(ink)
+    return float(xs.mean()) / w, float(ys.mean()) / h
+
+
+def _part_boxes(art: np.ndarray, n: int,
+                spots: list[dict] | None = None) -> list[tuple[float, float, float, float]]:
+    """One framing per reader screen: whole page first, then closer views.
+
+    Crops are never sliced through the middle of a figure. When the page has
+    curated hotspots, the later screens frame those characters; otherwise they
+    zoom toward the drawn content, which reads as a detail shot.
+    """
+    if n <= 1:
+        return [(0.0, 0.0, 1.0, 1.0)]
+    h_px, w_px = art.shape[:2]
+    # a low-resolution page must not be zoomed far: the crop would be mush
+    reach = min(1.0, max(0.55, min(w_px, h_px) / 700.0))
+    targets: list[tuple[float, float, float, float]] = [(*_ink_centre(art), 0.0, 0.0)]
+    for s in spots or []:
+        box = s.get("box")
+        if box and len(box) >= 4:
+            targets.append((float(box[0]) + float(box[2]) / 2,
+                            float(box[1]) + float(box[3]) / 2,
+                            float(box[2]), float(box[3])))
+    boxes = [(0.0, 0.0, 1.0, 1.0)]
+    for i in range(1, n):
+        zoom = 1.0 + (ZOOMS[min(i, len(ZOOMS) - 1)] - 1.0) * reach
+        w = h = 1.0 / zoom
+        cx, cy, sw, sh = targets[(i - 1) % len(targets)]
+        if sw and sh:
+            # a character framing must contain its hotspot with a margin
+            w, h = max(w, min(1.0, sw * 2.2)), max(h, min(1.0, sh * 2.2))
+        x = min(max(cx - w / 2, 0.0), 1.0 - w)
+        y = min(max(cy - h / 2, 0.0), 1.0 - h)
+        boxes.append((x, y, w, h))
+    return boxes
+
+
+def _remap(items: list[dict], crop: tuple[float, float, float, float]) -> list[dict]:
+    """Re-express normalised boxes relative to a crop; drop what is off-frame."""
+    cx, cy, cw, ch = crop
+    out = []
+    for it in items or []:
+        box = it.get("box")
+        if not box or len(box) < 4:
+            out.append(it)
+            continue
+        x, y, w, h = (float(v) for v in box[:4])
+        if w <= 0 or h <= 0:
+            out.append(it)
+            continue
+        ix = max(0.0, min(x + w, cx + cw) - max(x, cx))
+        iy = max(0.0, min(y + h, cy + ch) - max(y, cy))
+        if ix * iy < 0.35 * w * h:
+            continue
+        out.append({**it, "box": [(x - cx) / cw, (y - cy) / ch, w / cw, h / ch]})
+    return out
+
+
+def _save_part_art(art: np.ndarray, art_dir: Path, sid: str,
+                   crop: tuple[float, float, float, float]) -> tuple[str, int, int]:
+    h, w = art.shape[:2]
+    cx, cy, cw, ch = crop
+    x0, y0 = int(round(cx * w)), int(round(cy * h))
+    x1, y1 = int(round((cx + cw) * w)), int(round((cy + ch) * h))
+    x1, y1 = min(w, max(x0 + 8, x1)), min(h, max(y0 + 8, y1))
+    part = art[y0:y1, x0:x1]
+    path = art_dir / f"{sid}.jpg"
+    Image.fromarray(part).save(path, quality=93)
+    return f"art/{path.name}", int(part.shape[1]), int(part.shape[0])
 
 
 def load_book(book_dir: Path) -> dict:
     return json.loads((book_dir / "book.json").read_text(encoding="utf-8"))
+
+
+def _prune_part_art(art_dir: Path, used: set[str]) -> int:
+    """Drop crops left over from an earlier split (a page may need fewer now)."""
+    removed = 0
+    for f in Path(art_dir).glob("*.jpg"):
+        if SPLIT_ART.match(f.name) and f.name not in used:
+            f.unlink()
+            removed += 1
+    return removed
 
 
 def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
@@ -293,9 +420,12 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
     cur_path = book_dir / "curation.json"
     curation = json.loads(cur_path.read_text(encoding="utf-8")) if cur_path.exists() else {}
     cpages = curation.get("pages", {})
+    text_limit = max(30, min(200, int(curation.get("text_limit", TEXT_LIMIT))))
+    max_parts = max(1, min(5, int(curation.get("max_parts", MAX_PARTS))))
     total = len(meta["pages"])
 
     pages = []
+    used_art: set[str] = set()
     for i, pg in enumerate(meta["pages"], start=1):
         if on_progress:
             on_progress(i - 1, total, f"识别第 {i}/{total} 页")
@@ -324,9 +454,17 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
             Image.fromarray(art).save(art_p, quality=93)
         else:
             art = imread(art_p)
-        chunks = _split_text(text)
+        chunks = _split_text(text, limit=text_limit, max_parts=max_parts)
+        boxes = _part_boxes(art, len(chunks), c.get("spots"))
         for ci, chunk in enumerate(chunks):
             sid = pid if len(chunks) == 1 else f"{pid}-{ci + 1}"
+            if len(chunks) == 1:
+                art_rel, part_w, part_h = f"art/{pid}.jpg", int(art.shape[1]), int(art.shape[0])
+                spots = c.get("spots", [])
+            else:
+                art_rel, part_w, part_h = _save_part_art(art, art_dir, sid, boxes[ci])
+                spots = _remap(c.get("spots", []), boxes[ci])
+            used_art.add(Path(art_rel).name)
             pages.append({
                 "id": sid,
                 "source_page": i,
@@ -336,15 +474,18 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
                 "text": chunk,
                 "pinyin": pinyin_tokens(chunk),
                 "segments": segments(chunk),
-                "art": f"art/{pid}.jpg",
+                # split pages get their own framing so the reader never shows
+                # the same picture twice with different text
+                "art": art_rel,
+                "art_page": f"art/{pid}.jpg",
                 # 2.5D is done with a camera move on the complete plate: cutting
                 # printed art into fg/bg layers leaves halos around linework.
                 "art_fg": "",
                 "art_bg": "",
-                "art_w": int(art.shape[1]), "art_h": int(art.shape[0]),
+                "art_w": part_w, "art_h": part_h,
                 "scene": c.get("scene", ""),
                 "words": c.get("words", []),
-                "spots": c.get("spots", []),
+                "spots": spots,
                 "characters": c.get("characters", []),
                 "ocr_lines": [{"text": b["text"], "score": b["score"], "box": [b["x0"], b["y0"], b["x1"], b["y1"]]} for b in blocks],
                 "text_boxes": [[b["x0"], b["y0"], b["x1"], b["y1"]] for b in picked],
@@ -362,7 +503,7 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
                     page_idx = int(str(crop.get("page"))[1:]) - 1
                     art = imread(book_dir / "pages" / meta["pages"][page_idx]["file"])
                 else:
-                    art = imread(out_dir / pg["art"])
+                    art = imread(out_dir / (pg.get("art_page") or pg["art"]))
                 h, w = art.shape[:2]
                 x, y, cw, chh = crop["box"]
                 box = (int(x * w), int(y * h), int((x + cw) * w), int((y + chh) * h))
@@ -383,6 +524,10 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
         "stats": {"pages": len(pages), "ocr_blocks": sum(len(p["ocr_lines"]) for p in pages)},
     }
     write_json(out_dir / "book.json", data)
+    stale = _prune_part_art(art_dir, used_art)
+    if stale:
+        data["stats"]["pruned_art"] = stale
+        write_json(out_dir / "book.json", data)
     if on_progress:
         on_progress(total, total, "完成")
     return data

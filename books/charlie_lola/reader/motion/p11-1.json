@@ -1,0 +1,14 @@
+{
+  "page": "p11-1",
+  "character": "lola",
+  "duration": 14.0,
+  "emotion": "neutral",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 14.0,
+      "loop": true
+    }
+  ]
+}

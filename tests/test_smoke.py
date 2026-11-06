@@ -112,6 +112,43 @@ def test_split_text_does_not_break_a_quote():
     assert all(not c.startswith("”") for c in chunks)
 
 
+def test_split_text_keeps_screens_short_and_capped():
+    from book2real.storybook import MAX_PARTS
+
+    text = ("“我觉得波特是一只女豚鼠，”劳拉说，“它看起来像个女的，因为它的毛特别漂亮。”"
+            "咪咪说：“不，波特是男豚鼠。”“你怎么这么了解豚鼠啊？”露塔说。"
+            "“因为我家里也有一只……它叫毛毛，是从秘鲁来的。”“秘鲁？”") * 2
+    chunks = _split_text(text, limit=64)
+    assert "".join(chunks) == text                     # nothing added or lost
+    assert 1 < len(chunks) <= MAX_PARTS
+    assert max(len(c) for c in chunks) <= 64 * 1.4
+    assert all(c.strip() for c in chunks)
+
+
+def test_part_boxes_start_whole_then_differ():
+    from book2real.storybook import _part_boxes
+
+    page = _page()
+    boxes = _part_boxes(page, 3, spots=[{"box": [0.1, 0.6, 0.2, 0.3]}])
+    assert len(boxes) == 3
+    assert boxes[0] == (0.0, 0.0, 1.0, 1.0)            # first screen is the whole page
+    assert len(set(boxes[1:])) == 2                    # later screens differ
+    for x, y, w, h in boxes:
+        assert -1e-9 <= x and -1e-9 <= y and x + w <= 1 + 1e-9 and y + h <= 1 + 1e-9
+
+
+def test_part_framing_contains_its_hotspot():
+    from book2real.storybook import _part_boxes
+
+    spot = {"box": [0.55, 0.30, 0.14, 0.22]}
+    boxes = _part_boxes(_page(), 3, spots=[spot])
+    for i, (x, y, w, h) in enumerate(boxes[1:], start=1):
+        if i == 2:                                     # the screen framed on the spot
+            assert x <= spot["box"][0] and y <= spot["box"][1]
+            assert x + w >= spot["box"][0] + spot["box"][2]
+            assert y + h >= spot["box"][1] + spot["box"][3]
+
+
 def test_pinyin_tokens_align_to_characters():
     text = "豚鼠。"
     toks = pinyin_tokens(text)

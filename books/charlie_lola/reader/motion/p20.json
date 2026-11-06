@@ -1,0 +1,20 @@
+{
+  "page": "p20",
+  "character": "lola",
+  "duration": 10.89,
+  "emotion": "anger",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 10.89,
+      "loop": true
+    },
+    {
+      "t": 5.11,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "哦，是波特！它怎么变得那么小？"
+    }
+  ]
+}

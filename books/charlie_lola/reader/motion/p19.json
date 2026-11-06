@@ -1,0 +1,20 @@
+{
+  "page": "p19",
+  "character": "lola",
+  "duration": 14.0,
+  "emotion": "surprise",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 14.0,
+      "loop": true
+    },
+    {
+      "t": 4.77,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "哦，不！我该怎么对汉森老师说呢？"
+    }
+  ]
+}

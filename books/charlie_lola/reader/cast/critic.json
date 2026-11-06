@@ -1,0 +1,254 @@
+{
+  "characters": [
+    {
+      "target": "port",
+      "accept": true,
+      "scores": {
+        "rig_confidence": 0.639
+      },
+      "reasons": []
+    }
+  ],
+  "motion": [
+    {
+      "target": "p03",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p04-1",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p04-2",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p04-3",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p05",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p06-1",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p06-2",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p06-3",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p07",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p08",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p09-1",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p09-2",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p09-3",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p09-4",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p10",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p11-1",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p11-2",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p12",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p13-1",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p13-2",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p14",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p15",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p16",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p17",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p18",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p19-1",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p19-2",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p20",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p21-1",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    },
+    {
+      "target": "p21-2",
+      "accept": true,
+      "scores": {
+        "motion_naturalness": 1.0
+      },
+      "reasons": []
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "page": "p06-1",
+  "character": "lola",
+  "duration": 14.0,
+  "emotion": "anger",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 14.0,
+      "loop": true
+    },
+    {
+      "t": 4.06,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "我觉得波特是一只女豚鼠，"
+    }
+  ]
+}

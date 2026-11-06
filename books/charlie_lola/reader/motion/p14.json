@@ -1,0 +1,20 @@
+{
+  "page": "p14",
+  "character": "lola",
+  "duration": 14.0,
+  "emotion": "joy",
+  "beats": [
+    {
+      "t": 0.0,
+      "action": "idle",
+      "dur": 14.0,
+      "loop": true
+    },
+    {
+      "t": 1.76,
+      "action": "speak",
+      "dur": 1.6,
+      "text": "爸爸做了这个东西让豚鼠钻。"
+    }
+  ]
+}

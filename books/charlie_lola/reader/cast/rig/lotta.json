@@ -1,0 +1,27 @@
+{
+  "kind": "one_arm",
+  "confidence": 0.851,
+  "art": "characters/lotta_body.jpg",
+  "art_w": 339,
+  "art_h": 300,
+  "key": [
+    243,
+    176,
+    199
+  ],
+  "parts": [
+    {
+      "name": "arm_l",
+      "image": "characters/lotta_arm_l.png",
+      "pivot": [
+        0.1534,
+        0.65
+      ],
+      "amp": 18.0
+    }
+  ],
+  "notes": [
+    "no neck line found; head split estimated at 30% height",
+    "arm_r: nothing arm-shaped beside the torso"
+  ]
+}
