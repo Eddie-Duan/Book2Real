@@ -21,6 +21,7 @@ Critic 不通过就退回肖像；没人认领的切件会以“agent 切好的�
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env                      # 可选：只有调图像/视频 API 时才需要填
 python -m book2real models --fetch        # 可选：本地模型（8GB GPU 的 demo 档）
 python -m book2real reader --books books --port 8770 --open
 
@@ -30,6 +31,9 @@ python -m book2real cast    --book books/charlie_lola
 python -m book2real layers  --book books/charlie_lola
 python -m book2real film    --book books/charlie_lola
 ```
+
+> 密钥放哪里见 [docs/API_KEYS.md](docs/API_KEYS.md)：图像/视频 key 进项目 `.env`；
+> DSH 自己的模型 key 在设置 → 模型里填，**不要**混在一起。
 
 打开页面后：
 

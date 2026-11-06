@@ -4,6 +4,12 @@ runs/
 .b2r_cache/
 *.tmp
 
+# secrets — never commit keys (see docs/AGENTS.md "模型与密钥")
+.env
+.env.*
+!.env.example
+*.key
+
 # python
 __pycache__/
 *.py[cod]
