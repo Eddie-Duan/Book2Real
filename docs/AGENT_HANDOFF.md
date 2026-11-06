@@ -86,3 +86,18 @@ python scripts/p17_wave.py                 # 渲染 runs/agent/p17/p17_wave.gif
 - 不要为了省钱去掉 `RECRAFT_MAX_SPEND_USD`；
 - 不要把 `.env` 提交；
 - 不要假设 `runs/` 里的东西还在（它被 gitignore 了），产物要用 `--to` 指定到 `books/<id>/reader/`。
+
+
+## 边界优先（推荐的切件方式）
+
+矩形不是边界。用算子找边界、再由 agent 判断"哪些是一体"：
+
+```bash
+python -m book2real agent probe --from frame.jpg --json regions.json
+# 读 regions.json：面积、框、主色、孔洞数、是否贴边、边缘强度
+python -m book2real agent part --from frame.jpg --at 0.55,0.70 --at 0.52,0.85 \
+    --to out --name arm_r          # 墨线封闭的 cell + 自动 pivot
+python -m book2real agent review --rig out/arm_r.json     # 机器验收
+```
+
+失败案例与原因见 `docs/P17_LIMITS.md`：**没有闭合轮廓的肢体切不出来**，这不是算子问题。

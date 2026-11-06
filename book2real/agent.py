@@ -5,6 +5,11 @@ into files with a documented contract. They never browse the book, never write
 prose, and never need this conversation: that is what makes them usable from a
 different environment.
 
+    part       point-prompted cut bounded by the ink line (no rectangle)
+    probe      operator segmentation -> a decision table of regions
+    inspect    SAM proposal for a point/box, as region ids
+    cut        cut by region spec (edges, not rectangles)
+    review     machine review of a cut piece
     rig-gap    cut a round region (a missing limb, a head) as a rigid piece
     rig-arm    cut a rigid limb by rectangle, optionally with sampled wave poses
     motion     beats JSON -> looping GIF / MP4 (rigid parts + sampled poses)
@@ -23,6 +28,41 @@ import numpy as np
 from PIL import Image
 
 from .util import ensure_dir, imread, read_json, write_json
+
+
+def cmd_part(args) -> int:
+    """Point-prompted cut: cells bounded by the ink line, no rectangle."""
+    from .cast import partkit, segkit
+
+    art = imread(Path(args.src))
+    pts = [tuple(float(v) for v in a.split(",")) for a in args.at]
+    rgba, meta = partkit.build(art, pts, tol=args.tol)
+    out = ensure_dir(Path(args.to))
+    png = out / f"{args.name}.png"
+    Image.fromarray(rgba, "RGBA").save(png)
+    pivot = partkit.end_pivot(rgba)
+    meta["pivot"] = pivot
+    meta["kind"] = "one_arm"
+    meta["label"] = args.label
+    write_json(out / f"{args.name}.json",
+               {"kind": "one_arm", "art": args.src, "art_w": int(art.shape[1]),
+                "art_h": int(art.shape[0]),
+                "parts": [{"name": args.name, "image": str(png), "pivot": pivot,
+                           "amp": args.amp}]})
+    write_json(out / f"{args.name}_meta.json", meta)
+    s = segkit.score(rgba, meta, art)
+    print(json.dumps({"piece": str(png), "pivot": pivot, "review": s}, ensure_ascii=False))
+    return 0 if s["accept"] else 2
+
+
+def cmd_seg(args) -> int:
+    from .cast import segkit
+
+    painter = {"probe": segkit.cmd_probe, "inspect": segkit.cmd_inspect,
+               "cut": segkit.cmd_cut, "review": segkit.cmd_review}.get(args.cmd)
+    if painter is None:
+        raise KeyError(args.cmd)
+    return painter(args)
 
 
 def cmd_rig(args) -> int:
@@ -110,6 +150,44 @@ def cmd_help(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="agent")
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    g = sub.add_parser("part", help="cut by ink-bounded region (point prompted)")
+    g.add_argument("--from", dest="src", required=True)
+    g.add_argument("--at", action="append", required=True, help="x,y normalised on the piece")
+    g.add_argument("--to", dest="to", required=True)
+    g.add_argument("--name", default="part")
+    g.add_argument("--tol", type=float, default=26.0)
+    g.add_argument("--amp", type=float, default=12.0)
+    g.add_argument("--label", default="")
+    g.set_defaults(func=cmd_part)
+
+    g = sub.add_parser("probe", help="operator segmentation -> decision table")
+    g.add_argument("--from", dest="src", required=True)
+    g.add_argument("--point", action="append", help="x,y (normalised) to name a region")
+    g.add_argument("--colours", type=int, default=12)
+    g.add_argument("--min-area", type=int, default=120)
+    g.add_argument("--limit", type=int, default=40)
+    g.add_argument("--json")
+    g.set_defaults(func=cmd_seg)
+
+    g = sub.add_parser("inspect", help="SAM proposal expressed as region ids")
+    g.add_argument("--from", dest="src", required=True)
+    g.add_argument("--point", action="append")
+    g.add_argument("--box", help="x,y,w,h normalised")
+    g.add_argument("--colours", type=int, default=12)
+    g.add_argument("--min-area", type=int, default=120)
+    g.set_defaults(func=cmd_seg)
+
+    g = sub.add_parser("cut", help="cut by region spec (no rectangle)")
+    g.add_argument("--from", dest="src", required=True)
+    g.add_argument("--spec", required=True)
+    g.add_argument("--to", dest="to", required=True)
+    g.add_argument("--name", default="piece")
+    g.set_defaults(func=cmd_seg)
+
+    g = sub.add_parser("review", help="machine review of a cut piece")
+    g.add_argument("--rig", required=True)
+    g.set_defaults(func=cmd_seg)
 
     g = sub.add_parser("rig-gap", help="cut a round region (missing limb / head)")
     g.add_argument("--from", dest="src", required=True)
