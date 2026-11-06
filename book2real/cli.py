@@ -89,6 +89,7 @@ def cmd_cast(args) -> int:
     from .cast.pipeline import run
 
     report = run(args.book, force=args.force, max_rigs=args.max_rigs,
+                 models=getattr(args, "models", False),
                  on_progress=lambda m: print(f"  {m}"))
     stages = report["stages"]
     print(f"\ncast -> {Path(args.book) / 'reader' / 'characters' / 'characters.json'}"
@@ -112,6 +113,33 @@ def cmd_cast(args) -> int:
           f" text coverage {crit['text_coverage']:.0%}")
     if crit["missing"]:
         print(f"  missing: {', '.join(crit['missing'])}")
+    return 0
+
+
+def cmd_models(args) -> int:
+    from .models import fetch, status
+
+    if args.fetch:
+        return fetch(args.only or None)
+    rows = status()
+    for r in rows:
+        mark = "ok  " if r["installed"] else "miss"
+        print(f"[{mark}] {r['key']:<8} {r['repo']}")
+        print(f"        {r['desc']}")
+    missing = [r["key"] for r in rows if not r["installed"]]
+    if missing:
+        print(f"\nrun `python -m book2real models --fetch` to download: {', '.join(missing)}")
+    return 0
+
+
+def cmd_layers(args) -> int:
+    from .layering import run as build_layers
+
+    index = build_layers(args.book, use_models=not args.no_models, limit=args.limit,
+                         on_progress=lambda m: print(f"  {m}"))
+    print(f"\nlayers -> {Path(args.book) / 'reader' / 'layers' / 'index.json'}"
+          f"  ({index['seconds']}s)")
+    print(f"pages  : {index['stats']['pages']}   inpaint {index['stats']['inpaint']}")
     return 0
 
 
@@ -206,7 +234,21 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--force", action="store_true")
     sp.add_argument("--max-rigs", type=int, default=3,
                     help="how many characters get a paper-puppet rig")
+    sp.add_argument("--models", action="store_true",
+                    help="let the rigger repair cut edges with the local inpainting model")
     sp.set_defaults(func=cmd_cast)
+
+    sp = sub.add_parser("models", help="report or download the optional model weights")
+    sp.add_argument("--fetch", action="store_true")
+    sp.add_argument("--only", nargs="*", help="depth inpaint sam")
+    sp.set_defaults(func=cmd_models)
+
+    sp = sub.add_parser("layers", help="build 2.5D layers (background + characters + depth)")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--no-models", action="store_true",
+                    help="skip depth/inpainting (pure numpy, much faster)")
+    sp.add_argument("--limit", type=int, default=0, help="stop after N pages")
+    sp.set_defaults(func=cmd_layers)
 
     sp = sub.add_parser("film", help="render the interactive book as a 16:9 film")
     sp.add_argument("--book", required=True)

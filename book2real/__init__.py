@@ -1,7 +1,8 @@
-"""Book2Real — turn static picture-book pages into a playable story film.
+"""纸间生灵 (repo: Book2Real) — turn picture-book pages into a living book.
 
-Track A  parallax     : layered 2.5D camera move from a single page image (CPU, deterministic)
-Track B  micro-motion : procedural light/particle/breathe effects; local I2V adapter is pluggable
+cast     : PageScout -> CastClerk -> Rigger -> MotionDirector -> Critic
+layers   : depth + SAM outline -> background plate + characters (2.5D parallax)
+vision   : optional local models (Depth Anything V2, SD-1.5 inpaint, SAM)
 """
 import sys
 from pathlib import Path

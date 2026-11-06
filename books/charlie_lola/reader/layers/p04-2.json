@@ -1,0 +1,34 @@
+{
+  "page": "p04-2",
+  "art": "art/p04.jpg",
+  "art_w": 721,
+  "art_h": 800,
+  "depth": "layers/p04-2_depth.png",
+  "inpaint": "none",
+  "outline": "sam",
+  "near_gain": 0.586,
+  "layers": [
+    {
+      "id": "bg",
+      "image": "layers/p04-2_bg.jpg",
+      "z": 0,
+      "parallax": 0.0035,
+      "zoom": 1.05,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "fg",
+      "image": "layers/p04-2_fg.png",
+      "z": 1,
+      "parallax": 0.0129,
+      "zoom": 1.0,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    }
+  ]
+}

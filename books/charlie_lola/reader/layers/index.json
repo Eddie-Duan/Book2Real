@@ -1,0 +1,732 @@
+{
+  "version": 1,
+  "book": "charlie_lola",
+  "built_at": "2026-11-06T13:22:25",
+  "seconds": 54.41,
+  "models": true,
+  "stats": {
+    "pages": 23,
+    "inpaint": {
+      "sd": 0,
+      "ring": 0,
+      "flat": 0,
+      "inpaint": 2,
+      "none": 21
+    }
+  },
+  "pages": {
+    "p03": {
+      "depth": "layers/p03_depth.png",
+      "inpaint": "inpaint",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 608,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p03_bg.jpg",
+          "z": 0,
+          "parallax": 0.0054,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p03_fg.png",
+          "z": 1,
+          "parallax": 0.0197,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p04-1": {
+      "depth": "layers/p04-1_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 800,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p04-1_bg.jpg",
+          "z": 0,
+          "parallax": 0.0035,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p04-1_fg.png",
+          "z": 1,
+          "parallax": 0.0129,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p04-2": {
+      "depth": "layers/p04-2_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 800,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p04-2_bg.jpg",
+          "z": 0,
+          "parallax": 0.0035,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p04-2_fg.png",
+          "z": 1,
+          "parallax": 0.0129,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p04-3": {
+      "depth": "layers/p04-3_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 800,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p04-3_bg.jpg",
+          "z": 0,
+          "parallax": 0.0035,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p04-3_fg.png",
+          "z": 1,
+          "parallax": 0.0129,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p05": {
+      "depth": "layers/p05_depth.png",
+      "inpaint": "inpaint",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 593,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p05_bg.jpg",
+          "z": 0,
+          "parallax": 0.0035,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p05_fg.png",
+          "z": 1,
+          "parallax": 0.013,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p06-1": {
+      "depth": "layers/p06-1_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1001,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p06-1_bg.jpg",
+          "z": 0,
+          "parallax": 0.0035,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p06-1_fg.png",
+          "z": 1,
+          "parallax": 0.013,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p06-2": {
+      "depth": "layers/p06-2_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1001,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p06-2_bg.jpg",
+          "z": 0,
+          "parallax": 0.0035,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p06-2_fg.png",
+          "z": 1,
+          "parallax": 0.013,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p06-3": {
+      "depth": "layers/p06-3_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1001,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p06-3_bg.jpg",
+          "z": 0,
+          "parallax": 0.0035,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p06-3_fg.png",
+          "z": 1,
+          "parallax": 0.013,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p09-1": {
+      "depth": "layers/p09-1_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 392,
+      "art_h": 451,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p09-1_bg.jpg",
+          "z": 0,
+          "parallax": 0.0061,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p09-1_fg.png",
+          "z": 1,
+          "parallax": 0.0225,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p09-2": {
+      "depth": "layers/p09-2_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 392,
+      "art_h": 451,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p09-2_bg.jpg",
+          "z": 0,
+          "parallax": 0.0061,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p09-2_fg.png",
+          "z": 1,
+          "parallax": 0.0225,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p09-3": {
+      "depth": "layers/p09-3_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 392,
+      "art_h": 451,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p09-3_bg.jpg",
+          "z": 0,
+          "parallax": 0.0061,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p09-3_fg.png",
+          "z": 1,
+          "parallax": 0.0225,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p09-4": {
+      "depth": "layers/p09-4_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 392,
+      "art_h": 451,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p09-4_bg.jpg",
+          "z": 0,
+          "parallax": 0.0061,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p09-4_fg.png",
+          "z": 1,
+          "parallax": 0.0225,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p11-1": {
+      "depth": "layers/p11-1_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 800,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p11-1_bg.jpg",
+          "z": 0,
+          "parallax": 0.0062,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p11-1_fg.png",
+          "z": 1,
+          "parallax": 0.0227,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p11-2": {
+      "depth": "layers/p11-2_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 800,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p11-2_bg.jpg",
+          "z": 0,
+          "parallax": 0.0062,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p11-2_fg.png",
+          "z": 1,
+          "parallax": 0.0227,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p13-1": {
+      "depth": "layers/p13-1_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1008,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p13-1_bg.jpg",
+          "z": 0,
+          "parallax": 0.0059,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p13-1_fg.png",
+          "z": 1,
+          "parallax": 0.0216,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p13-2": {
+      "depth": "layers/p13-2_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1008,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p13-2_bg.jpg",
+          "z": 0,
+          "parallax": 0.0059,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p13-2_fg.png",
+          "z": 1,
+          "parallax": 0.0216,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p15": {
+      "depth": "layers/p15_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1400,
+      "art_h": 764,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p15_bg.jpg",
+          "z": 0,
+          "parallax": 0.0055,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p15_fg.png",
+          "z": 1,
+          "parallax": 0.0201,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p16": {
+      "depth": "layers/p16_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 581,
+      "art_h": 461,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p16_bg.jpg",
+          "z": 0,
+          "parallax": 0.0062,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p16_fg.png",
+          "z": 1,
+          "parallax": 0.0228,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p17": {
+      "depth": "layers/p17_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 464,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p17_bg.jpg",
+          "z": 0,
+          "parallax": 0.0063,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p17_fg.png",
+          "z": 1,
+          "parallax": 0.023,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p18": {
+      "depth": "layers/p18_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1400,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p18_bg.jpg",
+          "z": 0,
+          "parallax": 0.0059,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p18_fg.png",
+          "z": 1,
+          "parallax": 0.0215,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p20": {
+      "depth": "layers/p20_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 1400,
+      "art_h": 777,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p20_bg.jpg",
+          "z": 0,
+          "parallax": 0.0026,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p20_fg.png",
+          "z": 1,
+          "parallax": 0.0096,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p21-1": {
+      "depth": "layers/p21-1_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 800,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p21-1_bg.jpg",
+          "z": 0,
+          "parallax": 0.0034,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p21-1_fg.png",
+          "z": 1,
+          "parallax": 0.0124,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    "p21-2": {
+      "depth": "layers/p21-2_depth.png",
+      "inpaint": "none",
+      "outline": "sam",
+      "art_w": 721,
+      "art_h": 800,
+      "layers": [
+        {
+          "id": "bg",
+          "image": "layers/p21-2_bg.jpg",
+          "z": 0,
+          "parallax": 0.0034,
+          "zoom": 1.05,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fg",
+          "image": "layers/p21-2_fg.png",
+          "z": 1,
+          "parallax": 0.0124,
+          "zoom": 1.0,
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    }
+  }
+}

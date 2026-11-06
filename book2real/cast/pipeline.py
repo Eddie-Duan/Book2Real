@@ -51,7 +51,7 @@ def _prune(char_dir: Path, manifest_path: Path, kept: set[str],
 
 
 def run(book_dir: str | Path, *, force: bool = False, max_rigs: int = 3,
-        on_progress=None) -> dict:
+        on_progress=None, models: bool = False) -> dict:
     t0 = time.perf_counter()
     book_dir = Path(book_dir).resolve()
     reader = book_dir / "reader"
@@ -141,7 +141,7 @@ def run(book_dir: str | Path, *, force: bool = False, max_rigs: int = 3,
         best: tuple[float, Rig, object, dict] | None = None
         for cand in cands:
             rig = rigger.build(reader, char_dir, cid, page_art.get(cand["page"], ""),
-                               cand["box"])
+                               cand["box"], inpaint_model=models)
             remember_rig_files(rig)
             card = next(c for c in cards if c["id"] == cid)
             verdict = critic.judge_character(reader, card, book, rig=rig)
@@ -188,7 +188,8 @@ def run(book_dir: str | Path, *, force: bool = False, max_rigs: int = 3,
             continue
         seen_pages.add(cand["page"])
         cid = f"anon_{cand['page']}".replace("-", "_")
-        rig = rigger.build(reader, char_dir, cid, page_art.get(cand["page"], ""), cand["box"])
+        rig = rigger.build(reader, char_dir, cid, page_art.get(cand["page"], ""), cand["box"],
+                           inpaint_model=models)
         remember_rig_files(rig)
         verdict = critic.judge_character(reader, {"id": cid, "name": "", "role": "",
                                                   "desc": ""}, book, rig=rig)

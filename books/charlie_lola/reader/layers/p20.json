@@ -1,0 +1,34 @@
+{
+  "page": "p20",
+  "art": "art/p20.jpg",
+  "art_w": 1400,
+  "art_h": 777,
+  "depth": "layers/p20_depth.png",
+  "inpaint": "none",
+  "outline": "sam",
+  "near_gain": 0.437,
+  "layers": [
+    {
+      "id": "bg",
+      "image": "layers/p20_bg.jpg",
+      "z": 0,
+      "parallax": 0.0026,
+      "zoom": 1.05,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "fg",
+      "image": "layers/p20_fg.png",
+      "z": 1,
+      "parallax": 0.0096,
+      "zoom": 1.0,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    }
+  ]
+}

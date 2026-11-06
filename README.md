@@ -20,11 +20,14 @@ Critic 不通过就退回肖像；没人认领的切件会以“agent 切好的�
 ## 快速开始
 
 ```bash
+pip install -r requirements.txt
+python -m book2real models --fetch        # 可选：本地模型（8GB GPU 的 demo 档）
 python -m book2real reader --books books --port 8770 --open
 
-# 或先手动分析 / 出片 / 跑人物链
+# 或先手动分析 / 人物链 / 2.5D 分层 / 出片
 python -m book2real analyze --book books/charlie_lola
 python -m book2real cast    --book books/charlie_lola
+python -m book2real layers  --book books/charlie_lola
 python -m book2real film    --book books/charlie_lola
 ```
 
@@ -33,6 +36,34 @@ python -m book2real film    --book books/charlie_lola
 1. 选择书目（内置《我特别了解豚鼠》《迎国庆》）；
 2. **导入绘本**：多选页面图片，自动按文件时间排序 → OCR → 拼音 → 清字 → 排版；
 3. **生成视频**：后台逐页配音、排版、运镜、编码，完成后在弹窗里播放/下载。
+
+> 本机实测（RTX 5070 Laptop 8GB / i9-14900HX）：`cast` 约 50 s（含 SD 修补），
+> `layers` 23 页约 120 s（SAM + 深度 + 修补），显存峰值 < 3 GB。耗时随机器和负载波动。
+
+## 2.5D 分层（本地 demo 档）
+
+静止页不再靠"整页推近"，也不再靠整页晃动。`python -m book2real layers` 把每一页拆成
+**背景板 + 人物层**，并给人物层一个来自深度图的独立位移量：
+
+| 步骤 | 工具 | 8GB 实测 |
+|---|---|---|
+| 人物轮廓 | SAM ViT-B（box 提示） | ~0.7 s / 页 |
+| 背景修补 | OpenCV NS/TELEA 自选 | < 0.1 s |
+| 深度 | Depth Anything V2 small | ~0.3 s / 页 |
+| 切件修补 | SD-1.5 inpainting（`cast --models` 开关） | ~1.5 s / 图 |
+
+网页用 CSS `transform` 做视差（鼠标移动），16:9 成片复用同一份 `layers/index.json`。
+每页记录 `outline`（sam/box）与 `inpaint`（inpaint/none），**没做干净就如实标注**，
+不拿一块色块冒充修复。
+
+已知边界：两个人物贴得很近、共用一个挖补区域时，背景修补会在人物边缘留下一点过渡；
+干净平涂页没有这个问题。细节见 [docs/READER.md](docs/READER.md) 的 2.5D 一节。
+
+## 本地 / 服务器分工
+
+- **本地 8GB 能跑**：互动阅读、纸偶、分层、深度、SAM、SD-1.5 局部修补；
+- **本地跑不动也不值得跑**：Qwen-Image-Edit 20B、Wan2.2 14B、HunyuanVideo —
+  放到 GPU 服务器或调用 API，见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
 ## 已有能力
 

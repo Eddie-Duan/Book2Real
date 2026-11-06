@@ -140,9 +140,32 @@ def _arm(mask: np.ndarray, side: str, band: tuple[int, int], neck_y: int,
 
 def _erase(art: np.ndarray, region: np.ndarray, key: np.ndarray,
            feather: float = 1.2) -> np.ndarray:
+    """Flat-fill a cut region with paper, keeping the page's per-row lighting.
+
+    A single constant colour leaves a visible slab on a lit page, so the fill is
+    the key colour scaled by the median paper brightness of the same rows
+    (sampled ~12 px outside the region). Pure numpy: no model needed.
+    """
+    h, w = art.shape[:2]
     a = np.asarray(Image.fromarray((region.astype(np.uint8) * 255), "L")
                    .filter(ImageFilter.GaussianBlur(feather)), np.float32) / 255.0
-    out = art.astype(np.float32) * (1 - a[..., None]) + key[None, None, :] * a[..., None]
+    luma = art.astype(np.float32) @ np.array([0.299, 0.587, 0.114], np.float32)
+    key_l = float(np.asarray(key, np.float32) @ np.array([0.299, 0.587, 0.114], np.float32))
+    gain = np.ones(h, np.float32)
+    band = max(4, int(0.02 * max(h, w)))
+    grow = np.asarray(Image.fromarray((region.astype(np.uint8) * 255), "L")
+                      .filter(ImageFilter.MaxFilter(min(2 * band + 1, 2 * (h // 2) + 1))), bool) > 127
+    ring = grow & ~region
+    for y in range(h):
+        if not region[y].any():
+            continue
+        above, below = ring[max(0, y - band):y], ring[y + 1:y + 1 + band]
+        vals = np.concatenate([luma[max(0, y - band):y][above],
+                               luma[y + 1:y + 1 + band][below]])
+        if vals.size > 8:
+            gain[y] = float(np.median(vals)) / max(1e-3, key_l)
+    fill = np.asarray(key, np.float32)[None, None, :] * gain[:, None, None]
+    out = art.astype(np.float32) * (1 - a[..., None]) + fill * a[..., None]
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
@@ -154,7 +177,7 @@ def _rgba(art: np.ndarray, alpha: np.ndarray, region: np.ndarray) -> np.ndarray:
 
 
 def build(reader_dir: Path, out_dir: Path, cid: str, art_rel: str, box,
-          *, key_tol: float = 60.0) -> Rig:
+          *, key_tol: float = 60.0, inpaint_model: bool = False) -> Rig:
     reader_dir, out_dir = Path(reader_dir), Path(out_dir)
     if not art_rel:
         return Rig(kind="portrait", notes=["no illustration for this character"])
@@ -244,6 +267,26 @@ def build(reader_dir: Path, out_dir: Path, cid: str, art_rel: str, box,
     for _side, arm, part in arms:
         Image.fromarray(_rgba(art, alpha, arm), "RGBA").save(out_dir / Path(part.image).name)
         parts.append(part)
+
+    # L2: finish the cut generatively when the flat fill is not good enough.
+    # Only the erased region is regenerated; the similarity gate keeps the
+    # result if it matches the paper, otherwise the flat fill stays.
+    if inpaint_model and parts:
+        try:
+            from ..vision import inpaint as inpaint_mod
+
+            hole = np.zeros((h, w), bool)
+            for _side, armmask, _part in arms:
+                hole |= armmask
+            if hole.any():
+                filled, info = inpaint_mod.inpaint(body, hole,
+                                                   key=np.asarray(key, np.float32))
+                if info.get("accept") and info.get("used") == "sd":
+                    body = filled
+                    Image.fromarray(body).save(body_path, quality=94)
+                notes.append(f"erase -> {info.get('used')} (sim {info.get('sim')})")
+        except Exception as exc:                      # noqa: BLE001
+            notes.append(f"erase stays flat ({exc.__class__.__name__})")
 
     if neck and top > int(0.02 * h) and neck - top > 0.10 * H:
         head = np.zeros((h, w), bool)

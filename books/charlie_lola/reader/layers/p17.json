@@ -1,0 +1,34 @@
+{
+  "page": "p17",
+  "art": "art/p17.jpg",
+  "art_w": 721,
+  "art_h": 464,
+  "depth": "layers/p17_depth.png",
+  "inpaint": "none",
+  "outline": "sam",
+  "near_gain": 1.045,
+  "layers": [
+    {
+      "id": "bg",
+      "image": "layers/p17_bg.jpg",
+      "z": 0,
+      "parallax": 0.0063,
+      "zoom": 1.05,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "fg",
+      "image": "layers/p17_fg.png",
+      "z": 1,
+      "parallax": 0.023,
+      "zoom": 1.0,
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    }
+  ]
+}

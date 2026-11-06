@@ -182,14 +182,73 @@ def _composite(panel: np.ndarray, art: Image.Image, shadow: Image.Image,
     return arr.astype(np.uint8)
 
 
+def _composite_layers(panel: np.ndarray, layers: list, shadow: Image.Image,
+                      ax: int, ay: int, aw: int, ah: int, t: float) -> np.ndarray:
+    """Paste depth layers with different travel instead of scaling one flat page.
+
+    `ax, ay, aw, ah` is the fitted art rectangle inside the panel; each layer was
+    built at the art's native size, so it is scaled to that rectangle and then
+    shifted by its own parallax amount (baked from the depth map at build time).
+    """
+    frame = Image.fromarray(panel.copy()).convert("RGB")
+    frame.paste(shadow, (ax - 30, ay - 30), shadow)
+    phase = np.sin(t * np.pi * 2)
+    near_extra = 1.0 + 0.02 * t
+    for lay in layers:
+        img = lay.get("_img")
+        if img is None:
+            continue
+        z = float(lay.get("zoom") or 1.0)
+        p = float(lay.get("parallax") or 0.0)
+        is_near = float(lay.get("z") or 0) > 0
+        scale = z * (near_extra if is_near else 1.0)
+        w, h = max(1, int(aw * scale)), max(1, int(ah * scale))
+        resized = img.resize((w, h), Image.BILINEAR)
+        dx = int((pw := 0) + phase * p * W * (1.6 if is_near else 0.9))
+        dy = int(-0.004 * t * H * (1.5 if is_near else 0.6))
+        x = ax + (aw - w) // 2 + dx
+        y = ay + (ah - h) // 2 + dy
+        if resized.mode == "RGBA":
+            frame.paste(resized, (x, y), resized)
+        else:
+            frame.paste(resized, (x, y))
+    arr = np.asarray(frame).astype(np.float32)
+    centre = -0.2 + 1.45 * (0.15 + 0.7 * t)
+    band = np.exp(-((np.arange(W) / W - centre) ** 2) / (2 * 0.13 ** 2)) * 8.0
+    arr = np.clip(arr + band[None, :, None], 0, 255)
+    return arr.astype(np.uint8)
+
+
 def _duration(page: dict) -> float:
     if page.get("_audio_dur"):
         return max(3.2, min(11.0, page["_audio_dur"] + 0.9))
     return max(3.4, min(9.0, 2.2 + len(page.get("text", "")) * 0.18))
 
 
+def _load_layers(book: dict) -> dict:
+    """page id -> [{"_img": RGBA/RGB PIL} or None]; empty when layers are absent."""
+    reader = ROOT / "books" / book["book_id"] / "reader"
+    idx_path = reader / "layers" / "index.json"
+    if not idx_path.exists():
+        return {}
+    index = json.loads(idx_path.read_text(encoding="utf-8"))
+    out: dict = {}
+    for pid, rec in (index.get("pages") or {}).items():
+        imgs = []
+        for lay in rec.get("layers", []):
+            path = reader / lay.get("image", "")
+            if not path.exists():
+                continue
+            im = Image.open(path)
+            imgs.append({**lay, "_img": im.convert("RGBA") if im.mode == "RGBA" else im.convert("RGB")})
+        if imgs:
+            out[pid] = imgs
+    return out
+
+
 def _frames(book: dict, on_progress=None):
     theme = book.get("theme") or {}
+    layer_index = _load_layers(book)
     bg = _paper_bg(theme)
     pages = book["pages"]
     total = len(pages)
@@ -223,14 +282,19 @@ def _frames(book: dict, on_progress=None):
         art_img = _rounded(Image.fromarray(art), 18)
         shadow = _shadow(art_img)
         ax, ay = 640 + (590 - art_img.width) // 2, 60 + (600 - art_img.height) // 2
+        layers = layer_index.get(page.get("id")) or layer_index.get(page.get("art_page") or "")
         dur = _duration(page)
         n = max(1, int(round(dur * FPS)))
         for i in range(n):
             t = i / (n - 1)
-            scale = 1.02 + 0.055 * t
-            dx = 0.006 * np.sin(t * np.pi * 2) * (1 if idx % 2 else -1)
-            dy = -0.004 * t
-            f = _composite(panel, art_img, shadow, ax, ay, scale, dx, dy, t)
+            if layers:
+                f = _composite_layers(panel, layers, shadow, ax, ay,
+                                      art_img.width, art_img.height, t)
+            else:
+                scale = 1.02 + 0.055 * t
+                dx = 0.006 * np.sin(t * np.pi * 2) * (1 if idx % 2 else -1)
+                dy = -0.004 * t
+                f = _composite(panel, art_img, shadow, ax, ay, scale, dx, dy, t)
             k = min(1.0, i / 7.0, (n - 1 - i) / 7.0)
             yield (bg.astype(np.float32) * (1 - k) + f.astype(np.float32) * k).astype(np.uint8)
 

@@ -1,0 +1,22 @@
+{
+  "lola": {
+    "no_face": true,
+    "portrait": "no face detected (kept)"
+  },
+  "charlie": {
+    "no_face": true,
+    "portrait": "no face detected (kept)"
+  },
+  "lotta": {
+    "no_face": true,
+    "portrait": "no face detected (kept)"
+  },
+  "port": {
+    "no_face": true,
+    "portrait": "no face detected (kept)"
+  },
+  "mimi": {
+    "no_face": true,
+    "portrait": "no face detected (kept)"
+  }
+}

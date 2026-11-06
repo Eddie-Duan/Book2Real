@@ -113,6 +113,7 @@ body.no-pinyin .punct{padding-top:0}
 .art-layers{position:absolute;inset:0;z-index:1}
 .art-img{position:absolute;inset:0;background-repeat:no-repeat;background-position:center;
   background-size:contain}
+.art-depth{transition:transform .5s cubic-bezier(.22,.61,.36,1);transform-origin:center}
 .art-one{}
 .art-vignette{position:absolute;inset:0;z-index:2;pointer-events:none;
   background:radial-gradient(120% 100% at 50% 45%,transparent 55%,rgba(74,50,30,.14) 100%)}
