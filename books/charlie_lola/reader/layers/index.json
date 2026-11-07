@@ -1,17 +1,17 @@
 {
   "version": 1,
   "book": "charlie_lola",
-  "built_at": "2026-11-06T23:55:15",
-  "seconds": 87.91,
+  "built_at": "2026-11-07T08:59:24",
+  "seconds": 96.27,
   "models": true,
   "stats": {
-    "pages": 24,
+    "pages": 23,
     "inpaint": {
       "sd": 0,
       "ring": 0,
       "flat": 0,
       "inpaint": 6,
-      "none": 18
+      "none": 17
     }
   },
   "pages": {
@@ -44,7 +44,9 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p04-1": {
       "depth": "layers/p04-1_depth.png",
@@ -75,20 +77,22 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p04-2": {
       "depth": "layers/p04-2_depth.png",
       "inpaint": "none",
-      "outline": "box",
-      "art_w": 721,
-      "art_h": 800,
+      "outline": "sam_partial",
+      "art_w": 555,
+      "art_h": 615,
       "layers": [
         {
           "id": "bg",
           "image": "layers/p04-2_bg.jpg",
           "z": 0,
-          "parallax": 0.0038,
+          "parallax": 0.0033,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -99,27 +103,28 @@
           "id": "fg",
           "image": "layers/p04-2_fg.png",
           "z": 1,
-          "parallax": 0.0141,
+          "parallax": 0.012,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": false
     },
     "p04-3": {
       "depth": "layers/p04-3_depth.png",
-      "inpaint": "none",
-      "outline": "box",
-      "art_w": 721,
-      "art_h": 800,
+      "inpaint": "inpaint",
+      "outline": "sam_partial",
+      "art_w": 476,
+      "art_h": 516,
       "layers": [
         {
           "id": "bg",
           "image": "layers/p04-3_bg.jpg",
           "z": 0,
-          "parallax": 0.0038,
+          "parallax": 0.0037,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -130,14 +135,15 @@
           "id": "fg",
           "image": "layers/p04-3_fg.png",
           "z": 1,
-          "parallax": 0.0141,
+          "parallax": 0.0137,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": false
     },
     "p05": {
       "depth": "layers/p05_depth.png",
@@ -168,7 +174,9 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p06-1": {
       "depth": "layers/p06-1_depth.png",
@@ -181,7 +189,7 @@
           "id": "bg",
           "image": "layers/p06-1_bg.jpg",
           "z": 0,
-          "parallax": 0.0032,
+          "parallax": 0.0031,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -192,14 +200,15 @@
           "id": "fg",
           "image": "layers/p06-1_fg.png",
           "z": 1,
-          "parallax": 0.0118,
+          "parallax": 0.0113,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": false
     },
     "p06-2": {
       "depth": "layers/p06-2_depth.png",
@@ -230,38 +239,8 @@
             0.5
           ]
         }
-      ]
-    },
-    "p06-3": {
-      "depth": "layers/p06-3_depth.png",
-      "inpaint": "inpaint",
-      "outline": "sam_partial",
-      "art_w": 1001,
-      "art_h": 777,
-      "layers": [
-        {
-          "id": "bg",
-          "image": "layers/p06-3_bg.jpg",
-          "z": 0,
-          "parallax": 0.0032,
-          "zoom": 1.05,
-          "anchor": [
-            0.5,
-            0.5
-          ]
-        },
-        {
-          "id": "fg",
-          "image": "layers/p06-3_fg.png",
-          "z": 1,
-          "parallax": 0.0118,
-          "zoom": 1.0,
-          "anchor": [
-            0.5,
-            0.5
-          ]
-        }
-      ]
+      ],
+      "flat": false
     },
     "p07": {
       "depth": "layers/p07_depth.png",
@@ -292,7 +271,9 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p09-1": {
       "depth": "layers/p09-1_depth.png",
@@ -323,20 +304,22 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p09-2": {
       "depth": "layers/p09-2_depth.png",
       "inpaint": "none",
-      "outline": "box",
-      "art_w": 392,
-      "art_h": 451,
+      "outline": "sam_partial",
+      "art_w": 336,
+      "art_h": 386,
       "layers": [
         {
           "id": "bg",
           "image": "layers/p09-2_bg.jpg",
           "z": 0,
-          "parallax": 0.0052,
+          "parallax": 0.006,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -347,27 +330,28 @@
           "id": "fg",
           "image": "layers/p09-2_fg.png",
           "z": 1,
-          "parallax": 0.0192,
+          "parallax": 0.022,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": false
     },
     "p09-3": {
       "depth": "layers/p09-3_depth.png",
       "inpaint": "none",
-      "outline": "box",
-      "art_w": 392,
-      "art_h": 451,
+      "outline": "sam",
+      "art_w": 300,
+      "art_h": 345,
       "layers": [
         {
           "id": "bg",
           "image": "layers/p09-3_bg.jpg",
           "z": 0,
-          "parallax": 0.0052,
+          "parallax": 0.0067,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -378,27 +362,28 @@
           "id": "fg",
           "image": "layers/p09-3_fg.png",
           "z": 1,
-          "parallax": 0.0192,
+          "parallax": 0.0244,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": false
     },
     "p09-4": {
       "depth": "layers/p09-4_depth.png",
       "inpaint": "none",
-      "outline": "box",
-      "art_w": 392,
-      "art_h": 451,
+      "outline": "sam",
+      "art_w": 276,
+      "art_h": 318,
       "layers": [
         {
           "id": "bg",
           "image": "layers/p09-4_bg.jpg",
           "z": 0,
-          "parallax": 0.0052,
+          "parallax": 0.0066,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -409,14 +394,15 @@
           "id": "fg",
           "image": "layers/p09-4_fg.png",
           "z": 1,
-          "parallax": 0.0192,
+          "parallax": 0.0242,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": false
     },
     "p11-1": {
       "depth": "layers/p11-1_depth.png",
@@ -447,14 +433,16 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p11-2": {
       "depth": "layers/p11-2_depth.png",
       "inpaint": "none",
       "outline": "box",
-      "art_w": 721,
-      "art_h": 800,
+      "art_w": 554,
+      "art_h": 615,
       "layers": [
         {
           "id": "bg",
@@ -478,7 +466,9 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p13-1": {
       "depth": "layers/p13-1_depth.png",
@@ -509,20 +499,22 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p13-2": {
       "depth": "layers/p13-2_depth.png",
       "inpaint": "none",
       "outline": "box",
-      "art_w": 1008,
-      "art_h": 777,
+      "art_w": 775,
+      "art_h": 597,
       "layers": [
         {
           "id": "bg",
           "image": "layers/p13-2_bg.jpg",
           "z": 0,
-          "parallax": 0.0044,
+          "parallax": 0.0045,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -533,14 +525,16 @@
           "id": "fg",
           "image": "layers/p13-2_fg.png",
           "z": 1,
-          "parallax": 0.0163,
+          "parallax": 0.0167,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p15": {
       "depth": "layers/p15_depth.png",
@@ -571,7 +565,9 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p16": {
       "depth": "layers/p16_depth.png",
@@ -602,7 +598,9 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p17": {
       "depth": "layers/p17_depth.png",
@@ -634,6 +632,8 @@
           ]
         }
       ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle",
       "motion_gif": "motion_gif/p17_left_wave.gif"
     },
     "p18": {
@@ -665,7 +665,9 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p20": {
       "depth": "layers/p20_depth.png",
@@ -696,7 +698,8 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": false
     },
     "p21-1": {
       "depth": "layers/p21-1_depth.png",
@@ -727,20 +730,22 @@
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     },
     "p21-2": {
       "depth": "layers/p21-2_depth.png",
       "inpaint": "none",
       "outline": "box",
-      "art_w": 721,
-      "art_h": 800,
+      "art_w": 555,
+      "art_h": 615,
       "layers": [
         {
           "id": "bg",
           "image": "layers/p21-2_bg.jpg",
           "z": 0,
-          "parallax": 0.0029,
+          "parallax": 0.0024,
           "zoom": 1.05,
           "anchor": [
             0.5,
@@ -751,14 +756,16 @@
           "id": "fg",
           "image": "layers/p21-2_fg.png",
           "z": 1,
-          "parallax": 0.0108,
+          "parallax": 0.0089,
           "zoom": 1.0,
           "anchor": [
             0.5,
             0.5
           ]
         }
-      ]
+      ],
+      "flat": true,
+      "flat_reason": "character cut is a rectangle"
     }
   }
 }

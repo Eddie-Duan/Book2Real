@@ -1,19 +1,25 @@
 {
   "page": "p09-4",
-  "art": "art/p09.jpg",
-  "art_w": 392,
-  "art_h": 451,
+  "art": "art/p09-4.jpg",
+  "art_w": 276,
+  "art_h": 318,
   "depth": "layers/p09-4_depth.png",
   "inpaint": "none",
-  "outline": "box",
-  "head_check": {},
-  "near_gain": 0.873,
+  "outline": "sam",
+  "head_check": {
+    "top_median": 78.0,
+    "body_median": 195.0,
+    "ratio": 0.4,
+    "height": 220,
+    "box_coverage": 0.702
+  },
+  "near_gain": 1.102,
   "layers": [
     {
       "id": "bg",
       "image": "layers/p09-4_bg.jpg",
       "z": 0,
-      "parallax": 0.0052,
+      "parallax": 0.0066,
       "zoom": 1.05,
       "anchor": [
         0.5,
@@ -24,7 +30,7 @@
       "id": "fg",
       "image": "layers/p09-4_fg.png",
       "z": 1,
-      "parallax": 0.0192,
+      "parallax": 0.0242,
       "zoom": 1.0,
       "anchor": [
         0.5,

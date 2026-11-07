@@ -168,6 +168,19 @@ def cmd_agent(args) -> int:
     return agent_main(rest)
 
 
+def cmd_screens(args) -> int:
+    from .screens import apply_plan, plan_book, report
+
+    plan = plan_book(args.book)
+    print(report(plan))
+    if args.apply:
+        n = apply_plan(args.book, plan)
+        print(f"\nwrote split_plan for {n} page(s) into curation.json")
+    else:
+        print("\n(dry run: pass --apply to write these decisions into curation.json)")
+    return 0
+
+
 def cmd_sync(args) -> int:
     from .syncmedia import sync
 
@@ -322,6 +335,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("sync", help="re-attach generated loops after a layers rebuild")
     sp.add_argument("--book", required=True)
     sp.set_defaults(func=cmd_sync)
+
+    sp = sub.add_parser("screens", help="decide screens per page: how many, and what each shows")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--apply", action="store_true")
+    sp.set_defaults(func=cmd_screens)
 
     sp = sub.add_parser("words", help="build a per-page word list with meanings")
     sp.add_argument("--book", required=True)

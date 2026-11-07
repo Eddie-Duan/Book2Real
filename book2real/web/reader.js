@@ -170,8 +170,10 @@ function renderArt(page) {
       <div class="art-img art-fg" style="background-image:url('${base}${esc(page.art_fg)}')"></div>`;
   } else {
     layers.innerHTML = `<div class="art-img art-one" style="background-image:url('${base}${esc(page.art)}')"></div>`;
-    const lay = state.layerIndex && state.layerIndex[page.id];
-    if (lay) attachLayers(lay, base);
+      const lay = state.layerIndex && state.layerIndex[page.id];
+    // a page whose character cut fell back to a rectangle keeps its original art:
+    // a rectangle leaves a soft band around the figure, a flat page never does
+    if (lay && !lay.flat) attachLayers(lay, base);
   }
   const seed = state.index * 37 + 11;
   const motes = Array.from({ length: 9 }, (_, i) => {

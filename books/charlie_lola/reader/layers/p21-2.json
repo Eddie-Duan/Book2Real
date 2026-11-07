@@ -1,19 +1,19 @@
 {
   "page": "p21-2",
-  "art": "art/p21.jpg",
-  "art_w": 721,
-  "art_h": 800,
+  "art": "art/p21-2.jpg",
+  "art_w": 555,
+  "art_h": 615,
   "depth": "layers/p21-2_depth.png",
   "inpaint": "none",
   "outline": "box",
   "head_check": {},
-  "near_gain": 0.49,
+  "near_gain": 0.404,
   "layers": [
     {
       "id": "bg",
       "image": "layers/p21-2_bg.jpg",
       "z": 0,
-      "parallax": 0.0029,
+      "parallax": 0.0024,
       "zoom": 1.05,
       "anchor": [
         0.5,
@@ -24,7 +24,7 @@
       "id": "fg",
       "image": "layers/p21-2_fg.png",
       "z": 1,
-      "parallax": 0.0108,
+      "parallax": 0.0089,
       "zoom": 1.0,
       "anchor": [
         0.5,

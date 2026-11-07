@@ -191,6 +191,9 @@
       ],
       "art": "art/p01.jpg",
       "art_page": "art/p01.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -529,6 +532,9 @@
       ],
       "art": "art/p03.jpg",
       "art_page": "art/p03.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -808,8 +814,11 @@
         "喜欢",
         "豚鼠。"
       ],
-      "art": "art/p04-1.jpg",
+      "art": "art/p04.jpg",
       "art_page": "art/p04.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -1370,6 +1379,10 @@
       ],
       "art": "art/p04-2.jpg",
       "art_page": "art/p04.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 555,
@@ -1747,6 +1760,10 @@
       ],
       "art": "art/p04-3.jpg",
       "art_page": "art/p04.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 476,
@@ -2234,6 +2251,9 @@
       ],
       "art": "art/p05.jpg",
       "art_page": "art/p05.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -2338,9 +2358,9 @@
       "id": "p06-1",
       "source_page": 6,
       "part": 1,
-      "parts": 3,
+      "parts": 2,
       "kind": "page",
-      "text": "“我觉得波特是一只女豚鼠，”劳拉说，“它看起来像个女的，因为它的毛特别漂亮。”咪咪说：“不，波特是男豚鼠。”",
+      "text": "“我觉得波特是一只女豚鼠，”劳拉说，“它看起来像个女的，因为它的毛特别漂亮。”",
       "pinyin": [
         {
           "ch": "“",
@@ -2497,66 +2517,6 @@
         {
           "ch": "”",
           "py": ""
-        },
-        {
-          "ch": "咪",
-          "py": "mī"
-        },
-        {
-          "ch": "咪",
-          "py": "mī"
-        },
-        {
-          "ch": "说",
-          "py": "shuō"
-        },
-        {
-          "ch": "：",
-          "py": ""
-        },
-        {
-          "ch": "“",
-          "py": ""
-        },
-        {
-          "ch": "不",
-          "py": "bù"
-        },
-        {
-          "ch": "，",
-          "py": ""
-        },
-        {
-          "ch": "波",
-          "py": "bō"
-        },
-        {
-          "ch": "特",
-          "py": "tè"
-        },
-        {
-          "ch": "是",
-          "py": "shì"
-        },
-        {
-          "ch": "男",
-          "py": "nán"
-        },
-        {
-          "ch": "豚",
-          "py": "tún"
-        },
-        {
-          "ch": "鼠",
-          "py": "shǔ"
-        },
-        {
-          "ch": "。",
-          "py": ""
-        },
-        {
-          "ch": "”",
-          "py": ""
         }
       ],
       "segments": [
@@ -2579,17 +2539,15 @@
         "的",
         "毛",
         "特别",
-        "漂亮。”",
-        "咪咪",
-        "说：",
-        "“不，",
-        "波特",
-        "是",
-        "男",
-        "豚鼠。”"
+        "漂亮。”"
       ],
-      "art": "art/p06-1.jpg",
+      "art": "art/p06-1-gen.jpg",
       "art_page": "art/p06.jpg",
+      "visual": {
+        "type": "regenerate",
+        "prompt": "flat children's picture-book illustration, clean black ink outline, a small fluffy brown guinea pig named 波特 sitting on white paper, pale warm background, no text, no letters",
+        "file": "art/p06-1-gen.jpg"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1001,
@@ -2894,10 +2852,70 @@
       "id": "p06-2",
       "source_page": 6,
       "part": 2,
-      "parts": 3,
+      "parts": 2,
       "kind": "page",
-      "text": "“你怎么这么了解豚鼠啊？”露塔说。“因为我家里也有一只……它叫毛毛，是从秘鲁来的。”“秘鲁？”",
+      "text": "咪咪说：“不，波特是男豚鼠。”“你怎么这么了解豚鼠啊？”露塔说。“因为我家里也有一只……它叫毛毛，是从秘鲁来的。”",
       "pinyin": [
+        {
+          "ch": "咪",
+          "py": "mī"
+        },
+        {
+          "ch": "咪",
+          "py": "mī"
+        },
+        {
+          "ch": "说",
+          "py": "shuō"
+        },
+        {
+          "ch": "：",
+          "py": ""
+        },
+        {
+          "ch": "“",
+          "py": ""
+        },
+        {
+          "ch": "不",
+          "py": "bù"
+        },
+        {
+          "ch": "，",
+          "py": ""
+        },
+        {
+          "ch": "波",
+          "py": "bō"
+        },
+        {
+          "ch": "特",
+          "py": "tè"
+        },
+        {
+          "ch": "是",
+          "py": "shì"
+        },
+        {
+          "ch": "男",
+          "py": "nán"
+        },
+        {
+          "ch": "豚",
+          "py": "tún"
+        },
+        {
+          "ch": "鼠",
+          "py": "shǔ"
+        },
+        {
+          "ch": "。",
+          "py": ""
+        },
+        {
+          "ch": "”",
+          "py": ""
+        },
         {
           "ch": "“",
           "py": ""
@@ -3065,29 +3083,16 @@
         {
           "ch": "”",
           "py": ""
-        },
-        {
-          "ch": "“",
-          "py": ""
-        },
-        {
-          "ch": "秘",
-          "py": "bì"
-        },
-        {
-          "ch": "鲁",
-          "py": "lǔ"
-        },
-        {
-          "ch": "？",
-          "py": ""
-        },
-        {
-          "ch": "”",
-          "py": ""
         }
       ],
       "segments": [
+        "咪咪",
+        "说：",
+        "“不，",
+        "波特",
+        "是",
+        "男",
+        "豚鼠。”",
         "“你",
         "怎么",
         "这么",
@@ -3108,15 +3113,17 @@
         "是从",
         "秘鲁",
         "来",
-        "的。”",
-        "“秘鲁？”"
+        "的。”"
       ],
-      "art": "art/p06-2.jpg",
+      "art": "art/p06.jpg",
       "art_page": "art/p06.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
-      "art_w": 770,
-      "art_h": 598,
+      "art_w": 1001,
+      "art_h": 777,
       "scene": "同学们七嘴八舌地讨论波特。咪咪说她家里也有一只豚鼠，叫毛毛，是从秘鲁来的。",
       "words": [
         {
@@ -3426,13 +3433,33 @@
       ]
     },
     {
-      "id": "p06-3",
-      "source_page": 6,
-      "part": 3,
-      "parts": 3,
+      "id": "p07",
+      "source_page": 7,
+      "part": 1,
+      "parts": 1,
       "kind": "page",
-      "text": "劳拉和露塔一起说，“秘鲁在哪儿啊？”",
+      "text": "“秘鲁？”劳拉和露塔一起说，“秘鲁在哪儿啊？”“它离这儿很远很远。在秘鲁，有很多很长的草。豚鼠喜欢很长的草，因为它们都很害羞。”",
       "pinyin": [
+        {
+          "ch": "“",
+          "py": ""
+        },
+        {
+          "ch": "秘",
+          "py": "bì"
+        },
+        {
+          "ch": "鲁",
+          "py": "lǔ"
+        },
+        {
+          "ch": "？",
+          "py": ""
+        },
+        {
+          "ch": "”",
+          "py": ""
+        },
         {
           "ch": "劳",
           "py": "láo"
@@ -3504,316 +3531,7 @@
         {
           "ch": "”",
           "py": ""
-        }
-      ],
-      "segments": [
-        "劳拉和露",
-        "塔",
-        "一起",
-        "说，",
-        "“秘鲁",
-        "在",
-        "哪儿",
-        "啊？”"
-      ],
-      "art": "art/p06-3.jpg",
-      "art_page": "art/p06.jpg",
-      "art_fg": "",
-      "art_bg": "",
-      "art_w": 646,
-      "art_h": 502,
-      "scene": "同学们七嘴八舌地讨论波特。咪咪说她家里也有一只豚鼠，叫毛毛，是从秘鲁来的。",
-      "words": [
-        {
-          "w": "漂亮",
-          "py": "piào liang",
-          "mean": "好看、美丽。"
         },
-        {
-          "w": "秘鲁",
-          "py": "bì lǔ",
-          "mean": "南美洲的一个国家，豚鼠的老家在那里。"
-        }
-      ],
-      "spots": [],
-      "characters": [],
-      "ocr_lines": [
-        {
-          "text": "“我觉得波特是一只女豚鼠，”",
-          "score": 0.897,
-          "box": [
-            1030.0,
-            36.0,
-            1278.0,
-            60.0
-          ]
-        },
-        {
-          "text": "劳拉说，“它看起来",
-          "score": 0.869,
-          "box": [
-            1108.0,
-            74.0,
-            1282.0,
-            97.0
-          ]
-        },
-        {
-          "text": "像个女的，因为它的毛特别漂亮。",
-          "score": 0.871,
-          "box": [
-            1027.0,
-            113.0,
-            1325.0,
-            133.0
-          ]
-        },
-        {
-          "text": "长毛的",
-          "score": 0.749,
-          "box": [
-            511.0,
-            142.0,
-            577.0,
-            167.0
-          ]
-        },
-        {
-          "text": "咪咪说：“不，波特是男豚鼠。”",
-          "score": 0.858,
-          "box": [
-            984.0,
-            183.0,
-            1255.0,
-            207.0
-          ]
-        },
-        {
-          "text": "“短毛的，",
-          "score": 0.614,
-          "box": [
-            274.0,
-            228.0,
-            351.0,
-            253.0
-          ]
-        },
-        {
-          "text": "“你怎么这么",
-          "score": 0.769,
-          "box": [
-            1148.0,
-            258.0,
-            1261.0,
-            282.0
-          ]
-        },
-        {
-          "text": "黑色的，",
-          "score": 0.74,
-          "box": [
-            398.0,
-            267.0,
-            471.0,
-            297.0
-          ]
-        },
-        {
-          "text": "了解豚鼠啊？”露塔说。",
-          "score": 0.878,
-          "box": [
-            1109.0,
-            294.0,
-            1312.0,
-            320.0
-          ]
-        },
-        {
-          "text": "棕黑色的，",
-          "score": 0.82,
-          "box": [
-            775.0,
-            378.0,
-            867.0,
-            402.0
-          ]
-        },
-        {
-          "text": "“因为我家里也有一只",
-          "score": 0.713,
-          "box": [
-            990.0,
-            371.0,
-            1205.0,
-            391.0
-          ]
-        },
-        {
-          "text": "它叫毛毛，是从",
-          "score": 0.863,
-          "box": [
-            1108.0,
-            405.0,
-            1249.0,
-            429.0
-          ]
-        },
-        {
-          "text": "秘鲁来的",
-          "score": 0.744,
-          "box": [
-            1150.0,
-            431.0,
-            1279.0,
-            500.0
-          ]
-        },
-        {
-          "text": "棕色的,",
-          "score": 0.755,
-          "box": [
-            162.0,
-            498.0,
-            237.0,
-            528.0
-          ]
-        },
-        {
-          "text": "劳拉和露塔一起说，",
-          "score": 0.872,
-          "box": [
-            1086.0,
-            501.0,
-            1281.0,
-            553.0
-          ]
-        },
-        {
-          "text": "秘鲁？”",
-          "score": 0.74,
-          "box": [
-            989.0,
-            512.0,
-            1102.0,
-            582.0
-          ]
-        },
-        {
-          "text": "*秘鲁在哪儿啊？",
-          "score": 0.749,
-          "box": [
-            1170.0,
-            536.0,
-            1342.0,
-            604.0
-          ]
-        },
-        {
-          "text": "还有干干",
-          "score": 0.759,
-          "box": [
-            761.0,
-            711.0,
-            847.0,
-            738.0
-          ]
-        },
-        {
-          "text": "毛茸茸的，",
-          "score": 0.77,
-          "box": [
-            211.0,
-            743.0,
-            303.0,
-            767.0
-          ]
-        },
-        {
-          "text": "乱糟糟的，",
-          "score": 0.759,
-          "box": [
-            412.0,
-            740.0,
-            506.0,
-            767.0
-          ]
-        },
-        {
-          "text": "净净的。\"",
-          "score": 0.755,
-          "box": [
-            801.0,
-            748.0,
-            890.0,
-            775.0
-          ]
-        }
-      ],
-      "text_boxes": [
-        [
-          1030.0,
-          36.0,
-          1278.0,
-          60.0
-        ],
-        [
-          1108.0,
-          74.0,
-          1282.0,
-          97.0
-        ],
-        [
-          1027.0,
-          113.0,
-          1325.0,
-          133.0
-        ],
-        [
-          984.0,
-          183.0,
-          1255.0,
-          207.0
-        ],
-        [
-          1148.0,
-          258.0,
-          1261.0,
-          282.0
-        ],
-        [
-          1109.0,
-          294.0,
-          1312.0,
-          320.0
-        ],
-        [
-          990.0,
-          371.0,
-          1205.0,
-          391.0
-        ],
-        [
-          1108.0,
-          405.0,
-          1249.0,
-          429.0
-        ],
-        [
-          1086.0,
-          501.0,
-          1281.0,
-          553.0
-        ]
-      ]
-    },
-    {
-      "id": "p07",
-      "source_page": 7,
-      "part": 1,
-      "parts": 1,
-      "kind": "page",
-      "text": "“它离这儿很远很远。在秘鲁，有很多很长的草。豚鼠喜欢很长的草，因为它们都很害羞。”",
-      "pinyin": [
         {
           "ch": "“",
           "py": ""
@@ -3980,6 +3698,15 @@
         }
       ],
       "segments": [
+        "“秘鲁？”",
+        "劳拉和露",
+        "塔",
+        "一起",
+        "说，",
+        "“秘鲁",
+        "在",
+        "哪儿",
+        "啊？”",
         "“它",
         "离",
         "这儿",
@@ -4006,6 +3733,9 @@
       ],
       "art": "art/p07.jpg",
       "art_page": "art/p07.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1400,
@@ -4251,6 +3981,9 @@
       ],
       "art": "art/p08.jpg",
       "art_page": "art/p08.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1400,
@@ -4530,8 +4263,11 @@
         "波特",
         "带回家。”"
       ],
-      "art": "art/p09-1.jpg",
+      "art": "art/p09.jpg",
       "art_page": "art/p09.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 392,
@@ -5235,6 +4971,10 @@
       ],
       "art": "art/p09-2.jpg",
       "art_page": "art/p09.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 336,
@@ -5838,6 +5578,10 @@
       ],
       "art": "art/p09-3.jpg",
       "art_page": "art/p09.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 300,
@@ -6634,6 +6378,10 @@
       ],
       "art": "art/p09-4.jpg",
       "art_page": "art/p09.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 276,
@@ -7361,6 +7109,9 @@
       ],
       "art": "art/p10.jpg",
       "art_page": "art/p10.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -7754,8 +7505,11 @@
         "要",
         "洗手。"
       ],
-      "art": "art/p11-1.jpg",
+      "art": "art/p11.jpg",
       "art_page": "art/p11.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -8240,6 +7994,10 @@
       ],
       "art": "art/p11-2.jpg",
       "art_page": "art/p11.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 554,
@@ -8851,6 +8609,9 @@
       ],
       "art": "art/p12.jpg",
       "art_page": "art/p12.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1036,
@@ -9395,8 +9156,11 @@
         "感到",
         "孤独。”"
       ],
-      "art": "art/p13-1.jpg",
+      "art": "art/p13.jpg",
       "art_page": "art/p13.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1008,
@@ -9756,6 +9520,10 @@
       ],
       "art": "art/p13-2.jpg",
       "art_page": "art/p13.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 775,
@@ -10246,6 +10014,9 @@
       ],
       "art": "art/p14.jpg",
       "art_page": "art/p14.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1400,
@@ -10421,6 +10192,9 @@
       ],
       "art": "art/p15.jpg",
       "art_page": "art/p15.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1400,
@@ -10570,6 +10344,9 @@
       ],
       "art": "art/p16.jpg",
       "art_page": "art/p16.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 581,
@@ -10730,6 +10507,9 @@
       ],
       "art": "art/p17.jpg",
       "art_page": "art/p17.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -11052,6 +10832,9 @@
       ],
       "art": "art/p18.jpg",
       "art_page": "art/p18.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1400,
@@ -11547,8 +11330,11 @@
         "听，",
         "吱吱声！”"
       ],
-      "art": "art/p19-1.jpg",
+      "art": "art/p19.jpg",
       "art_page": "art/p19.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1092,
@@ -11846,6 +11632,10 @@
       ],
       "art": "art/p19-2.jpg",
       "art_page": "art/p19.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 840,
@@ -12237,6 +12027,9 @@
       ],
       "art": "art/p20.jpg",
       "art_page": "art/p20.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 1400,
@@ -12620,8 +12413,11 @@
         "宝宝",
         "了。”"
       ],
-      "art": "art/p21-1.jpg",
+      "art": "art/p21.jpg",
       "art_page": "art/p21.jpg",
+      "visual": {
+        "type": "original"
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 721,
@@ -12871,6 +12667,10 @@
       ],
       "art": "art/p21-2.jpg",
       "art_page": "art/p21.jpg",
+      "visual": {
+        "type": "crop",
+        "auto": true
+      },
       "art_fg": "",
       "art_bg": "",
       "art_w": 555,
@@ -13003,9 +12803,10 @@
       ]
     }
   ],
-  "built_at": "2026-11-06T23:51:19",
+  "built_at": "2026-11-07T08:53:30",
   "stats": {
-    "pages": 31,
-    "ocr_blocks": 430
+    "pages": 30,
+    "ocr_blocks": 409,
+    "pruned_art": 7
   }
 }

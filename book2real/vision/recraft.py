@@ -174,3 +174,23 @@ def erase(image, mask, *, usd: float = 0.002):
     }
     body = _post("/v1/images/eraseRegion", payload, usd=usd)
     return _download(body["image"]), body
+
+def image_to_image(image, prompt: str, *, strength: float = 0.55, n: int = 1,
+                   usd_each: float = 0.04) -> tuple[list, dict]:
+    """Re-draw the image toward `prompt`; low strength keeps style and layout.
+
+    Used when a page needs a picture the book does not contain (a beat with no
+    distinct view). The page is passed as reference so the ink line and palette
+    stay close; the result is reviewed before it ships.
+    """
+    cfg = config()
+    payload = {
+        "image_url": _data_url(_png(image.convert("RGB"))),
+        "prompt": prompt,
+        "strength": float(strength),
+        "n": n,
+        "model": cfg["model"],
+        "response_format": "b64_json",
+    }
+    body = _post("/v1/images/imageToImage", payload, usd=usd_each * n)
+    return [_download(it) for it in body.get("data", [])], body

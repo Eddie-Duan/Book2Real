@@ -214,9 +214,20 @@ def _flat_fill(img: np.ndarray, blocks: list[dict],
 
 
 def clean_art(image_path: Path, blocks: list[dict], *, max_side: int = 1400,
-              extra: list | None = None) -> np.ndarray:
+              extra: list | None = None, crop: list | None = None) -> np.ndarray:
+    """Remove printed text, then keep only `crop` (normalised x, y, w, h).
+
+    Order matters: the OCR boxes are in *page* pixels, so the text must be erased
+    before the art is cropped. Cropping first and erasing with page coordinates
+    deletes whatever happens to sit at those coordinates in the cropped image —
+    that is how the cover's "升级版" badge shredded a drawing of a little TV.
+    """
     img = imread(image_path)
     cleaned, _ = _flat_fill(img, blocks, extra=extra)
+    if crop:
+        h, w = cleaned.shape[:2]
+        x, y, cw, chh = (float(v) for v in crop)
+        cleaned = cleaned[int(y * h):int((y + chh) * h), int(x * w):int((x + cw) * w)]
     # trim uniform white margins (scanned pages often carry a paper border)
     g = I.to_gray(cleaned)
     ys, xs = np.where(g < 0.965)
@@ -356,6 +367,20 @@ def _ink_centre(art: np.ndarray) -> tuple[float, float]:
     return float(xs.mean()) / w, float(ys.mean()) / h
 
 
+def _box_to_crop(box: list) -> tuple[float, float, float, float]:
+    """Turn a hotspot box (x, y, w, h) into a page crop that frames it.
+
+    A hotspot marks the character only; the crop keeps a margin so the detail shot
+    still shows where the character is, and stays inside the page.
+    """
+    x, y, w, h = (float(v) for v in box[:4])
+    cw = min(1.0, max(0.28, w * 2.6))
+    ch = min(1.0, max(0.28, h * 2.6))
+    cx = min(max(x + w / 2 - cw / 2, 0.0), 1.0 - cw)
+    cy = min(max(y + h / 2 - ch / 2, 0.0), 1.0 - ch)
+    return (cx, cy, cw, ch)
+
+
 def _part_boxes(art: np.ndarray, n: int,
                 spots: list[dict] | None = None) -> list[tuple[float, float, float, float]]:
     """One framing per reader screen: whole page first, then closer views.
@@ -453,6 +478,7 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
 
     pages = []
     used_art: set[str] = set()
+    pending_carry = ""
     for i, pg in enumerate(meta["pages"], start=1):
         if on_progress:
             on_progress(i - 1, total, f"识别第 {i}/{total} 页")
@@ -470,24 +496,58 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
             continue
         text = (c.get("text") or text).strip()
         text = re.sub(r"\s+", "", text)
+        if pending_carry:
+            # a tail from the previous page that was too short to stand alone
+            text = pending_carry + text
+            pending_carry = ""
         art_p = art_dir / f"{pid}.jpg"
         if force or not art_p.exists():
-            art = clean_art(src, blocks, max_side=max_side, extra=c.get("clean_boxes"))
+            from .pagerepair import apply_restore, drop_kept
+
+            keep_blocks = drop_kept(blocks, c.get("keep_text"))
+            art = clean_art(src, keep_blocks, max_side=max_side,
+                            extra=c.get("clean_boxes"), crop=None)
+            # crop after restore so the boxes stay in page coordinates
+            art = apply_restore(art, c.get("restore"))
             box = c.get("crop")
             if box:
                 h, w = art.shape[:2]
-                x, y, cw, chh = box
+                x, y, cw, chh = (float(v) for v in box)
                 art = art[int(y * h):int((y + chh) * h), int(x * w):int((x + cw) * w)]
             Image.fromarray(art).save(art_p, quality=93)
         else:
             art = imread(art_p)
-        chunks = _split_text(text, limit=text_limit, max_parts=max_parts)
+        plan = c.get("split_plan") or {}
+        if plan.get("screens"):
+            chunks = [s2["text"] for s2 in plan["screens"]]
+            visuals = [s2.get("visual") or {"type": "original"} for s2 in plan["screens"]]
+            pending_carry = plan.get("carry", "") or ""
+        else:
+            chunks = _split_text(text, limit=text_limit, max_parts=max_parts)
+            visuals = [{"type": "original"}] + [{"type": "crop", "auto": True}
+                                               for _ in range(max(0, len(chunks) - 1))]
         boxes = _part_boxes(art, len(chunks), c.get("spots"))
         for ci, chunk in enumerate(chunks):
             sid = pid if len(chunks) == 1 else f"{pid}-{ci + 1}"
-            if len(chunks) == 1:
+            vis = visuals[ci] if ci < len(visuals) else {"type": "original"}
+            if len(chunks) == 1 or vis.get("type") == "original":
+                # "original" means the untouched page art, not a crop of it
                 art_rel, part_w, part_h = f"art/{pid}.jpg", int(art.shape[1]), int(art.shape[0])
                 spots = c.get("spots", [])
+            elif vis.get("type") == "crop" and not vis.get("auto"):
+                box = vis.get("box")
+                crop = _box_to_crop(box) if box else boxes[ci]
+                art_rel, part_w, part_h = _save_part_art(art, art_dir, sid, crop)
+                spots = _remap(c.get("spots", []), crop)
+            elif vis.get("type") == "regenerate":
+                gen = art_dir / f"{sid}-gen.jpg"
+                if gen.exists():
+                    art_rel, part_w, part_h = f"art/{gen.name}", *imread(gen).shape[1::-1]
+                    spots = c.get("spots", [])
+                else:
+                    art_rel, part_w, part_h = f"art/{pid}.jpg", int(art.shape[1]), int(art.shape[0])
+                    spots = c.get("spots", [])
+                    vis = {**vis, "pending": True}
             else:
                 art_rel, part_w, part_h = _save_part_art(art, art_dir, sid, boxes[ci])
                 spots = _remap(c.get("spots", []), boxes[ci])
@@ -505,6 +565,7 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
                 # the same picture twice with different text
                 "art": art_rel,
                 "art_page": f"art/{pid}.jpg",
+                "visual": vis,
                 # 2.5D is done with a camera move on the complete plate: cutting
                 # printed art into fg/bg layers leaves halos around linework.
                 "art_fg": "",

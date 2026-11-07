@@ -1,13 +1,13 @@
 {
   "page": "p11-2",
-  "art": "art/p11.jpg",
-  "art_w": 721,
-  "art_h": 800,
+  "art": "art/p11-2.jpg",
+  "art_w": 554,
+  "art_h": 615,
   "depth": "layers/p11-2_depth.png",
   "inpaint": "none",
   "outline": "box",
   "head_check": {},
-  "near_gain": 0.771,
+  "near_gain": 0.775,
   "layers": [
     {
       "id": "bg",

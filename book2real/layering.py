@@ -76,7 +76,10 @@ def run(book_dir: str | Path, *, use_models: bool = True, limit: int = 0,
     pages: dict[str, str] = {}
     for p in book.get("pages", []):
         pid = p["id"]
-        base = p.get("art_page") or p.get("art")
+        # the layers must match the image this screen actually shows: a screen may
+        # use its own generated art, and cutting the shared page plate would put a
+        # completely different picture behind the text
+        base = p.get("art") or p.get("art_page")
         if base:
             pages[pid] = base
     done: dict[str, dict] = {}

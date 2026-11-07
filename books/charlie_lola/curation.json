@@ -112,6 +112,29 @@
           "py": "liǎo jiě",
           "mean": "知道得很清楚。"
         }
+      ],
+      "restore": [
+        {
+          "box": [
+            0.033,
+            0.893,
+            0.146,
+            0.929
+          ],
+          "fill": "auto"
+        },
+        {
+          "box": [
+            0.6,
+            0.918,
+            0.76,
+            0.966
+          ],
+          "fill": "auto"
+        }
+      ],
+      "keep_text": [
+        "升级版"
       ]
     },
     "p02": {
@@ -250,7 +273,26 @@
           "py": "bì lǔ",
           "mean": "南美洲的一个国家，豚鼠的老家在那里。"
         }
-      ]
+      ],
+      "split_plan": {
+        "screens": [
+          {
+            "text": "“我觉得波特是一只女豚鼠，”劳拉说，“它看起来像个女的，因为它的毛特别漂亮。”",
+            "visual": {
+              "type": "regenerate",
+              "prompt": "flat children's picture-book illustration, clean black ink outline, a small fluffy brown guinea pig named 波特 sitting on white paper, pale warm background, no text, no letters",
+              "file": "art/p06-1-gen.jpg"
+            }
+          },
+          {
+            "text": "咪咪说：“不，波特是男豚鼠。”“你怎么这么了解豚鼠啊？”露塔说。“因为我家里也有一只……它叫毛毛，是从秘鲁来的。”",
+            "visual": {
+              "type": "original"
+            }
+          }
+        ],
+        "carry": "“秘鲁？”劳拉和露塔一起说，“秘鲁在哪儿啊？”"
+      }
     },
     "p07": {
       "text": "“它离这儿很远很远。在秘鲁，有很多很长的草。豚鼠喜欢很长的草，因为它们都很害羞。”",
