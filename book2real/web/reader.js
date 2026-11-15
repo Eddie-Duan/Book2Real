@@ -19,6 +19,58 @@ function toast(msg, ms = 2600) {
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+/* ------------------------------------------------ optional ESM feature hooks
+   qa.js / tts.js / voice.js / offline.js are plain browser ES modules. They are
+   imported lazily and every failure is swallowed: an older server that does not
+   serve these files yet (or a device without a feature) must never break the
+   reader. Existing functions and their behaviour are untouched. */
+const modCache = new Map();
+function loadMod(name) {
+  if (!modCache.has(name)) {
+    modCache.set(name, import(`./${name}.js`).catch(() => null));
+  }
+  return modCache.get(name);
+}
+function qaOpen(opts) {
+  loadMod("qa").then(m => {
+    if (m && m.openPanel) return m.openPanel(opts);
+    showQaDead("这一页的问答服务没打开");
+  }).catch(() => showQaDead("这一页的问答服务没打开"));
+}
+function qaClose() {
+  const p = modCache.get("qa");
+  if (!p) { hideQaPanel(); return; }
+  p.then(m => { if (m && m.closePanel) m.closePanel(); else hideQaPanel(); })
+    .catch(() => hideQaPanel());
+}
+function hideQaPanel() {
+  const panel = $("#qaPanel");
+  if (panel) panel.hidden = true;
+  const backdrop = $("#modalBackdrop");
+  const others = ["puppetModal", "videoModal", "importModal", "offlineModal"]
+    .some(id => { const n = document.getElementById(id); return n && !n.hidden; });
+  if (backdrop && !others) backdrop.hidden = true;
+  $$("#story .cite-hit").forEach(r => r.classList.remove("cite-hit"));
+}
+/* Panel without qa.js (module 404 / blocked): still says the honest thing. */
+function showQaDead(message) {
+  const panel = $("#qaPanel"), body = $("#qaBody");
+  if (!panel || !body) { toast(message); return; }
+  panel.hidden = false;
+  const backdrop = $("#modalBackdrop");
+  if (backdrop) backdrop.hidden = false;
+  const kicker = $("#qaKicker"); if (kicker) kicker.textContent = "这一页";
+  const title = $("#qaTitle"); if (title) title.textContent = "问答面板";
+  body.innerHTML = `<div class="qa-badge warn">问答服务未开</div>
+    <p class="qa-answer">${esc(message)}</p>
+    <p class="qa-dead">问答面板还在，页面本身不受影响：翻页、点字、朗读都照常。</p>`;
+  const close = $("#qaClose");
+  if (close) close.onclick = hideQaPanel;
+}
+const pageId = () => (state.book ? (state.book.pages[state.index] || {}).id : "");
+const bookId = () => (state.book ? state.book.book_id : "");
+
+
 /* ------------------------------------------------------------- books */
 async function loadBooks(selectId) {
   const { books } = await api("/api/books");
@@ -188,6 +240,16 @@ function renderArt(page) {
   stage.onclick = (e) => {
     if (e.target.closest(".spot")) return;
     showScene(page);
+    // 插画空白处：把归一化的小框交给问答，服务不在时面板会如实说明
+    const box = (() => {
+      try {
+        const r = stage.getBoundingClientRect();
+        const bx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        const by = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+        return [Math.max(0, bx - .08), Math.max(0, by - .08), .16, .16];
+      } catch (_) { return null; }
+    })();
+    qaOpen({ book: bookId(), page: page.id, mode: "spot", box });
   };
   const spots = $("#spots");
   const pageSpots = resolveSpots(page);
@@ -316,6 +378,12 @@ function showSpot(s) {
   const note = $("#sceneNote");
   note.innerHTML = `<b>${esc(s.name)}</b>　${esc(s.desc || "")}`;
   note.hidden = false;
+  // 先把预存文案显示出来（断网 / 没有后端也照常可用），再异步补一问一答
+  qaOpen({
+    book: bookId(), page: pageId(), mode: "spot",
+    entity: { name: s.name, desc: s.desc || "" },
+    box: Array.isArray(s.box) ? s.box : null,
+  });
 }
 
 /* ------------------------------------------------------------- word card */
@@ -381,6 +449,11 @@ function showWord(i, ruby) {
 }
 let currentAudio = null;
 async function speak(text) {
+  // 先走句级 TTS（服务端缓存、逐句播放，L2）；模块不在时原样走下面的老路径
+  const tts = await loadMod("tts");
+  if (tts && tts.speakText) {
+    try { await tts.speakText(text); return; } catch (_) { /* fall through to legacy */ }
+  }
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   try {
     const a = new Audio(`/api/tts?text=${encodeURIComponent(text)}`);
@@ -403,6 +476,7 @@ function go(i) {
   const n = state.book.pages.length;
   state.index = Math.max(0, Math.min(n - 1, i));
   $("#wordCard").hidden = true;
+  qaClose();                       // 面板打开时翻页，面板自动收起
   render();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -735,7 +809,12 @@ function closeAll() {
   $("#puppetModal").hidden = true;
   $("#videoModal").hidden = true;
   $("#importModal").hidden = true;
+  const offlineModal = $("#offlineModal");       // 离线面板也要能被 Esc / 遮罩关掉
+  if (offlineModal) offlineModal.hidden = true;
   $("#modalBackdrop").hidden = true;
+  qaClose();
+  loadMod("tts").then(m => m && m.stop && m.stop()).catch(() => {});
+  loadMod("voice").then(m => m && m.cancelSpeech && m.cancelSpeech()).catch(() => {});
   speechSynthesis.cancel();
 }
 $("#videoClose").onclick = closeAll;
@@ -830,3 +909,64 @@ $("#btnDoImport").onclick = async () => {
 speechSynthesis.getVoices();
 if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = () => {};
 loadBooks().catch(e => toast("加载失败：" + e.message));
+
+/* ------------------------------------------ optional modules, wired lazily */
+/* 问一句：始终可用的打字入口（语音识别不支持时也不至于没入口） */
+const btnAsk = $("#btnAsk");
+if (btnAsk) {
+  btnAsk.onclick = () => qaOpen({ book: bookId(), page: pageId(), mode: "free", query: "" });
+}
+
+/* 麦克风：支持才启用；不支持就置灰并写清原因，绝不"点了没反应" */
+const btnMic = $("#btnMic");
+if (btnMic) {
+  const disableMic = (why) => {
+    btnMic.disabled = true;
+    btnMic.title = why;
+    btnMic.setAttribute("aria-disabled", "true");
+  };
+  loadMod("voice").then(m => {
+    if (!m) return disableMic("语音模块没加载（服务端还没放行 voice.js），可以先打字提问");
+    if (!m.supported()) {
+      return disableMic(m.unsupportedReason ? m.unsupportedReason() : "这台浏览器不支持语音识别，可以先打字提问");
+    }
+    let voice = null;
+    btnMic.onclick = () => {
+      if (voice && voice.listening()) {
+        voice.stop();
+        btnMic.classList.remove("listening");
+        return;
+      }
+      if (!voice) {
+        voice = m.createVoice({
+          onFinal: (text) => {
+            btnMic.classList.remove("listening");
+            if (!text) return;
+            qaOpen({ book: bookId(), page: pageId(), mode: "free", query: text });
+          },
+          onPartial: (text) => { if (text) toast(text, 1400); },
+          onError: (e) => {
+            btnMic.classList.remove("listening");
+            toast((e && e.message) || "语音识别出错");
+          },
+        });
+      }
+      btnMic.classList.add("listening");
+      if (!voice.start()) btnMic.classList.remove("listening");
+    };
+  }).catch(() => disableMic("语音模块没加载（服务端还没放行 voice.js），可以先打字提问"));
+}
+
+/* 打断：voice.js 判定要打断时，跟读音频也一起停（§1.6） */
+window.addEventListener("b2r:bargein", () => {
+  try { stopReadAlong(); } catch (_) {}
+});
+
+/* 离线：启动就初始化；不安全上下文里 offline.js 会明说不可用，不假装 */
+const btnOffline = $("#btnOffline");
+if (btnOffline) {
+  btnOffline.onclick = () => toast("离线模块还没加载完（或服务端还没放行 offline.js）");
+}
+loadMod("offline").then(m => {
+  if (m && m.initOffline) return m.initOffline();
+}).catch(() => {});

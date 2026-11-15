@@ -242,3 +242,47 @@ Book2Real/
 
 这套东西的**卖点不是"能生成视频"，是"整本书都在动且不会崩"**。
 任何让覆盖率下降、让画面出现伪字的改动，都比"多一个炫技镜头"更亏。
+
+
+---
+
+## 11 2026-11-14 并行打磨：问答 / 语音 / 离线 / 评测门
+
+一次并行改造（4 个 agent，写域互斥；契约见 [`INTEGRATION_CONTRACT.md`](INTEGRATION_CONTRACT.md)，
+同行方案盘点见 [`NN_ACADEMY_REUSE.md`](NN_ACADEMY_REUSE.md)）。
+
+### 新增能力
+| 能力 | 落点 | 降级方式 |
+|---|---|---|
+| 点画 / 点字 / 自由问 | `POST /api/ask` → `qa.py`，答案带页码 + 原文引用 | 无 LLM key → 抽取式规则作答；无证据 → 如实说"没提到"，`citations=[]` |
+| 追问 | `socratic.py` 纯函数状态机 + 15 条红队用例 | level 到顶不再追问 |
+| 麦克风提问 | `web/voice.js`（Chrome Web Speech） | 不支持 ASR 的浏览器按钮置灰 + `title` 写原因 |
+| 打断 | `voice_state.py`（Python 真相源）+ `web/voice.js` 逐行镜像，600ms 回声保护 | 判定 `wait` 不打断 |
+| 句级 TTS | `/api/tts` 加 `probe` / `X-TTS-Cache` / `X-TTS-Chars`，复用原 `runs/tts` 缓存 + `BOOK2REAL_TTS_MB` LRU | 503 `{"fallback":"l1"}` → 回落 `speechSynthesis` |
+| 整书离线 | `web/sw.js` + `web/offline.js` + `GET /api/books/<id>/files` | 非安全上下文（局域网 http）→ UI 明说"离线缓存不可用"，不注册 SW |
+| 服务端工程头 | CSP + nosniff + Referrer-Policy、`resolve()+is_relative_to()` 路径守卫（原来用 `startswith`，有 `booksX/` 兄弟目录漏洞）、未知 `/api/*` JSON 404、`--host` 局域网 | 无 |
+| 评测门 | `scripts/gate.py` 五门、`scripts/eval_metrics.py` → `docs/METRICS.md` | 门失败 exit 1 并点名 |
+
+### 实测（本机，纯 CPU）
+- `python scripts/gate.py` → **结果：5 通过，0 失败**（语法/测试/服务/覆盖/前端）；`--strict` → 4 通过 1 失败（`moon_rabbit` 无 reader 包，只告警）。
+- 测试：8 个文件 **161 条**（cast 10 / layers 6 / qa 39 / socratic 24 / server 27 / voice 25 / web 15 / smoke 15）。
+- `/api/ask` 规则模式首响 **P50 15.2 ms / P95 16.4 ms**（n=30，含 HTTP 往返）。
+- `/api/tts` 二次命中首字节 **中位 63.9 ms / 最大 76.1 ms**（n=10，`hit=10/10`）。
+- 引用可回溯率 **19/19 = 100%**（`quote` 均为原文子串）。
+- 页面覆盖率 **21/21 源页 = 100%**（2 本书；`moon_rabbit` 未 analyze，未参与）。
+- 30 页真书问答 bench（qa 修复前后）：有实词提问 → 有证据 **85.8% → 100%**；纯意图问句 → 有证据 **1.7% → 100%**；书外问题误报 **0/120 → 0/120**。
+- 前端静态资源共 **117 367 bytes / 9 个**（无构建、无第三方库）。
+- 浏览器人工验收（Chrome，`127.0.0.1:8799`）：点角色「波特」→ 面板出规则答案 + 引用 chip；点引用回正文高亮；自由问「豚鼠在哪」有答案；问「今天股市怎么样」→ "这一页没有直接依据" + 拒答。
+
+### 已知边界（别当成已完成）
+- **默认没有 LLM key**（`.env` 只有 Recraft）。所以线上跑的是规则抽取式作答；`B2R_LLM_*` 分支的代码与"报错回落"有单测，但**从未对真实 LLM 端点跑过**。要开：填 `B2R_LLM_BASE/KEY/MODEL` 后重测首响与引用。
+- **ASR 只在桌面 Chrome 有**：Android WebView 不支持 Web Speech，APK 路线要么服务端 ASR、要么预录。按钮置灰分支只在代码层处理，**没在真机上验**；麦克风权限拒绝/多候选也未造真实用例。
+- **打断**：Python 状态机有 25 条测试，JS 侧用 540 例与 Python 逐项对比一致；但**真麦克风的打断（回声保护是否够 600ms）没有实测**，现场要试一次。
+- **离线**：SW 需要安全上下文。`127.0.0.1`/`localhost` 可以；**平板通过局域网明文 http 打开时 SW 不加载**，这是浏览器限制，不是 bug——UI 会明说。要在平板演示离线，得走 https 或本机。
+- `books/moon_rabbit` 还没有 `reader/` 包，覆盖门对它只告警；要纳入就 `python -m book2real analyze --book books/moon_rabbit`。
+- 问答质量仍是"抽取式"，不是真的懂画：没有 VLM 时，"点选局部识别"退化为"用预存实体表 + 本页正文检索"，**不认图里没被标注的东西**。接 VLM 是下一步（`docs/NN_ACADEMY_REUSE.md` §3 已写明可插拔位置）。
+
+### 下一步（按性价比）
+1. 接一个真 VLM（`B2R_VLM_*`）+ 裁剪局部图 → 质检"点选识别"的 Top-1 准确率（现在没有这个数）。
+2. 现场彩排：真麦克风打断一次、平板 https 离线一次、断网 fallback 一次。
+3. 把 `docs/METRICS.md` 的数字填进说明书第 5–7 章（赛题要"实测数据"）。

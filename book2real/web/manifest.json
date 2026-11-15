@@ -1,0 +1,20 @@
+{
+  "name": "纸间生灵",
+  "short_name": "纸间生灵",
+  "description": "把纸书里的角色唤活的互动绘本阅读器：点字读音、点画问答、朗读跟读，断网也能翻页。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6efe2",
+  "theme_color": "#f6efe2",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%232f2a24'/%3E%3Ctext x='256' y='352' font-size='300' text-anchor='middle' fill='%23f6efe2' font-family='KaiTi,serif'%3E%E4%B9%A6%3C/text%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

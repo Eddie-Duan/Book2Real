@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>纸间生灵 · 互动绘本</title>
+<meta name="theme-color" content="#f6efe2">
+<link rel="manifest" href="/static/manifest.json">
 <link rel="stylesheet" href="/static/reader.css">
 </head>
 <body>
@@ -20,6 +22,7 @@
     <button class="ghost" id="btnChars" title="人物卡">人物卡</button>
     <button class="ghost" id="btnImport" title="导入新的绘本">导入绘本</button>
     <button class="primary" id="btnVideo">生成视频</button>
+    <button class="ghost" id="btnOffline" title="离线缓存">离线缓存</button>
   </div>
 </header>
 
@@ -32,6 +35,8 @@
     <div class="story-tools" id="storyTools">
       <button class="tool" id="btnRead"><span class="ico">▶</span> 朗读这一页</button>
       <button class="tool" id="btnPinyin" aria-pressed="true">拼音 <b>开</b></button>
+      <button class="tool" id="btnAsk" title="问这一页的问题">问一句</button>
+      <button class="tool" id="btnMic" title="语音提问">🎤 说</button>
       <div class="size-tools">
         <button class="tool tiny" id="fontSmall" title="字小一点">A−</button>
         <button class="tool tiny" id="fontBig" title="字大一点">A＋</button>
@@ -126,6 +131,37 @@
     <div class="stage-line" id="importStageLine">准备中</div>
   </div>
   <button class="primary wide" id="btnDoImport" disabled>开始制作互动绘本</button>
+</section>
+
+<!-- Q&A panel: 点画 / 点字 / 自由提问。后端没开时面板照常出现，只是说明服务没打开。 -->
+<aside class="qa-panel" id="qaPanel" hidden role="dialog" aria-modal="true" aria-labelledby="qaTitle">
+  <div class="qa-head">
+    <div>
+      <div class="step-label" id="qaKicker">点画问答</div>
+      <h2 id="qaTitle">这一页里的小问题</h2>
+    </div>
+    <button class="x qa-x" id="qaClose" aria-label="关闭问答">×</button>
+  </div>
+  <div class="qa-body" id="qaBody" aria-live="polite"></div>
+  <form class="qa-form" id="qaForm" autocomplete="off">
+    <input id="qaInput" type="text" placeholder="也可以直接问这一页……" aria-label="输入问题">
+    <button class="primary qa-send" id="qaSend" type="submit">问</button>
+  </form>
+  <div class="qa-foot" id="qaFoot">答案只依据这一页的原文；没有依据时会如实说没有。</div>
+</aside>
+
+<section class="modal offline-modal" id="offlineModal" hidden>
+  <button class="x" id="offlineClose" aria-label="关闭离线缓存">×</button>
+  <div class="step-label">断网也能读</div>
+  <h2>把这本书存到本机</h2>
+  <p class="modal-copy" id="offlineNote">正在检查这台设备能不能离线缓存…</p>
+  <div class="offline-row">
+    <div class="stage-line" id="offlineStat">—</div>
+    <button class="primary" id="offlineDownload">下载整本</button>
+  </div>
+  <div class="progress-bar"><i id="offlineBar"></i></div>
+  <div class="stage-line" id="offlineStage"></div>
+  <div class="offline-list" id="offlineList"></div>
 </section>
 
 <div class="toast" id="toast" hidden></div>

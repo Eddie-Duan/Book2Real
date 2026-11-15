@@ -30,6 +30,10 @@ python -m book2real analyze --book books/charlie_lola
 python -m book2real cast    --book books/charlie_lola
 python -m book2real layers  --book books/charlie_lola
 python -m book2real film    --book books/charlie_lola
+
+# 质量门（语法/测试/服务/覆盖/前端五门）与实测指标
+python scripts/gate.py                 # 末行固定 "结果：N 通过，M 失败"，exit 0/1
+python scripts/eval_metrics.py         # 重写 docs/METRICS.md，只写实测值
 ```
 
 > 密钥放哪里见 [docs/API_KEYS.md](docs/API_KEYS.md)：图像/视频 key 进项目 `.env`；
@@ -82,6 +86,10 @@ python -m book2real film    --book books/charlie_lola
 | 人物卡 | 从原图裁出，作为一致性/后续 I2V 的参考 |
 | 人物 agent | `python -m book2real cast`：PageScout → CastClerk → Rigger → MotionDirector → Critic，自动切件/关节/动作/质检（[docs/AGENTS.md](docs/AGENTS.md)） |
 | 2.5D | 阅读页保持原图静止；人物墙里用原图切件做肩部转轴、挥手/说话 |
+| 问答与追问 | `POST /api/ask` + `qa.py`/`socratic.py`：点画、点字、自由问三种入口，答案带**页码 + 原文引用**；无 LLM key 时走抽取式规则作答，书外问题如实拒答；有 `B2R_LLM_*` 时接 OpenAI 兼容接口，失败单步降级回规则 |
+| 语音 | 麦克风提问（Chrome Web Speech，不支持的浏览器按原因置灰）+ 句级 TTS（`/api/tts` 带缓存/probe）+ 打断状态机（`voice_state.py`，600ms 回声保护） |
+| 离线 | 整书离线包：`sw.js` + `offline.js`，303 个文件 / 36.5 MB，**杀掉服务端后刷新仍能翻页出图**；非安全上下文（局域网 http）会明说不可用，不假装可用 |
+| 评测 | `scripts/gate.py` 五门 + `scripts/eval_metrics.py` → [`docs/METRICS.md`](docs/METRICS.md)（实测值/目标值分列，n 与环境齐全） |
 | 旁白 | edge-tts 晓晓，缓存复用；失败回退浏览器语音 |
 | 视频 | 16:9，左文右图，按旁白时长切镜，AAC 音轨 |
 
@@ -95,6 +103,9 @@ python -m book2real film    --book books/charlie_lola
 - [`docs/READER.md`](docs/READER.md) — 互动绘本的产品设计、分析管线、视频版式、开源选型与许可证
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 旧版 2.5D 渲染与编排
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — 实测数据、已知问题、下一步
+- [`docs/METRICS.md`](docs/METRICS.md) — 实测指标（脚本生成，勿手改）
+- [`docs/INTEGRATION_CONTRACT.md`](docs/INTEGRATION_CONTRACT.md) — 问答/语音/离线/评测门的接口契约
+- [`docs/NN_ACADEMY_REUSE.md`](docs/NN_ACADEMY_REUSE.md) — 同行项目的可复用方案盘点与"不要搬"清单
 
 ## 目录
 
@@ -102,12 +113,17 @@ python -m book2real film    --book books/charlie_lola
 book2real/
   storybook.py      OCR → 正文选择 → 拼音/分词 → 清字 → reader 包
   storyfilm.py      16:9 朗读短片（文字左 / 插图右 / 旁白）
-  reader_app.py     互动阅读器 HTTP 服务 + 导入/出片任务
+  reader_app.py     互动阅读器 HTTP 服务 + 导入/出片任务 + /api/ask、/api/tts、离线文件清单
+  qa.py             页级问答（抽取式规则 / 可选 LLM，引用必须回溯原文）
+  socratic.py       追问状态机（纯函数，15 条红队用例）
+  voice_state.py    打断决策（纯函数，JS 侧 1:1 镜像）
   web/reader.*      阅读器界面（无构建步骤）
-  tts.py            edge-tts 旁白 + 缓存
+  web/qa.js voice.js tts.js offline.js sw.js   问答面板 / 语音 / 句级 TTS / 离线包
+  tts.py            edge-tts 旁白 + 缓存（probe / LRU 上限）
   ocr / pinyin / segmentation 依赖放在 vendor/（离线演示）
 books/<id>/          pages/ + book.json + curation.json + reader/
-runs/                产物（gitignore）：互动片、旧管线成片、TTS 缓存
+runs/                产物（gitignore）：互动片、旧管线成片、TTS 缓存、eval/
+scripts/gate.py      五门质量门；eval_metrics.py 出实测指标
 vendor/              pypinyin / jieba / edge-tts（比赛演示用，见许可证说明）
 docs/                设计与交接
 ```

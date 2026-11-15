@@ -73,7 +73,8 @@ def cmd_ui(args) -> int:
 def cmd_reader(args) -> int:
     from .reader_app import serve
 
-    return serve(args.books, port=args.port, open_browser=args.open)
+    return serve(args.books, port=args.port, open_browser=args.open,
+                 host=getattr(args, "host", "127.0.0.1"))
 
 
 def cmd_analyze(args) -> int:
@@ -294,6 +295,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("reader", help="serve the interactive picture-book reader")
     sp.add_argument("--books", default="books")
     sp.add_argument("--port", type=int, default=8770)
+    sp.add_argument("--host", default="127.0.0.1",
+                    help="bind address; use 0.0.0.0 to reach it from a tablet on the LAN")
     sp.add_argument("--open", action="store_true")
     sp.set_defaults(func=cmd_reader)
 
