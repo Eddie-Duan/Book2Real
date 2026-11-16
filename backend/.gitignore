@@ -1,0 +1,23 @@
+# runtime data (competition PDFs/audio/page images) must not be committed
+data/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.sqlite3
+*.log
+
+pip-cache/
+
+# secrets / local credentials
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials*
+config.local.*
+.venv/
+venv/
