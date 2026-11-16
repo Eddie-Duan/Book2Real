@@ -31,3 +31,12 @@ Thumbs.db
 
 纸书智伴企业预选赛绘本素材
 dist/
+
+# 融合后端（backend/）运行时
+data/
+backend/data/
+backend/.env
+.pytest_cache/
+*.sqlite3
+*.log
+pip-cache/

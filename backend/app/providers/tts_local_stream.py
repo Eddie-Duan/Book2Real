@@ -46,9 +46,9 @@ class LocalStreamTTS(TTSProvider):
             "media_type": "pcm",
         }
 
-    async def _stream_http(self) -> AsyncIterator[bytes]:
+    async def _stream_http(self, text: str, language: Optional[str]) -> AsyncIterator[bytes]:
         url = self.settings.tts_local_url.rstrip("/") + "/tts_stream"
-        async with self._client.stream("POST", url, json=self._payload, headers={"Accept": "application/x-pcm"}) as resp:
+        async with self._client.stream("POST", url, json=self._payload(text, language), headers={"Accept": "application/x-pcm"}) as resp:
             if resp.status_code != 200:
                 body = (await resp.aread())[:200]
                 raise TTSUnavailable(f"local tts {resp.status_code}: {body!r}")
@@ -100,7 +100,7 @@ class LocalStreamTTS(TTSProvider):
         self.requests += 1
         first = True
         try:
-            async for chunk in self._stream_http():
+            async for chunk in self._stream_http(text, language):
                 if first:
                     self.first_chunk_ms = (time.perf_counter() - t0) * 1000
                     first = False

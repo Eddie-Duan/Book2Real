@@ -531,6 +531,14 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
     text_limit = max(30, min(200, int(curation.get("text_limit", TEXT_LIMIT))))
     max_parts = max(1, min(5, int(curation.get("max_parts", MAX_PARTS))))
     total = len(meta["pages"])
+    # 融合：backend 的入库结果（data/books/<id>/book.json）是唯一文字来源；
+    # 找不到时才退回本文件的本地 OCR（离线夹具/自造书仍可用）。
+    try:
+        from .backend_bridge import BackendBook
+
+        backend = BackendBook.load(book_dir)
+    except Exception:  # noqa: BLE001 - 桥不可用不阻塞阅读器
+        backend = None
 
     pages = []
     used_art: set[str] = set()
@@ -540,23 +548,33 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
             on_progress(i - 1, total, f"识别第 {i}/{total} 页")
         pid = f"p{i:02d}"
         src = book_dir / "pages" / pg["file"]
-        ocr_p = out_dir / "ocr" / f"{pid}.json"
-        if ocr_p.exists() and not force:
-            blocks = json.loads(ocr_p.read_text(encoding="utf-8"))
+        be_page = backend.page(i) if backend else None
+        if be_page is not None:
+            # backend 已做文字层/OCR/水印/教学栏过滤：只把归一化 bbox 换成像素框
+            w0, h0 = imread(src).shape[1], imread(src).shape[0]
+            blocks = backend.blocks(i, w0, h0)
+            picked = backend.story_boxes(i, w0, h0)
+            text = backend.story_text(i)
         else:
-            blocks = ocr_blocks(src)
-            write_json(ocr_p, blocks)
-        text, picked = story_text(blocks, imread(src).shape[1], lang)
-        # a real PDF text layer is the book's own text and beats OCR; the
-        # printed watermark is not text (en01 has nothing else in its layer).
-        tl = book_dir / "text" / f"{pid}.txt"
-        if tl.exists():
-            layer_text = tl.read_text(encoding="utf-8")
-            if _layer_usable(layer_text, lang):
-                text = _layer_story(layer_text, lang)
+            ocr_p = out_dir / "ocr" / f"{pid}.json"
+            if ocr_p.exists() and not force:
+                blocks = json.loads(ocr_p.read_text(encoding="utf-8"))
+            else:
+                blocks = ocr_blocks(src)
+                write_json(ocr_p, blocks)
+            text, picked = story_text(blocks, imread(src).shape[1], lang)
+            # a real PDF text layer is the book's own text and beats OCR; the
+            # printed watermark is not text (en01 has nothing else in its layer).
+            tl = book_dir / "text" / f"{pid}.txt"
+            if tl.exists():
+                layer_text = tl.read_text(encoding="utf-8")
+                if _layer_usable(layer_text, lang):
+                    text = _layer_story(layer_text, lang)
         c = cpages.get(pid, {})
         if c.get("skip"):
             continue
+        # backend 元素卡 → 阅读器 spots（策展 spots 优先）
+        page_spots = list(c.get("spots") or (backend.spots(i) if be_page is not None else []))
         text = (c.get("text") or text).strip()
         text = re.sub(r"\s+", " " if lang == "en" else "", text).strip()
         if pending_carry:
@@ -597,24 +615,24 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
             if len(chunks) == 1 or vis.get("type") == "original":
                 # "original" means the untouched page art, not a crop of it
                 art_rel, part_w, part_h = f"art/{pid}.jpg", int(art.shape[1]), int(art.shape[0])
-                spots = c.get("spots", [])
+                spots = page_spots
             elif vis.get("type") == "crop" and not vis.get("auto"):
                 box = vis.get("box")
                 crop = _box_to_crop(box) if box else boxes[ci]
                 art_rel, part_w, part_h = _save_part_art(art, art_dir, sid, crop)
-                spots = _remap(c.get("spots", []), crop)
+                spots = _remap(page_spots, crop)
             elif vis.get("type") == "regenerate":
                 gen = art_dir / f"{sid}-gen.jpg"
                 if gen.exists():
                     art_rel, part_w, part_h = f"art/{gen.name}", *imread(gen).shape[1::-1]
-                    spots = c.get("spots", [])
+                    spots = page_spots
                 else:
                     art_rel, part_w, part_h = f"art/{pid}.jpg", int(art.shape[1]), int(art.shape[0])
-                    spots = c.get("spots", [])
+                    spots = page_spots
                     vis = {**vis, "pending": True}
             else:
                 art_rel, part_w, part_h = _save_part_art(art, art_dir, sid, boxes[ci])
-                spots = _remap(c.get("spots", []), boxes[ci])
+                spots = _remap(page_spots, boxes[ci])
             used_art.add(Path(art_rel).name)
             pages.append({
                 "id": sid,

@@ -1,19 +1,40 @@
+# ============================================================
+# 融合依赖：后端（backend/，原 paperbook-backend）+ 生成链 + 阅读器
+# 安装：py -m pip install -r requirements.txt
+# ============================================================
+
+# ---- 后端服务（FastAPI 单进程，唯一后端）----
+fastapi==0.115.14
+starlette==0.41.3
+uvicorn[standard]>=0.29
+httpx>=0.27
+python-multipart>=0.0.9
+websockets>=12
+
+# ---- 绘本入库 / OCR / 图像 ----
 numpy>=1.24
 Pillow>=10.0
-pymupdf>=1.24                  # official picture books arrive as PDF
+pymupdf>=1.24                  # 官方绘本以 PDF 形式提供
+rapidocr_onnxruntime>=1.3
+opencv-python-headless>=4.8    # 服务端入库用 headless；backend/requirements.txt 里的
+                               # opencv-python 仅作独立后端使用，二选一，勿同时安装
 
-# interactive reader (also vendored under vendor/ so the demo runs offline)
+# ---- 阅读器（也可离线用 vendor/）----
 pypinyin>=0.55
 jieba>=0.42.1
-rapidocr_onnxruntime>=1.3
-opencv-python-headless>=4.8     # optional but much cleaner text removal
-edge-tts>=7.3.1                 # GPL-3.0; evaluation/demo only
+edge-tts>=7.3.1                # 旧阅读器 TTS 兼容路径；GPL-3.0，演示用
 
-# local demo models (8 GB GPU). Everything is optional: the cast/layer chains
-# fall back to deterministic paths when these or their weights are missing.
-# Install with the CUDA build of torch for your card, e.g.
+# ---- 语音 ----
+faster-whisper>=1.0            # 本地 ASR（ASR_PROVIDER=local）
+av>=12
+pywin32>=306; sys_platform == "win32"   # SAPI TTS（TTS_PROVIDER=sapi）
+
+# ---- 测试 ----
+pytest>=8.0
+
+# ---- 生成链（可选，缺模型时全部走确定性降级）----
+# 需要 CUDA 时按显卡换 wheel：
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-#   python -m book2real models --fetch
 torch>=2.4
 torchvision>=0.19
 diffusers>=0.31

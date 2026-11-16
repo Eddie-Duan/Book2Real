@@ -1,10 +1,14 @@
 /* Page Q&A for the picture-book reader.
  *
  * Zero build, zero dependencies, browser-native ESM. Everything here degrades:
- * the server may be an older build without `POST /api/ask`, it may 404, return
- * HTML, or die mid-request. In every one of those cases the panel says
- * "这一页的问答服务没打开" and the reader keeps working — no white page, no
- * uncaught rejection.
+ * the server may be down, it may 404, return HTML, or die mid-request. In every
+ * one of those cases the panel says "这一页的问答服务没打开" and the reader keeps
+ * working — no white page, no uncaught rejection.
+ *
+ * The request/response shape is the backend's (`POST /api/ask`:
+ * `{book_id, text, page, session_id, element?}` -> `answer/action/evidence/...`).
+ * `citations/source/socratic` come from backend/app/compat.py so the panel keeps
+ * its quote highlighting; `evidence` is also understood directly here.
  *
  * Exports (docs/INTEGRATION_CONTRACT.md §3):
  *   ask(req) -> Promise<resp>
@@ -38,7 +42,13 @@ function degraded(page, why) {
 function normalize(j, page) {
   const out = {
     answer: typeof j.answer === "string" && j.answer.trim() ? j.answer.trim() : DEAD,
-    citations: Array.isArray(j.citations) ? j.citations : [],
+    citations: Array.isArray(j.citations) && j.citations.length
+      ? j.citations
+      : (Array.isArray(j.evidence) ? j.evidence.map(e => ({
+          page: e && e.page ? "p" + String(e.page).padStart(2, "0") : page || "",
+          quote: String((e && (e.text || e.quote)) || ""),
+          kind: "text",
+        })) : []),
     source: j.source === "llm" ? "llm" : (j.source === "rule" ? "rule" : "rule"),
     fallback: j.fallback == null ? null : String(j.fallback),
     fallback_detail: "",
@@ -63,23 +73,32 @@ function normalize(j, page) {
 }
 
 export async function ask(req = {}) {
-  const payload = {
-    book: String(req.book || ""),
-    page: String(req.page || ""),
-    mode: ["spot", "word", "free"].includes(req.mode) ? req.mode : "spot",
-    query: String(req.query || ""),
-    entity: req.entity && typeof req.entity === "object"
-      ? { name: String(req.entity.name || ""), desc: String(req.entity.desc || "") }
-      : null,
-    box: Array.isArray(req.box) && req.box.length === 4
-      ? req.box.map(n => Math.max(0, Math.min(1, Number(n) || 0)))
-      : null,
-    history: (Array.isArray(req.history) ? req.history : history)
-      .slice(-HISTORY_MAX)
-      .map(h => ({ q: String((h && h.q) || ""), a: String((h && h.a) || "") })),
-  };
+  // backend 契约：page 是整数（1 起），会话历史由后端 SQLite 维护
+  const num = (() => {
+    const m = /^\s*p?\s*0*(\d+)\s*$/i.exec(String(req.page || ""));
+    return m ? Number(m[1]) : null;
+  })();
+  const pageOf = (n) => (n ? "p" + String(n).padStart(2, "0") : "");
 
-  if (!payload.book) return degraded(payload.page, "书名还没加载完");
+  const payload = {
+    book_id: String(req.book || ""),
+    page: num,
+    text: String(req.query || ""),
+    session_id: "reader-" + String(req.book || "book"),
+  };
+  if (req.entity && typeof req.entity === "object") {
+    payload.element = {
+      name: String(req.entity.name || ""),
+      info: String(req.entity.desc || req.entity.info || ""),
+    };
+    if (num) payload.element.page = num;
+    if (Array.isArray(req.box) && req.box.length === 4) {
+      const [x, y, w, h] = req.box.map(n => Math.max(0, Math.min(1, Number(n) || 0)));
+      payload.element.bbox = [x, y, x + w, y + h];
+    }
+  }
+
+  if (!payload.book_id) return degraded(pageOf(num), "书名还没加载完");
 
   let timer = null;
   let ctrl = null;
@@ -94,17 +113,17 @@ export async function ask(req = {}) {
       body: JSON.stringify(payload),
       signal: ctrl ? ctrl.signal : undefined,
     });
-    if (!res.ok) return degraded(payload.page, `HTTP ${res.status}`);
+    if (!res.ok) return degraded(pageOf(num), `HTTP ${res.status}`);
     const ctype = (res.headers.get("content-type") || "").toLowerCase();
-    if (!ctype.includes("json")) return degraded(payload.page, "返回的不是 JSON");
+    if (!ctype.includes("json")) return degraded(pageOf(num), "返回的不是 JSON");
     let data = null;
-    try { data = await res.json(); } catch (_) { return degraded(payload.page, "JSON 解析失败"); }
-    if (!data || typeof data !== "object") return degraded(payload.page, "返回内容为空");
-    if (typeof data.answer !== "string") return degraded(payload.page, "返回里没有 answer 字段");
-    return normalize(data, payload.page);
+    try { data = await res.json(); } catch (_) { return degraded(pageOf(num), "JSON 解析失败"); }
+    if (!data || typeof data !== "object") return degraded(pageOf(num), "返回内容为空");
+    if (typeof data.answer !== "string") return degraded(pageOf(num), "返回里没有 answer 字段");
+    return normalize(data, pageOf(num));
   } catch (e) {
     const why = e && e.name === "AbortError" ? "请求超时" : (e && e.message) || "网络错误";
-    return degraded(payload.page, why);
+    return degraded(pageOf(num), why);
   } finally {
     if (timer) clearTimeout(timer);
   }

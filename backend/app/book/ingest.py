@@ -335,14 +335,17 @@ def ingest_pdf(
     return book
 
 
-def ingest_materials_zip(zip_path: str | Path, settings: Settings, force: bool = False) -> list[dict]:
-    """解压赛事素材，入库 6 本绘本，并把 Query 音频放到每本书的 queries/。"""
-    zip_path = Path(zip_path)
+def ingest_materials(path: str | Path, settings: Settings, force: bool = False) -> list[dict]:
+    """赛事素材入库：zip 或已解压目录都接受，入库 6 本绘本，并把 Query 音频放到每本书的 queries/。"""
+    path = Path(path)
     settings.ensure_dirs()
-    extract_dir = settings.source_dir / "competition"
-    extract_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path) as zf:
-        zf.extractall(extract_dir)
+    if path.is_dir():
+        extract_dir = path  # 已解压的素材目录（融合仓库里素材常以目录形式存在）
+    else:
+        extract_dir = settings.source_dir / "competition"
+        extract_dir.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(path) as zf:
+            zf.extractall(extract_dir)
 
     books: list[dict] = []
     for pdf in sorted(extract_dir.rglob("*.pdf")):
@@ -372,12 +375,17 @@ def ingest_materials_zip(zip_path: str | Path, settings: Settings, force: bool =
     return books
 
 
+# 旧名字（main.py / tools 里还在用）
+ingest_materials_zip = ingest_materials
+
+
 def list_books(settings: Settings) -> list[dict]:
     out = []
     for path in sorted(settings.books_dir.glob("*/book.json")):
         try:
             book = json.loads(path.read_text(encoding="utf-8"))
-            out.append({"id": book["id"], "title": book.get("title", book["id"]), "lang": book.get("lang", "zh"), "page_count": book.get("page_count", 0), "summary": book.get("summary", {})})
+            page_count = book.get("page_count", 0)
+            out.append({"id": book["id"], "title": book.get("title", book["id"]), "lang": book.get("lang", "zh"), "page_count": page_count, "pages": page_count, "summary": book.get("summary", {})})
         except Exception:
             continue
     return out

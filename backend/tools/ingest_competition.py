@@ -16,13 +16,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app.book.ingest import ingest_materials_zip, ingest_pdf  # noqa: E402
+from app.book.ingest import ingest_materials, ingest_pdf  # noqa: E402
 from app.config import settings  # noqa: E402
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--zip", default="")
+    parser.add_argument("--zip", default="", help="素材 zip 路径")
+    parser.add_argument("--path", default="", help="已解压的素材目录（与 --zip 二选一）")
     parser.add_argument("--pdf", default="")
     parser.add_argument("--book-id", default="")
     parser.add_argument("--title", default="")
@@ -31,8 +32,8 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
     t0 = time.time()
-    if args.zip:
-        books = ingest_materials_zip(args.zip, settings, force=args.force)
+    if args.zip or args.path:
+        books = ingest_materials(args.zip or args.path, settings, force=args.force)
     elif args.pdf:
         book = ingest_pdf(
             args.pdf,
@@ -45,7 +46,7 @@ def main() -> int:
         )
         books = [book]
     else:
-        parser.error("--zip or --pdf is required")
+        parser.error("--zip / --path / --pdf is required")
     for book in books:
         print(
             json.dumps(

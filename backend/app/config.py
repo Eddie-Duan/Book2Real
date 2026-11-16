@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = ROOT.parent  # Book2Real/ — the repo this backend was merged into
 
 
 def _load_dotenv(path: Path) -> None:
@@ -21,6 +22,8 @@ def _load_dotenv(path: Path) -> None:
         os.environ.setdefault(key, value)
 
 
+# 融合仓库：单一 .env 放在仓库根目录；backend/.env 只补缺（setdefault 语义）
+_load_dotenv(REPO_ROOT / ".env")
 _load_dotenv(ROOT / ".env")
 
 
@@ -54,12 +57,21 @@ def _list(key: str, default: str) -> list[str]:
     return [x.strip() for x in _s(key, default).split(",") if x.strip()]
 
 
+def _first(*names: str) -> str:
+    """返回第一个非空的同名环境变量（融合仓库沿用 Book2Real 的 *-API-* 命名）。"""
+    for name in names:
+        value = _s(name)
+        if value:
+            return value
+    return ""
+
+
 @dataclass
 class Settings:
     # 服务
     host: str = field(default_factory=lambda: _s("APP_HOST", "0.0.0.0"))
     port: int = field(default_factory=lambda: _i("APP_PORT", 8790))
-    data_dir: Path = field(default_factory=lambda: Path(_expand(_s("DATA_DIR", str(ROOT / "data")))).resolve())
+    data_dir: Path = field(default_factory=lambda: Path(_expand(_s("DATA_DIR", str(REPO_ROOT / "data")))).resolve())
     log_level: str = field(default_factory=lambda: _s("LOG_LEVEL", "INFO").upper())
     api_token: str = field(default_factory=lambda: _s("API_TOKEN"))
     cors_origins: list[str] = field(default_factory=lambda: _list("CORS_ORIGINS", "*"))
@@ -99,10 +111,10 @@ class Settings:
     minimax_language_boost: str = field(default_factory=lambda: _s("MINIMAX_LANGUAGE_BOOST", "auto"))
 
     # LLM
-    llm_provider: str = field(default_factory=lambda: _s("LLM_PROVIDER", "extractive").lower())
-    llm_base_url: str = field(default_factory=lambda: _s("LLM_BASE_URL", "https://api.deepseek.com/v1").rstrip("/"))
-    llm_api_key: str = field(default_factory=lambda: _s("LLM_API_KEY"))
-    llm_model: str = field(default_factory=lambda: _s("LLM_MODEL", "deepseek-v4.1-flash"))
+    llm_provider: str = field(default_factory=lambda: (_s("LLM_PROVIDER") or ("openai" if _first("LLM_API_KEY", "DEEPSEEK_API_KEY") else "extractive")).lower())
+    llm_base_url: str = field(default_factory=lambda: (_first("LLM_BASE_URL", "LLM_API_BASE_URL") or "https://api.deepseek.com/v1").rstrip("/"))
+    llm_api_key: str = field(default_factory=lambda: _first("LLM_API_KEY", "DEEPSEEK_API_KEY"))
+    llm_model: str = field(default_factory=lambda: _first("LLM_MODEL", "LLM_API_MODEL") or "deepseek-v4.1-flash")
     llm_timeout_s: float = field(default_factory=lambda: _f("LLM_TIMEOUT_S", 20.0))
     llm_max_tokens: int = field(default_factory=lambda: _i("LLM_MAX_TOKENS", 120))
     llm_temperature: float = field(default_factory=lambda: _f("LLM_TEMPERATURE", 0.3))

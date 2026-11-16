@@ -13,26 +13,32 @@
 
 ## 快速开始
 
+> 融合后**只有一个后端进程**：`backend/`（原 paperbook-backend）同时提供绘本入库、
+> 语音问答（ASR/TTS/WS）、视频内检索与阅读器/影院页面。设计与契约见
+> [docs/BACKEND_MERGE.md](docs/BACKEND_MERGE.md)。
+
 ```bash
 pip install -r requirements.txt          # 另需 ffmpeg 在 PATH
 cp .env.example .env                    # 填 DeepSeek / 火山方舟 key（见 docs/API_KEYS.md）
 
-# 1) 官方绘本 PDF -> books/<id>（页图 + 文本层 + 元数据）
-python -m book2real import-pdf "纸书智伴企业预选赛绘本素材/绘本素材/中文绘本01.pdf" --id cn01
-python -m book2real import-pdf "纸书智伴企业预选赛绘本素材/绘本素材/英文绘本01.pdf" --id en01
+# 1) 官方素材入库（backend：PDF 文字层 + RapidOCR + 脚本/音频）-> data/books/<id>
+python backend/tools/ingest_competition.py --path "纸书智伴企业预选赛绘本素材"
 
-# 2) OCR / 清字 / 拼音 -> reader 包
-python -m book2real analyze --book books/cn01
-python -m book2real analyze --book books/en01
+# 2) 用 backend 的入库结果重建阅读器包 -> books/<id>/reader
+python scripts/sync_reader.py
 
 # 3) 单趟成片（100–200 s，1280×720，24 fps，带旁白与 timeline）
 python -m book2real film --book books/cn01
 
-# 4) 阅读器 + 视频内检索播放器
-python -m book2real reader --books books --port 8770 --open
-#   浏览器打开 http://127.0.0.1:8770/          互动阅读
-#              http://127.0.0.1:8770/film?book=cn01   视频内检索
+# 4) 启动唯一服务：阅读器 + 影院 + 问答/语音 API，同一端口 8790
+scripts\start_backend.cmd
+#   http://127.0.0.1:8790/                互动阅读
+#   http://127.0.0.1:8790/film?book=cn01  视频内检索
+#   http://127.0.0.1:8790/docs            OpenAPI
 ```
+
+> 旧的分体流程（`python -m book2real reader --port 8770`）仍保留在
+> `book2real/reader_app.py`，只作回退与测试夹具；日常不要再起两个进程。
 
 > 官方 6 本样书带"请勿外传"水印，`books/*/pages/`、`books/*/reader/`、`books/*/text/`
 > 已进 `.gitignore`：只在本地生成，不进仓库、不进提交包。

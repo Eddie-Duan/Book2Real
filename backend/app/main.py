@@ -18,7 +18,9 @@ from .book.ingest import ingest_materials_zip, ingest_pdf, list_books
 from .book.index import BookIndex
 from .book.store import Store
 from .book.video import VideoIndex
+from .compat import decorate_answer, normalize_ask_payload
 from .config import Settings, settings
+from .frontend import router as frontend_router
 from .pipeline.filler import FillerBank
 from .pipeline.turn import VoiceTurnRunner
 from .pipeline.vad import EnergyVAD
@@ -109,6 +111,7 @@ def get_state() -> AppState:
 
 
 app = FastAPI(title="纸书智伴 · 语音后端", version="0.1.0")
+app.include_router(frontend_router)  # 融合：阅读器/影院页面与旧路由
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -310,25 +313,30 @@ async def ask(request: Request):
     payload: dict = {}
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
-        book_id = str(form.get("book_id") or "")
-        session_id = str(form.get("session_id") or "http")
-        lang = str(form.get("lang") or "")
-        page = int(form["page"]) if form.get("page") else None
-        element = json.loads(form["element"]) if form.get("element") else None
+        payload = {
+            "book_id": form.get("book_id") or "",
+            "session_id": form.get("session_id") or "http",
+            "lang": form.get("lang") or "",
+            "page": form.get("page"),
+            "text": form.get("text") or "",
+        }
+        if form.get("element"):
+            payload["element"] = json.loads(form["element"])
         upload = form.get("audio")
         if upload is not None:
             audio_bytes = await upload.read()
-        text = str(form.get("text") or "")
     else:
         payload = await request.json()
-        book_id = str(payload.get("book_id") or "")
-        session_id = str(payload.get("session_id") or "http")
-        lang = str(payload.get("lang") or "")
-        page = int(payload["page"]) if payload.get("page") is not None else None
-        element = payload.get("element")
-        text = str(payload.get("text") or "")
         if payload.get("audio_b64"):
             audio_bytes = base64.b64decode(payload["audio_b64"])
+    # 老阅读器的 {book, page:"p03", query, entity, box} 归一成 backend 字段
+    payload = normalize_ask_payload(payload)
+    book_id = str(payload.get("book_id") or "")
+    session_id = str(payload.get("session_id") or "http")
+    lang = str(payload.get("lang") or "")
+    page = payload.get("page")
+    element = payload.get("element")
+    text = str(payload.get("text") or "")
     if not book_id:
         raise HTTPException(400, "book_id is required")
     st.book(book_id)
@@ -360,7 +368,7 @@ async def ask(request: Request):
         elif event["type"] == "error":
             raise HTTPException(500, event.get("message", "pipeline error"))
     pcm = b"".join(audio_parts)
-    return {
+    result = {
         "answer": answer,
         "lang": lang_out,
         "asr_text": asr_text,
@@ -374,6 +382,8 @@ async def ask(request: Request):
         "audio_b64": base64.b64encode(pcm).decode("ascii") if pcm else "",
         "audio_wav_b64": base64.b64encode(wav_bytes(pcm, sample_rate)).decode("ascii") if pcm else "",
     }
+    # 兼容层：补 citations/source/socratic/page，老前端不改也能渲染
+    return decorate_answer(result, payload, llm_name=getattr(st.llm, "name", ""))
 
 
 @app.post("/api/ask/stream")

@@ -180,6 +180,13 @@ function renderStory(page) {
     const bits = [];
     for (let k = 0; k < seg.length; k++, ti++) {
       const t = tokens[ti] || { ch: seg[k], py: "" };
+      // English words are segments with a trailing space; a bare space inside an
+      // inline-block collapses, so render it as a non-breaking space instead of
+      // a ruby — otherwise "Choplin I like" reads "ChoplinIlike".
+      if (/^\s$/.test(t.ch)) {
+        bits.push('<span class="sp">&nbsp;</span>');
+        continue;
+      }
       bits.push(punct.has(t.ch)
         ? `<span class="punct">${esc(t.ch)}</span>`
         : `<ruby class="r" data-i="${ti}" tabindex="0"><span class="py">${esc(t.py || "")}</span><span class="ch">${esc(t.ch)}</span></ruby>`);

@@ -3,6 +3,13 @@
 > 四个 agent 并行改代码，**这份文件是唯一的地面真相**。任何与本文件冲突的实现以本文件为准；
 > 想改契约，先在共享任务里说明，由 Lead 改这一份。
 > 背景与选型依据见 `docs/NN_ACADEMY_REUSE.md`（本次参照的同行方案盘点）。
+>
+> **2026-11 融合后（重要）**：后端已统一为 `backend/`（原 paperbook-backend），
+> 本文的 §1 路由由 `backend/app/frontend.py` **原样保留**，§2 的 `/api/ask` 老字段由
+> `backend/app/compat.py` 补齐；权威契约见 `backend/docs/INTEGRATION.md`。
+> 日常只启动一个进程（`scripts/start_backend.ps1`），不要再用
+> `python -m book2real reader` 起第二套服务。详见
+> [docs/BACKEND_MERGE.md](BACKEND_MERGE.md)。
 
 ---
 

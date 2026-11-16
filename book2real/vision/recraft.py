@@ -175,6 +175,26 @@ def erase(image, mask, *, usd: float = 0.002):
     body = _post("/v1/images/eraseRegion", payload, usd=usd)
     return _download(body["image"]), body
 
+def generate(prompt: str, *, size: str = "1024x1024", style: str = "digital_illustration",
+             n: int = 1, usd_each: float = 0.04) -> tuple[list, dict]:
+    """Text → image, for UI illustrations (empty states, mascots).
+
+    Same budget guard and call log as the other endpoints; ``style`` is a
+    Recraft style id (``digital_illustration`` / ``realistic_image`` ...).
+    """
+    cfg = config()
+    payload = {
+        "prompt": prompt,
+        "size": size,
+        "style": style,
+        "n": n,
+        "model": cfg["model"],
+        "response_format": "b64_json",
+    }
+    body = _post("/v1/images/generations", payload, usd=usd_each * n)
+    return [_download(it) for it in body.get("data", [])], body
+
+
 def image_to_image(image, prompt: str, *, strength: float = 0.55, n: int = 1,
                    usd_each: float = 0.04) -> tuple[list, dict]:
     """Re-draw the image toward `prompt`; low strength keeps style and layout.

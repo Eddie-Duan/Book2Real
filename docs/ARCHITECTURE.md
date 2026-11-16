@@ -21,6 +21,9 @@
                                                   assemble ──► film.mp4
 ```
 
+- **运行形态**：`backend/`（原 paperbook-backend）是唯一后端进程，同时托管阅读器/
+  影院页面、语音问答与视频内检索；本文件描述的 2.5D 成片链只是它的一个下游
+  消费者。融合说明见 [BACKEND_MERGE.md](BACKEND_MERGE.md)。
 - **输入**：`books/<id>/book.json` + `pages/*.png`
 - **输出**：`runs/<id>/<run>/film.mp4` + `manifest.json` + `timeline.json` + `events.jsonl`
 - **不做**：不碰 ASR/TTS/问答；上游 OCR/VLM 的产物（角色框、文字 mask）预留为 `ShotSpec.text_mask` / `characters` 字段。
