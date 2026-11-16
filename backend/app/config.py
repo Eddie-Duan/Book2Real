@@ -137,6 +137,7 @@ class Settings:
     ocr_dpi: int = field(default_factory=lambda: _i("OCR_DPI", 150))
     ocr_min_text_chars: int = field(default_factory=lambda: _i("OCR_MIN_TEXT_CHARS", 40))
     ocr_use_rapidocr: bool = field(default_factory=lambda: _b("OCR_USE_RAPIDOCR", True))
+    ocr_supplement: bool = field(default_factory=lambda: _b("OCR_SUPPLEMENT", True))
     ocr_langs: list[str] = field(default_factory=lambda: _list("OCR_LANGS", "ch,en"))
     video_sample_fps: float = field(default_factory=lambda: _f("VIDEO_SAMPLE_FPS", 1.0))
     video_max_frames: int = field(default_factory=lambda: _i("VIDEO_MAX_FRAMES", 900))

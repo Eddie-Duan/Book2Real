@@ -228,6 +228,7 @@ function openShell(opts) {
   p.panel.hidden = false;
   if (p.kicker) p.kicker.textContent = MODE_KICKER[opts.mode] || "这一页";
   if (p.title) {
+    p.title.classList.remove("sr-only");
     p.title.textContent = opts.entity && opts.entity.name
       ? `关于「${opts.entity.name}」`
       : opts.mode === "free" ? "你想知道什么？" : "这一页里的小问题";
@@ -300,7 +301,18 @@ export async function openPanel(o = {}) {
   const p = openShell(opts);
   if (!p) return null;
   if (opts.mode === "free" && !opts.query) {
-    p.body.innerHTML = `<p class="qa-answer">想问哪一句？打在这里，或者按下麦克风直接说。</p>`;
+    // 空状态用插图 + 一句话代替纯文字提示；AI 生成按合规要求标注。
+    // 标题与插图配文重复，这里只留给读屏（视觉上隐藏）。
+    if (p.title) p.title.classList.add("sr-only");
+    p.body.innerHTML = `
+      <figure class="qa-empty">
+        <img class="qa-empty-art" src="/static/img/ask-entry.jpg" alt="一个小女孩和一只小狗在看一本打开的书" loading="lazy">
+        <figcaption class="qa-empty-copy">
+          <b>你有什么想知道的？</b>
+          <span>点一下画里的人物或东西，也可以直接问我。</span>
+        </figcaption>
+        <span class="qa-empty-ai">插图 · AI 生成</span>
+      </figure>`;
     focusInput();
     return p.panel;
   }

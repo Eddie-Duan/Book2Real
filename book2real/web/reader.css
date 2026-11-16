@@ -314,6 +314,16 @@ body.no-pinyin .punct{padding-top:0}
   background:color-mix(in srgb,var(--accent) 8%,transparent)}
 .qa-answer{margin:0;font-size:16px;line-height:1.85;color:var(--ink)}
 .qa-answer.qa-thinking{color:var(--soft);letter-spacing:.34em}
+/* 问答面板空状态：插图按 3:2 固定，标题在图上方的纸面区，不压字 */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.qa-empty{margin:0;display:flex;flex-direction:column;gap:10px}
+.qa-empty-art{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;border-radius:14px;
+  border:1px solid var(--line);background:#f3e8d6}
+.qa-empty-copy{display:flex;flex-direction:column;gap:4px;padding:0 2px}
+.qa-empty-copy b{font-size:22px;line-height:1.3;font-weight:750;letter-spacing:.02em}
+.qa-empty-copy span{font-size:14px;line-height:1.7;color:var(--soft)}
+.qa-empty-ai{align-self:flex-end;font-size:10px;letter-spacing:.06em;color:var(--soft);margin-top:-4px}
 .qa-soc{margin:12px 0 0;padding-left:10px;border-left:2px solid var(--sage);
   font-size:14px;line-height:1.7;color:var(--sage)}
 .qa-cites-inline{display:flex;flex-direction:column;gap:8px;margin-top:14px}

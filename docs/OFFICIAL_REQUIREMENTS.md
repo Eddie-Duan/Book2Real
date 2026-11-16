@@ -8,6 +8,8 @@
 > - 官方素材目录：`纸书智伴企业预选赛绘本素材/`（`readme.txt` + 6 本 PDF + 音频目录 + 录制脚本 TXT）。
 > - 官方项目说明书模板：`docs/纸书智伴项目书.docx`、纯文本 `docs/_docx_dump.txt`。
 >
+> **2026-11-17 更新（查字 A13）**：视频内查字原先只覆盖 PDF 文字层，漏掉压在插图上的对白（如 cn01“我又不是故意的”，官方脚本第 18 条必选）。现在入库做“文字层 + OCR 补漏”，补出的行走 `kind=art_text`，查字能返回页码与 bbox，正文与插图都不改写。实现 `backend/app/book/ocr.py`，验证见 [BACKEND_MERGE.md](BACKEND_MERGE.md) §5.1。
+>
 > **快照时间**：2026-11-16 16:21 工作区实测（本文件所有数字均来自该快照的真跑：`ffprobe`、`pytest` 脚本、`package_submission.py --dry-run`、`timeline.json` 解析）。`books/` 现只含官方两本（cn01 / en01）；旧的三本自造样书已移出（保留在 `personal-attempt` 分支），本文件不再引用旧样书证据。
 >
 > **转写口径**：OCR 有错字（"凤格"=风格、"十"=＋、"一1一"=页码 1），引用只做最小还原，不改语义；凡答疑与 PDF 冲突一律进第 5 节「待确认」，不自行合并。

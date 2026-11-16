@@ -30,6 +30,14 @@ if VENDOR.exists() and str(VENDOR) not in sys.path:
     sys.path.insert(0, str(VENDOR))
 
 CJK = re.compile(r"[\u3400-\u9fff]")
+
+#: 常见多音字（词 → (字在词中的下标, 读音)）；只收绘本里会误读的，不追求全表
+_POLYPHONE = {
+    "倒一地": (0, "dǎo"),
+    "倒了一地": (0, "dǎo"),
+    "一倒": (1, "dǎo"),
+    "倒了": (0, "dǎo"),
+}
 LATIN = re.compile(r"[A-Za-z]")
 #: The official sample PDFs carry a printed "仅供…参赛使用，请勿外传" watermark.
 #: It is part of the raster, so OCR sees it; it must never become story text.
@@ -174,6 +182,14 @@ def pinyin_tokens(text: str) -> list[dict]:
         if ch in "，。！？、；：（）“”‘’…—《》「」":
             r = ""
         out.append({"ch": ch, "py": r})
+    # 多音字按词定音：pypinyin 单字会把“倒”读成 dào，“倒一地”应是 dǎo
+    for phrase, (offset, reading) in _POLYPHONE.items():
+        at = text.find(phrase)
+        while at >= 0:
+            pos = at + offset
+            if pos < len(out) and out[pos]["ch"] == phrase[offset]:
+                out[pos]["py"] = reading
+            at = text.find(phrase, at + 1)
     return out
 
 
@@ -553,6 +569,8 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
             # backend 已做文字层/OCR/水印/教学栏过滤：只把归一化 bbox 换成像素框
             w0, h0 = imread(src).shape[1], imread(src).shape[0]
             blocks = backend.blocks(i, w0, h0)
+            # 印在画面里的对白（kind=art_text）保留在画里，只用于查字/框选
+            clean_blocks = [b for b in blocks if b.get("kind") != "art_text"]
             picked = backend.story_boxes(i, w0, h0)
             text = backend.story_text(i)
         else:
@@ -562,6 +580,7 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
             else:
                 blocks = ocr_blocks(src)
                 write_json(ocr_p, blocks)
+            clean_blocks = blocks
             text, picked = story_text(blocks, imread(src).shape[1], lang)
             # a real PDF text layer is the book's own text and beats OCR; the
             # printed watermark is not text (en01 has nothing else in its layer).
@@ -585,7 +604,7 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
         if force or not art_p.exists():
             from .pagerepair import apply_restore, drop_kept
 
-            keep_blocks = drop_kept(blocks, c.get("keep_text"))
+            keep_blocks = drop_kept(clean_blocks, c.get("keep_text"))
             art = clean_art(src, keep_blocks, max_side=max_side,
                             extra=c.get("clean_boxes"), crop=None,
                             trim=bool(c.get("trim", True)))
