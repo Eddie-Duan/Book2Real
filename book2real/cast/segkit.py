@@ -7,7 +7,7 @@
 
 Why rectangles were wrong
 -------------------------
-A bounding box is not a boundary. The p17 cut pulled a slice of cheek and dress
+A bounding box is not a boundary. An early cut pulled a slice of cheek and dress
 along with the arm because the piece was the rectangle, not the drawing inside
 it. Real picture-book art has a black ink outline around every shape, so the
 boundaries are measurable, and the only judgement left is *which* regions belong

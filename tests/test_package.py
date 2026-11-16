@@ -53,17 +53,17 @@ def _fake_repo(tmp: str) -> tuple[Path, list[str]]:
         "book2real/__init__.py": "",
         "book2real/app.py": "VALUE = 1\n",
         "scripts/package_submission.py": "# fake script\n",
-        "books/charlie_lola/book.json": json.dumps(
-            {"book_id": "charlie_lola", "title": "测试绘本", "pages": [
+        "books/cn01/book.json": json.dumps(
+            {"book_id": "cn01", "title": "测试绘本", "pages": [
                 {"file": "p01.jpg", "duration": 3.0},
                 {"file": "p02.jpg", "duration": 3.0},
             ]}, ensure_ascii=False),
-        "books/charlie_lola/curation.json": "{}\n",
-        "books/charlie_lola/ORDER.csv": "p01.jpg\n",
-        "books/charlie_lola/pages/p01.jpg": b"PAGE-IMAGE",
-        "books/charlie_lola/reader/layers/p01_fg.png": b"READER-ARTIFACT",
-        "runs/charlie_lola/reader_film/20260101-000000/film.mp4": b"OLD-FILM" * 200,
-        "runs/charlie_lola/reader_film/20260102-000000/film.mp4": b"NEWEST-FILM" * 200,
+        "books/cn01/curation.json": "{}\n",
+        "books/cn01/ORDER.csv": "p01.jpg\n",
+        "books/cn01/pages/p01.jpg": b"PAGE-IMAGE",
+        "books/cn01/reader/layers/p01_fg.png": b"READER-ARTIFACT",
+        "runs/cn01/reader_film/20260101-000000/film.mp4": b"OLD-FILM" * 200,
+        "runs/cn01/reader_film/20260102-000000/film.mp4": b"NEWEST-FILM" * 200,
         "docs/项目说明书.pdf": b"%PDF-1.4 fake statement\n",
         "docs/COMPLIANCE.md": "# 合规说明\n素材均已授权。\n",
         "assets/book1.jpg": b"OFFICIAL-PAGE",
@@ -150,11 +150,11 @@ def test_source_zip_excludes_env_and_big_binaries_but_keeps_manifest():
             assert ".env" not in names and ".env.local" not in names
             assert "README.md" in names
             assert "book2real/app.py" in names
-            assert "books/charlie_lola/book.json" in names
-            assert "books/charlie_lola/curation.json" in names
+            assert "books/cn01/book.json" in names
+            assert "books/cn01/curation.json" in names
             assert not any(n.startswith("runs/") for n in names)
-            assert not any(n.startswith("books/charlie_lola/reader/") for n in names)
-            assert not any(n.startswith("books/charlie_lola/pages/") for n in names)
+            assert not any(n.startswith("books/cn01/reader/") for n in names)
+            assert not any(n.startswith("books/cn01/pages/") for n in names)
             assert "assets/book1.jpg" not in names
             assert not any(n.startswith("assets/book2/") for n in names)
 
@@ -188,7 +188,7 @@ def test_final_zip_is_readable_and_contains_source_manifest():
     with tempfile.TemporaryDirectory() as td:
         repo, tracked = _fake_repo(td)
         # 补一条交互录屏（文件名含“交互”），让四种官方材料齐全
-        interactive = "runs/charlie_lola/interactive/交互演示录屏.mp4"
+        interactive = "runs/cn01/interactive/交互演示录屏.mp4"
         _write(repo, interactive, b"INTERACTIVE-RECORDING" * 100)
         tracked = sorted(tracked + [interactive])
         out = Path(td) / "dist"
@@ -223,7 +223,7 @@ def test_final_zip_is_readable_and_contains_source_manifest():
                 assert "SOURCE_MANIFEST.txt" in inner_names
                 assert ".env.example" in inner_names
                 assert ".env" not in inner_names
-                assert "books/charlie_lola/book.json" in inner_names
+                assert "books/cn01/book.json" in inner_names
 
             material = zf.read(f"{package}/素材来源清单.md").decode("utf-8")
             assert "docs/COMPLIANCE.md" in material
@@ -239,11 +239,11 @@ def test_source_plan_counts_and_reasons():
         included = {rel for rel, _ in plan.included}
         excluded = {rel: reason for rel, reason in plan.excluded}
         assert ".env" in excluded and ".env.local" in excluded
-        assert "runs/charlie_lola/reader_film/20260102-000000/film.mp4" in excluded
-        assert "books/charlie_lola/reader/layers/p01_fg.png" in excluded
-        assert "books/charlie_lola/pages/p01.jpg" in excluded
+        assert "runs/cn01/reader_film/20260102-000000/film.mp4" in excluded
+        assert "books/cn01/reader/layers/p01_fg.png" in excluded
+        assert "books/cn01/pages/p01.jpg" in excluded
         assert "assets/book2/scan.jpg" in excluded
-        assert "books/charlie_lola/book.json" in included
+        assert "books/cn01/book.json" in included
         assert plan.total_bytes > 0
         assert plan.manifest.startswith("Book2Real 项目源代码包")
 

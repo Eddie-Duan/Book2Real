@@ -17,7 +17,7 @@ const HARD_STOP = /[。！？!?；;…\n]/;
 const SOFT_KEEP = /[，,、：:—]/;
 const MAX_SENTENCE = 60;
 
-/* "小劳拉说，我们去找豚鼠吧！波特不见了。" -> ["...吧！", "波特不见了。"] */
+/* "小满说，我们一起搭城堡吧！城堡倒了。" -> ["...吧！", "城堡倒了。"] */
 export function splitSentences(text) {
   const s = String(text == null ? "" : text).replace(/\s+/g, " ").trim();
   if (!s) return [];

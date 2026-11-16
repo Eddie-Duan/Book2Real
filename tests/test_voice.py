@@ -98,16 +98,16 @@ def test_speaking_final_interrupts_when_not_echo():
 
 
 def test_speaking_final_is_echo_guarded():
-    r = d("speaking", since=10, et="final", text="页面上有只豚鼠")
+    r = d("speaking", since=10, et="final", text="页面上有一只小狗")
     assert r["decision"] == "wait"
     assert r["reason"] == "echo_guard"
 
 
 def test_answer_ready_from_thinking_speaks():
-    r = d("thinking", since=0, et="answer_ready", text="这是劳拉。")
+    r = d("thinking", since=0, et="answer_ready", text="这是花花。")
     assert r["decision"] == "speak"
     assert r["phase"] == "speaking"
-    assert r["text"] == "这是劳拉。"
+    assert r["text"] == "这是花花。"
 
 
 def test_answer_ready_from_idle_speaks():

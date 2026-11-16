@@ -1,4 +1,4 @@
-"""Motion renderer for 纸间生灵 pages.
+"""Motion renderer for 纸书智伴 pages.
 
 Two kinds of page motion, both rigid (nothing is warped):
 

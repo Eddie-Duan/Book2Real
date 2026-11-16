@@ -5,8 +5,8 @@ chat app in reading order. Windows keeps the copy time in `st_ctime`, so
 sorting by it recovers that order; `st_mtime` is the fallback on filesystems
 that do not expose creation time.
 
-    python scripts/import_book.py --src assets/book2 --book charlie_lola \
-        --title "我特别了解豚鼠" --subtitle "查理与劳拉"
+    python scripts/import_book.py --src assets/book2 --book cn01 \
+        --title "一起搭积木吧" --subtitle "学而思阅读树"
 
 Writes `books/<id>/pages/pNN.<ext>`, `book.json` (if missing) and
 `ORDER.csv`, an audit trail from page number back to the source file.

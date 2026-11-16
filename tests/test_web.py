@@ -208,7 +208,7 @@ def test_split_sentences_and_interp_chars_behave():
 const tts = await import({json.dumps(_module_uri("tts.js"))});
 const out = {{
   empty: tts.splitSentences(""),
-  two: tts.splitSentences("小劳拉说，我们去找豚鼠吧！波特彻底不见了。"),
+  two: tts.splitSentences("小满说，我们一起搭积木吧！黄米团跑来了。"),
   long: tts.splitSentences("啊".repeat(130)),
   interp: [tts.interpChars(10, 0, 2), tts.interpChars(10, 1, 2), tts.interpChars(10, 2, 2),
            tts.interpChars(10, 2.1, 2), tts.interpChars(0, 1, 2), tts.interpChars(10, 1, 0)],
@@ -217,7 +217,7 @@ process.stdout.write(JSON.stringify(out));
 """
     out = _node_module_func(code)
     assert out["empty"] == []
-    assert out["two"] == ["小劳拉说，我们去找豚鼠吧！", "波特彻底不见了。"]
+    assert out["two"] == ["小满说，我们一起搭积木吧！", "黄米团跑来了。"]
     assert max(len(s) for s in out["long"]) == 60
     assert out["interp"] == [0, 5, 9, 9, 0, 0]
 
@@ -294,7 +294,7 @@ def test_qa_ask_never_throws_without_a_backend():
     # no fetch() at all in node -> ask() must resolve to the honest degraded answer
     code = f"""
 const qa = await import({json.dumps(_module_uri("qa.js"))});
-const r = await qa.ask({{ book: "charlie_lola", page: "p03", mode: "free", query: "这是什么" }});
+const r = await qa.ask({{ book: "cn01", page: "p03", mode: "free", query: "这是什么" }});
 process.stdout.write(JSON.stringify({{ answer: r.answer, fallback: r.fallback, source: r.source,
   citations: r.citations, page: r.page, socratic: r.socratic }}));
 """

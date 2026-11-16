@@ -13,8 +13,8 @@ Everything is cached in `reader/words/<page>.json` and merged into book.json by
 `storybook.build`, so a re-run costs nothing and the reader keeps working with
 no network at all.
 
-    python -m book2real words --book books/charlie_lola            # rules only
-    python -m book2real words --book books/charlie_lola --llm      # ask the LLM
+    python -m book2real words --book books/cn01            # rules only
+    python -m book2real words --book books/cn01 --llm      # ask the LLM
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STOP = set("的了是在有个这那一不也很都也就说看吃喝好大小人家里上下来去做想要会能把被给和但因为所以还又再"
            "我们你们他们她们它们什么怎么这样那样时候一个自己不是没有可以已经正在慢慢地".split())
 # jieba 的中文词性：n* 名词、v* 动词、a* 形容词
-# segmentation glues a speech verb onto a name (劳拉说); those tails are not words
+# segmentation glues a speech verb onto a name (花花说); those tails are not words
 SPEECH_TAIL = ("说", "问", "答", "喊", "叫", "道", "笑", "想")
 
 KEEP_POS = ("n", "v", "a", "d", "t", "s")

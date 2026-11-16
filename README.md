@@ -104,7 +104,7 @@ python -m book2real clip    --book books/cn01 --page p03 --prompt "..." --second
 | 问答与追问 | `POST /api/ask` + `qa.py`/`socratic.py`：点画、点字、自由问三种入口，答案带**页码 + 原文引用**；无 key 时走抽取式规则作答，书外问题如实拒答；有 `DEEPSEEK_API_KEY` 时接 DeepSeek，失败单步降级回规则 |
 | 语音 | 麦克风提问（Chrome Web Speech，不支持的浏览器按原因置灰）+ 句级 TTS（`/api/tts` 带缓存/probe）+ 打断状态机（`voice_state.py`，600ms 回声保护） |
 | 离线 | 整书离线包：`sw.js` + `offline.js`；非安全上下文（局域网 http）会明说不可用，不假装可用 |
-| 评测 | `scripts/gate.py` 五门 + `scripts/eval_metrics.py` → [`docs/METRICS.md`](docs/METRICS.md)（实测值/目标值分列，n 与环境齐全） |
+| 评测 | `scripts/gate.py` 五门 + `scripts/eval_metrics.py` 出实测指标（n 与环境齐全） |
 | 旁白 | edge-tts（中文晓晓 / 英文 Aria），缓存复用；失败回退 Windows SAPI |
 | 视频 | 16:9 单趟渲染，`film_target` 控制 100–200 s；AAC 音轨；timeline 供检索 |
 | 互动录屏 | 真实浏览器操作录制：播放/暂停、翻页、找画面、点选、描述帧、查词；cn01 30.68 s、en01 22.92 s，均 ≤5 min |
@@ -125,8 +125,7 @@ python -m book2real clip    --book books/cn01 --page p03 --prompt "..." --second
 - [`docs/项目说明书.pdf`](docs/项目说明书.pdf) — 按官方模板写的 13 页说明书（docx 同目录）
 - [`docs/READER.md`](docs/READER.md) — 互动绘本的产品设计、分析管线、视频版式
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 旧版 2.5D 渲染与编排
-- [`docs/HANDOFF.md`](docs/HANDOFF.md) — 实测数据、已知问题、下一步
-- [`docs/METRICS.md`](docs/METRICS.md) — 实测指标（脚本生成，勿手改）
+- [`docs/AGENT_HANDOFF.md`](docs/AGENT_HANDOFF.md) — 交给下一个 agent 的操作契约与踩坑
 - [`docs/INTEGRATION_CONTRACT.md`](docs/INTEGRATION_CONTRACT.md) — 问答/语音/离线/评测门的接口契约
 
 ## 目录

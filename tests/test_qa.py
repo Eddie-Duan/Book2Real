@@ -5,12 +5,22 @@
 Last line prints `N tests passed`.  Every assertion is about the contract in
 docs/INTEGRATION_CONTRACT.md §2: the shape, the "never fabricate" rule, and
 that every citation quote is an exact substring of the real book data.
+
+The book under test is the official sample ``books/cn01`` (《一起搭积木吧》),
+read straight from ``books/cn01/reader/book.json`` +
+``reader/characters/characters.json`` + ``reader/cast/entities.json``.  The one
+behaviour cn01 carries no data for (its pages have empty ``words[]``, so no
+page-level gloss exists) is exercised on a throwaway synthetic page — see
+``_synth_book``.
 """
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -18,12 +28,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from book2real import qa  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-BOOK = "charlie_lola"
-#: Content fixture kept out of ``books/``: the shipped books must be the official
-#: PDF samples. These assertions are about the QA contract, not the story.
-FIXTURE = ROOT / "tests" / "fixtures" / "books"
-qa.BOOKS = FIXTURE
-READER = FIXTURE / BOOK / "reader"
+BOOK = "cn01"
+#: The shipped official sample, not a test fixture: the QA contract must hold
+#: on the books we actually deliver.
+READER = ROOT / "books" / BOOK / "reader"
 
 REQUIRED_KEYS = {"answer", "citations", "source", "fallback",
                  "socratic", "latency_ms", "page"}
@@ -115,15 +123,49 @@ def _env(**kv):
     return restore
 
 
+@contextmanager
+def _synth_book(pages: list[dict], *, book_id: str = "synth",
+                entities: dict | None = None):
+    """A throwaway book for a page shape the official samples do not carry.
+
+    cn01 pages have empty ``words[]`` (no page-level gloss) and every page has a
+    scene, so those two edge shapes are built here.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="b2r_qa_synth_"))
+    reader = tmp / book_id / "reader"
+    reader.mkdir(parents=True)
+    (reader / "book.json").write_text(
+        json.dumps({"book_id": book_id, "title": "临时页面",
+                    "characters": [], "pages": pages}, ensure_ascii=False),
+        encoding="utf-8")
+    if entities is not None:
+        cast = reader / "cast"
+        cast.mkdir(parents=True)
+        (cast / "entities.json").write_text(
+            json.dumps(entities, ensure_ascii=False), encoding="utf-8")
+    old = qa.BOOKS
+    qa.BOOKS = tmp
+    try:
+        def ask(**kw):
+            req = {"book": book_id, "page": pages[0]["id"], "mode": "free",
+                   "query": "", "history": []}
+            req.update(kw)
+            return qa.answer(req)
+        yield ask
+    finally:
+        qa.BOOKS = old
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 # --------------------------------------------------------------------------- #
 # contract shape
 # --------------------------------------------------------------------------- #
 def test_response_has_every_contract_field():
-    _assert_shape(_ask(query="劳拉在做什么？"))
+    _assert_shape(_ask(query="花花在做什么？"))
 
 
 def test_rule_mode_answers_from_the_page():
-    resp = _ask(query="劳拉在做什么？")
+    resp = _ask(query="花花在做什么？")
     assert resp["source"] == "rule"
     assert resp["fallback"] == "no_llm_key"
     assert resp["citations"], "an evidence answer must carry citations"
@@ -133,8 +175,8 @@ def test_rule_mode_answers_from_the_page():
 
 
 def test_quotes_are_exact_substrings_on_several_pages():
-    cases = [("p03", "劳拉在做什么？"), ("p05", "劳拉问了露塔什么"),
-             ("p10", "劳拉被选中了吗"), ("p17", "波特怎么了")]
+    cases = [("p02", "小满在做什么"), ("p05", "积木城堡怎么倒了"),
+             ("p10", "生日卡片是谁画的"), ("p03", "积木城堡搭得高吗")]
     for page_id, query in cases:
         resp = _ask(page=page_id, query=query)
         _assert_shape(resp)
@@ -167,8 +209,11 @@ def test_no_fabrication_on_absent_topic():
 
 
 def test_absent_topic_on_a_page_that_knows_the_person_elsewhere():
-    """汉森老师 exists in the book but not on p17 — p17 must say so."""
-    resp = _ask(page="p17", query="汉森老师是谁")
+    """黄米团 is in the book's cast but not on p02 — p02 must say so."""
+    known_pages = next(c["pages"] for c in _CHARS["characters"]
+                       if c.get("name") == "黄米团")
+    assert known_pages and "p02" not in known_pages, known_pages
+    resp = _ask(page="p02", query="黄米团是谁")
     assert resp["citations"] == []
     assert resp["fallback"] == "no_evidence"
     assert "没有提到" in resp["answer"]
@@ -191,12 +236,27 @@ def test_whitespace_and_punctuation_queries_do_not_crash():
         _assert_shape(resp)
 
 
-def test_word_mode_uses_the_glossary_and_a_real_sentence():
-    resp = _ask(mode="word", query="妹妹")
+def test_word_mode_uses_a_real_sentence():
+    resp = _ask(page="p09", mode="word", query="卡片")
     _assert_shape(resp)
-    assert "妹妹" in resp["answer"]
-    assert any("比自己小的女孩子" in c["quote"] for c in resp["citations"])
-    _assert_quotes_real(resp, "p03")
+    assert "卡片" in resp["answer"]
+    assert resp["citations"] and resp["citations"][0]["kind"] == "text"
+    assert "卡片" in resp["citations"][0]["quote"], resp["citations"]
+    _assert_quotes_real(resp, "p09")
+
+
+def test_word_mode_surfaces_the_page_gloss():
+    """cn01 ships no ``words[].mean``, so the gloss branch runs on a synth page."""
+    page = {"id": "p01", "kind": "page", "text": "花花放上积木。", "scene": "",
+            "spots": [], "segments": ["花花", "积木"],
+            "words": [{"w": "积木", "py": "jī mù",
+                       "mean": "一块块搭起来的东西。"}]}
+    with _synth_book([page]) as ask:
+        resp = ask(mode="word", query="积木")
+    _assert_shape(resp)
+    assert "一块块搭起来的东西。" in resp["answer"], resp["answer"]
+    assert any(c["kind"] == "desc" and c["quote"] == "一块块搭起来的东西。"
+               for c in resp["citations"]), resp["citations"]
 
 
 def test_word_mode_absent_word_is_honest():
@@ -207,22 +267,31 @@ def test_word_mode_absent_word_is_honest():
 
 
 def test_spot_mode_hit_names_the_entity_under_the_click():
-    resp = _ask(mode="spot", box=[0.51, 0.44, 0.07, 0.14])
+    resp = _ask(mode="spot", box=[0.70, 0.39, 0.03, 0.03])
     _assert_shape(resp)
-    assert "劳拉" in resp["answer"]
+    assert "积木城堡" in resp["answer"]
     assert resp["citations"] and resp["citations"][0]["kind"] == "spot"
     _assert_quotes_real(resp, "p03")
 
 
 def test_spot_mode_hit_uses_entities_json_for_named_blobs():
-    resp = _ask(page="p04-1", mode="spot", box=[0.75, 0.48, 0.05, 0.05])
+    """The curated spots miss this click; only entities.json names the blob."""
+    page = _page("p05")
+    ents, _known = qa._page_entities(BOOK, "p05")
+    box = [0.22, 0.18, 0.05, 0.05]
+    assert qa._spot_hit(page, "p05", box, []) is None, \
+        "this click must not be covered by a curated spot"
+    hit = qa._spot_hit(page, "p05", box, ents)
+    assert hit and hit["name"] == "小满", hit
+    resp = _ask(page="p05", mode="spot", box=box)
     _assert_shape(resp)
-    assert "波特" in resp["answer"]
-    _assert_quotes_real(resp, "p04-1")
+    assert "小满" in resp["answer"]
+    assert resp["citations"]
+    _assert_quotes_real(resp, "p05")
 
 
 def test_spot_mode_miss_says_it_did_not_see_clearly():
-    resp = _ask(mode="spot", box=[0.88, 0.85, 0.04, 0.04])
+    resp = _ask(mode="spot", box=[0.05, 0.05, 0.04, 0.04])
     _assert_shape(resp)
     assert "没看清" in resp["answer"]
     assert resp["citations"] == []
@@ -230,8 +299,14 @@ def test_spot_mode_miss_says_it_did_not_see_clearly():
 
 
 def test_spot_mode_unnamed_blob_does_not_borrow_a_neighbour():
-    """p04-1 top-third blob has no name; 波特 is elsewhere on the page."""
-    resp = _ask(page="p04-1", mode="spot", box=[0.5, 0.15, 0.05, 0.05])
+    """p03's bottom-right blob has no name; 积木城堡 is elsewhere on the page."""
+    page = _page("p03")
+    assert any(s.get("name") for s in page.get("spots") or []), "a named neighbour must exist"
+    ents, _known = qa._page_entities(BOOK, "p03")
+    box = [0.88, 0.85, 0.04, 0.04]
+    hit = qa._spot_hit(page, "p03", box, ents)
+    assert hit is not None and not hit["name"] and not hit["desc"], hit
+    resp = _ask(page="p03", mode="spot", box=box)
     _assert_shape(resp)
     assert "你点的是" not in resp["answer"], "must not name a blob that entities.json left unnamed"
     assert "没看清" in resp["answer"]
@@ -243,15 +318,15 @@ def test_spot_mode_unnamed_blob_does_not_borrow_a_neighbour():
 def test_spot_threshold_is_iou_or_centre_distance():
     page = _page("p03")
     ents, _known = qa._page_entities(BOOK, "p03")
-    exact = qa._spot_hit(page, "p03", [0.5, 0.43, 0.09, 0.16], ents)
-    assert exact and exact["name"] == "劳拉"
-    # IoU 0.15-ish: a click box that shares most of the spot
-    overlap = qa._spot_hit(page, "p03", [0.5, 0.43, 0.05, 0.10], ents)
+    exact = qa._spot_hit(page, "p03", [0.65, 0.27, 0.10, 0.26], ents)
+    assert exact and exact["name"] == "积木城堡"
+    # IoU ~0.25: a click box that shares most of the spot
+    overlap = qa._spot_hit(page, "p03", [0.65, 0.27, 0.05, 0.13], ents)
     assert overlap is not None, "IoU >= 0.15 must hit"
     # tiny click exactly on the spot centre: IoU < 0.15 but centre distance < 0.15
-    near = qa._spot_hit(page, "p03", [0.52, 0.45, 0.02, 0.02], ents)
-    assert near is not None and near["name"] == "劳拉", "centre distance <= 0.15 must hit"
-    # far corner: neither test passes
+    near = qa._spot_hit(page, "p03", [0.70, 0.40, 0.02, 0.02], ents)
+    assert near is not None and near["name"] == "积木城堡", "centre distance <= 0.15 must hit"
+    # far bottom-right corner: neither test passes
     assert qa._spot_hit(page, "p03", [0.92, 0.92, 0.03, 0.03], ents) is None
     # a degenerate / malformed box is simply not a hit, never an exception
     assert qa._spot_hit(page, "p03", [0, 0, 0, 0], ents) is None
@@ -265,7 +340,7 @@ def test_unknown_book_is_reported_not_raised():
     old = qa.BOOKS
     qa.BOOKS = ROOT / "runs" / "_definitely_missing_books_dir"
     try:
-        resp = qa.answer({"book": "no_such_book", "page": "p03", "query": "劳拉"})
+        resp = qa.answer({"book": "no_such_book", "page": "p03", "query": "花花"})
     finally:
         qa.BOOKS = old
     _assert_shape(resp)
@@ -274,7 +349,7 @@ def test_unknown_book_is_reported_not_raised():
 
 
 def test_unknown_page_is_reported_not_raised():
-    resp = _ask(page="p99", query="劳拉在做什么")
+    resp = _ask(page="p99", query="花花在做什么")
     _assert_shape(resp)
     assert resp["fallback"] == "no_evidence"
     assert resp["citations"] == []
@@ -296,7 +371,7 @@ def test_bad_request_types_never_raise():
 
 
 def test_overlong_query_is_clipped_not_crashed():
-    resp = _ask(query="劳拉在做什么" * 400)
+    resp = _ask(query="花花在做什么" * 400)
     _assert_shape(resp)
     assert len(resp["answer"]) <= qa.MAX_ANSWER
     assert len(resp["socratic"]["line"]) < 200
@@ -304,7 +379,7 @@ def test_overlong_query_is_clipped_not_crashed():
 
 def test_history_is_capped_at_six_turns():
     history = [{"q": f"问题{i}", "a": f"回答{i}"} for i in range(12)]
-    resp = _ask(query="劳拉在做什么？", history=history)
+    resp = _ask(query="花花在做什么？", history=history)
     _assert_shape(resp)
     assert resp["socratic"]["level"] <= 3
 
@@ -316,8 +391,8 @@ def test_unrelated_history_does_not_contaminate_the_rule_answer():
 
 
 def test_answer_is_deterministic_apart_from_latency():
-    a = _ask(query="劳拉在做什么？")
-    b = _ask(query="劳拉在做什么？")
+    a = _ask(query="花花在做什么？")
+    b = _ask(query="花花在做什么？")
     a.pop("latency_ms")
     b.pop("latency_ms")
     assert a == b
@@ -351,7 +426,7 @@ def test_llm_error_falls_back_to_rule():
 
     qa._post_json = boom
     try:
-        resp = _ask(query="劳拉在做什么？")
+        resp = _ask(query="花花在做什么？")
     finally:
         qa._post_json = real_post
         restore()
@@ -370,18 +445,18 @@ def test_llm_success_keeps_citations_traceable():
     def fake_post(url, payload, headers, timeout=20):
         assert payload["messages"][0]["role"] == "system"
         assert "不得编造" in payload["messages"][0]["content"]
-        return {"choices": [{"message": {"content": "劳拉趴在沙发上，学着豚鼠的样子（p03）。"}}]}
+        return {"choices": [{"message": {"content": "积木城堡搭得真高（p03）。"}}]}
 
     qa._post_json = fake_post
     try:
-        resp = _ask(query="劳拉在做什么？")
+        resp = _ask(query="积木城堡搭得高吗")
     finally:
         qa._post_json = real_post
         restore()
     _assert_shape(resp)
     assert resp["source"] == "llm"
     assert resp["fallback"] is None
-    assert resp["answer"].startswith("劳拉趴在沙发上")
+    assert resp["answer"].startswith("积木城堡搭得真高")
     assert resp["citations"], "citations still come from the retrieval layer"
     _assert_quotes_real(resp, "p03")
 
@@ -395,7 +470,7 @@ def test_no_key_means_rule_mode_not_a_silent_llm_attempt():
 
     qa._post_json = must_not_call
     try:
-        resp = _ask(query="劳拉在做什么？")
+        resp = _ask(query="花花在做什么？")
     finally:
         qa._post_json = real_post
         restore()
@@ -407,29 +482,29 @@ def test_no_key_means_rule_mode_not_a_silent_llm_attempt():
 # D1 (task-5): cross-boundary pseudo-words must not dilute a real match
 # --------------------------------------------------------------------------- #
 def test_bigrams_never_glue_a_stop_char_to_a_content_char():
-    assert qa._bigrams("豚鼠在哪") == ["豚鼠"], qa._bigrams("豚鼠在哪")
-    assert qa._bigrams("劳拉说了什么") == ["劳拉"], qa._bigrams("劳拉说了什么")
+    assert qa._bigrams("积木在哪") == ["积木"], qa._bigrams("积木在哪")
+    assert qa._bigrams("花花说了什么") == ["花花"], qa._bigrams("花花说了什么")
     assert "在干" not in qa._bigrams("他们在干什么")
-    assert "鼠在" not in qa._bigrams("豚鼠在哪")
-    assert "拉说" not in qa._bigrams("劳拉说了什么")
+    assert "木在" not in qa._bigrams("积木在哪")
+    assert "花说" not in qa._bigrams("花花说了什么")
 
 
 def test_content_word_query_with_direction_word_is_not_diluted():
-    """`豚鼠在哪` on p04-1 used to score 0.29 < 0.30 and lie "没有提到"."""
-    resp = _ask(page="p04-1", query="豚鼠在哪")
+    """`积木在哪` on p02 used to score 0.29 < 0.30 and lie "没有提到"."""
+    resp = _ask(page="p02", query="积木在哪")
     _assert_shape(resp)
     assert resp["fallback"] != "no_evidence", "a content word that IS on the page must hit"
     assert resp["citations"]
-    assert any("豚鼠" in c["quote"] for c in resp["citations"])
-    _assert_quotes_real(resp, "p04-1")
+    assert any("积木" in c["quote"] for c in resp["citations"])
+    _assert_quotes_real(resp, "p02")
 
 
 def test_content_word_query_with_speech_word_is_not_fragile():
-    resp = _ask(page="p03", query="劳拉说了什么")
+    resp = _ask(page="p06", query="花花说了什么")
     _assert_shape(resp)
     assert resp["fallback"] != "no_evidence"
     assert resp["citations"]
-    _assert_quotes_real(resp, "p03")
+    _assert_quotes_real(resp, "p06")
 
 
 # --------------------------------------------------------------------------- #
@@ -438,7 +513,7 @@ def test_content_word_query_with_speech_word_is_not_fragile():
 def test_intent_detection_requires_no_leftover_content_word():
     intent = ["他们在干什么？", "这一页讲了什么", "这里发生了什么？", "怎么了？",
               "这一页讲什么", "他们在做什么"]
-    content = ["豚鼠在哪", "劳拉说了什么", "恐龙在干什么？", "今天股市怎么样？",
+    content = ["积木在哪", "花花说了什么", "恐龙在干什么？", "今天股市怎么样？",
                "恐龙有几颗牙？", "月球上的企鹅吃什么"]
     for query in intent:
         assert qa._intent_only(query), f"should be intent-only: {query!r}"
@@ -447,16 +522,16 @@ def test_intent_detection_requires_no_leftover_content_word():
 
 
 def test_intent_question_answers_from_the_scene():
-    """`他们在干什么？` on p04-1 used to score 0.0 and answer "没有提到"."""
-    resp = _ask(page="p04-1", query="他们在干什么？")
+    """`他们在干什么？` on p04 used to score 0.0 and answer "没有提到"."""
+    resp = _ask(page="p04", query="他们在干什么？")
     _assert_shape(resp)
     assert resp["fallback"] != "no_evidence", "the page scene IS the answer"
     assert resp["citations"], "a scene baseline must carry a page citation"
     kinds = {c["kind"] for c in resp["citations"]}
     assert "scene" in kinds, f"expected a scene citation, got {kinds}"
-    scene = _page("p04-1")["scene"]
+    scene = _page("p04")["scene"]
     assert any(c["quote"] in scene for c in resp["citations"])
-    _assert_quotes_real(resp, "p04-1")
+    _assert_quotes_real(resp, "p04")
 
 
 def test_intent_question_page_overview_cites_the_page():
@@ -468,26 +543,9 @@ def test_intent_question_page_overview_cites_the_page():
 
 
 def test_intent_question_on_page_without_scene_falls_back_honestly():
-    import shutil
-    import tempfile
-
-    tmp = Path(tempfile.mkdtemp(prefix="b2r_qa_"))
-    try:
-        reader = tmp / "emptypage" / "reader"
-        reader.mkdir(parents=True)
-        (reader / "book.json").write_text(json.dumps(
-            {"book_id": "emptypage", "pages": [
-                {"id": "x1", "text": "", "scene": "", "spots": [], "words": []}]},
-            ensure_ascii=False), encoding="utf-8")
-        old = qa.BOOKS
-        qa.BOOKS = tmp
-        try:
-            resp = qa.answer({"book": "emptypage", "page": "x1", "mode": "free",
-                              "query": "他们在干什么？"})
-        finally:
-            qa.BOOKS = old
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
+    page = {"id": "x1", "text": "", "scene": "", "spots": [], "words": []}
+    with _synth_book([page], book_id="emptypage") as ask:
+        resp = ask(page="x1", query="他们在干什么？")
     _assert_shape(resp)
     assert resp["fallback"] == "no_evidence"
     assert resp["citations"] == [], "no scene and no text means no citation"
@@ -515,7 +573,7 @@ def test_book_out_stock_question_stays_no_evidence():
 
 
 def test_book_out_dinosaur_question_stays_no_evidence():
-    resp = _ask(page="p04-1", query="恐龙有几颗牙？")
+    resp = _ask(page="p05", query="恐龙有几颗牙？")
     _assert_shape(resp)
     assert resp["fallback"] == "no_evidence"
     assert resp["citations"] == []
@@ -524,7 +582,7 @@ def test_book_out_dinosaur_question_stays_no_evidence():
 def test_intent_words_cannot_rescue_an_off_topic_question():
     """`恐龙在干什么？` carries an intent phrase but keeps a real content word."""
     for query in ("恐龙在干什么？", "股市这一页讲了什么", "恐龙在哪里"):
-        resp = _ask(page="p04-1", query=query)
+        resp = _ask(page="p05", query=query)
         _assert_shape(resp)
         assert resp["fallback"] == "no_evidence", f"{query!r} leaked: {resp['answer']}"
         assert resp["citations"] == [], f"{query!r} fabricated a citation"
@@ -536,17 +594,14 @@ def test_intent_words_cannot_rescue_an_off_topic_question():
 def _content_queries(page: dict) -> list[str]:
     """Queries that each contain a real content word printed on this page."""
     qs: list[str] = []
-    for word in (page.get("words") or [])[:2]:
-        if word.get("w"):
-            qs.append(f"{word['w']}在哪")
-    for spot in (page.get("spots") or [])[:2]:
+    for spot in (page.get("spots") or [])[:3]:
         if spot.get("name"):
             qs.append(f"{spot['name']}在做什么")
-    for char in _chars_on(page["id"])[:2]:
+    for char in _chars_on(page["id"])[:3]:
         if char.get("name"):
             qs.append(f"{char['name']}是谁")
     for seg in [s for s in (page.get("segments") or [])
-                if isinstance(s, str) and len(s) >= 2][:2]:
+                if isinstance(s, str) and len(s) >= 2][:4]:
         if seg in str(page.get("text") or ""):
             qs.append(f"{seg}在哪")
     scene = str(page.get("scene") or "").strip()

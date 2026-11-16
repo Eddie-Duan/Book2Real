@@ -2,7 +2,7 @@
 
 p05's Lotta has black curly hair. The ink-wall operator removes it, so the cut
 keeps the dress and loses the head. The fix is not a lower threshold — that
-reopens the face/arm merge on p17 — it is to classify *areas* as ink-walls vs
+reopens the face/arm merge on a hard page — it classifies *areas* as ink-walls vs
 ink-shapes:
 
 * a wall is thin (small area, high perimeter/area) and long;

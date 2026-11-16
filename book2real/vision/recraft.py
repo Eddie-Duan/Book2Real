@@ -1,4 +1,4 @@
-"""Recraft client for the 纸间生灵 pipeline.
+"""Recraft client for the 纸书智伴 pipeline.
 
 Reads `.env` (recraft/*), never takes a key from anywhere else, and enforces a
 per-run spend cap so an accidental loop cannot burn the account. Every call is

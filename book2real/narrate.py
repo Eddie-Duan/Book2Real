@@ -4,8 +4,8 @@
 asked with `boundary="WordBoundary"`. For Chinese each event is one character or
 one short word, which is exactly the granularity the ruby text already uses.
 
-    python -m book2real narrate --book books/charlie_lola        # build timings
-    python -m book2real narrate --book books/charlie_lola --full # also synth mp3
+    python -m book2real narrate --book books/cn01        # build timings
+    python -m book2real narrate --book books/cn01 --full # also synth mp3
 
 Output: `reader/narration/<page>.json`
 

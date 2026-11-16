@@ -39,32 +39,37 @@ python -m book2real agent leaf --reader books/<id>/reader --page p05 \
 | `<name>.json` | `kind` / `art` / `key` / `parts[]`（`image`,`pivot`,`amp`） |
 | `<name>_meta.json` | `offset_px`（切件在原图上的位置）、`pivot` |
 
-## 一个真实例子：p17 劳拉挥手
+## 一个真实例子：cn01 的黄米团纸偶
 
-我们这样做，你可以照抄流程、换参数：
+官方 cn01 的 Rigger 自动产出（不用手写参数）：
 
 ```bash
-# 1. Recraft 补手腕缺口（可选，没有它手和前臂是断开的）
-python scripts/recraft_wrist.py --go       # $0.04，输出 runs/recraft/wrist_after.jpg
-
-# 2. 把修好的整页当底图，切出手臂（含手）
-python -m book2real agent rig-arm \
-    --from runs/recraft/wrist_after.jpg --to runs/agent/p17 \
-    --bbox 0.615,0.63,0.235,0.37 --name arm_full
-
-# 3. 写一个 beats 计划（这是"决定"，该由 agent 或人给）
-#    pivot 取肩膀端 = [0.42, 0.97]，否则手臂会甩出画面
-python scripts/p17_wave.py                 # 渲染 runs/agent/p17/p17_wave.gif
-
-# 4. 注册到阅读器
+python -m book2real cast --book books/cn01 --max-rigs 2   # 28.89 s，纯 CPU
 ```
+
+`books/cn01/reader/cast/rig/huangmituan.json` 的实测值，可以照抄形状、换参数：
+
+```jsonc
+{ "kind": "paper_puppet", "confidence": 0.93,
+  "art": "characters/huangmituan_body.jpg", "art_w": 772, "art_h": 595,
+  "key": [247, 245, 239],
+  "parts": [
+    { "name": "arm_l", "image": "characters/huangmituan_arm_l.png",
+      "pivot": [0.2176, 0.5092], "amp": 13.4 },
+    { "name": "arm_r", "image": "characters/huangmituan_arm_r.png",
+      "pivot": [0.6516, 0.3647], "amp": 18.0 } ],
+  "notes": ["no neck line found; head split estimated at 30% height",
+            "torso narrower than the arms; cuts may be rough"] }
+```
+
+同一次跑里 `ji_mu_cheng_bao` 是 `one_arm`（1 部件，conf 0.88）。人工要做的只是把
+`rig_from` 写进 `curation.json` 认领，不再手写 pivot。
 
 ## 踩过的坑（直接省你时间）
 
 | 现象 | 原因 | 做法 |
 |---|---|---|
 | 手臂转到一半飞出画面、画面顶部出现碎片 | 先粘贴后旋转，rotated 画布不够大 | 先在带 padding 的独立画布上旋转，再 paste |
-| 挥手时手和前臂断开 | 原图手腕处就断开（手叠在脸颊上） | 先用 Recraft 补那条缝，再切 |
 | 一个框里有三个角色，SAM 只给一个 | 多框提示在 transformers 5 被拼成错误形状 | 一框一次调用（`segment_each` 已经这么做了） |
 | 背景修补出现条纹 | Telea/NS 对密集纹理无能为力 | 把掩膜收到贴边 0.8%，或交给 Recraft 只修远离人物的区域 |
 | Recraft inpaint 凭空画出人物 | 掩膜贴到主角，模型按自己理解重画 | **掩膜只能盖背景**；贴到人物就会重画人物（已实测） |
@@ -100,4 +105,5 @@ python -m book2real agent part --from frame.jpg --at 0.55,0.70 --at 0.52,0.85 \
 python -m book2real agent review --rig out/arm_r.json     # 机器验收
 ```
 
-失败案例与原因见 `docs/P17_LIMITS.md`：**没有闭合轮廓的肢体切不出来**，这不是算子问题。
+切不出来的原因很简单：**没有闭合轮廓的肢体切不出来**，这不是算子问题。
+cn01 的 `ji_mu_cheng_bao` 就只成了一条手臂，`notes` 里写着 `arm_l: nothing arm-shaped beside the torso`。

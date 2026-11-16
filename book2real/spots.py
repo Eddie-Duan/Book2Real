@@ -4,7 +4,7 @@ Measured: 19 of 31 screens name a character in the text but have no hotspot,
 because curation only marked 7 of them. PageScout's entities have boxes but no
 names, so names cannot come from the detector — they come from the recitation:
 
-* the text says 劳拉 / 查理 / 露塔 / 咪咪 / 波特,
+* the text says 花花 / 小满 / 黄米团,
 * the page's figure boxes are known (cast entities),
 * the largest box is the subject of the page, and on a page that names exactly
   one character, that is who the hotspot belongs to.

@@ -67,7 +67,7 @@ def make_web(root: Path) -> Path:
     for js in gate.JS_MODULES:
         (web / js).write_text("export const ok = 1;\n", encoding="utf-8")
     (web / "manifest.json").write_text(json.dumps(
-        {"name": "纸间生灵", "start_url": "/", "scope": "/", "display": "standalone"},
+        {"name": "纸书智伴", "start_url": "/", "scope": "/", "display": "standalone"},
         ensure_ascii=False), encoding="utf-8")
     return web
 
@@ -188,7 +188,7 @@ def test_frontend() -> None:
         make_web(root)
 
         # manifest 缺字段只是警告（--strict 才红）
-        (web / "manifest.json").write_text(json.dumps({"name": "纸间生灵"}), encoding="utf-8")
+        (web / "manifest.json").write_text(json.dumps({"name": "纸书智伴"}), encoding="utf-8")
         res = gate.check_frontend(web, retries=1)
         expect("前端门·manifest 缺字段 是警告不是硬红", res.ok and bool(res.warnings),
                lines_of(res) + " | warnings=" + str(res.warnings))

@@ -124,8 +124,8 @@ def test_prompt_fishing_locks():
 
 
 def test_normal_questions_are_never_locked():
-    for text in ("劳拉为什么难过？", "豚鼠吃什么？", "查理是谁？",
-                 "这一页讲了什么？", "波特后来找到了吗？"):
+    for text in ("花花为什么难过？", "黄米团吃什么？", "小满是谁？",
+                 "这一页讲了什么？", "积木城堡后来搭好了吗？"):
         info = socratic.classify(text)
         assert not info["locked"], f"legit question locked: {text!r}"
         assert socratic.decide(text, _state(0))["directive"] != "lock"
@@ -153,7 +153,7 @@ def test_overlong_input_is_clarified():
 
 
 def test_repeat_question_is_detected_and_clarified():
-    text = "波特去哪了？"
+    text = "黄米团去哪了？"
     info = socratic.classify(text, history=[text])
     assert info["intent"] == "repeat"
     out = _assert_shape(socratic.decide(text, _state(1), history=[text]))
@@ -161,12 +161,12 @@ def test_repeat_question_is_detected_and_clarified():
 
 
 def test_mixed_language_is_not_locked():
-    out = _assert_shape(socratic.decide("查理到底 what is 豚鼠 eating?", _state(0)))
+    out = _assert_shape(socratic.decide("花花到底 what is 积木 eating?", _state(0)))
     assert out["directive"] != "lock"
 
 
 def test_false_fact_nudge_never_confirms_the_false_fact():
-    out = _assert_shape(socratic.decide("劳拉其实是一只小狗，对吧？", _state(1)))
+    out = _assert_shape(socratic.decide("花花其实是一只小狗，对吧？", _state(1)))
     assert out["directive"] != "none"
     assert "狗" not in out["line"], "the nudge must not repeat or confirm the false claim"
 

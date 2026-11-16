@@ -45,7 +45,7 @@ MAX_QUERY = 200           # over-long input is clipped before scoring, never 500
 MAX_HISTORY = 6           # §2.1: keep the last 6 turns
 MAX_BOX = 1.0
 SPOT_HIT = 0.15           # §2.3: normalized xywh IoU / centre-distance threshold
-EVIDENCE_MIN = 0.30       # tuned on books/charlie_lola (see tests/test_qa.py)
+EVIDENCE_MIN = 0.30       # tuned on books/cn01 (see tests/test_qa.py)
 LLM_TIMEOUT = 20
 
 FALLBACKS = (None, "no_llm_key", "llm_error", "no_evidence", "qa_unavailable")
@@ -235,8 +235,8 @@ def _run_tokens(run: list[str]) -> list[str]:
 def _bigrams(text: str) -> list[str]:
     """Bigrams inside runs of consecutive non-stop chars only.
 
-    Splitting at stop characters matters: `豚鼠在哪` used to produce the
-    cross-boundary pseudo-word `鼠在` (zero corpus hits, maximum idf), which
+    Splitting at stop characters matters: `积木在哪` used to produce the
+    cross-boundary pseudo-word `木在` (zero corpus hits, maximum idf), which
     diluted a perfect match down to 0.29 and killed a real evidence answer.
     """
     out: list[str] = []

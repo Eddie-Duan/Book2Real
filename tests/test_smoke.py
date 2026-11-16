@@ -98,7 +98,7 @@ def test_color_similarity_catches_wrong_plate():
 
 
 def test_segments_keep_text_and_punctuation():
-    text = "她是个有趣的小人儿。此时，劳拉正在……“你在做什么呢，劳拉？”"
+    text = "她是个有趣的小人儿。此时，花花正在……“你在做什么呢，花花？”"
     parts = segments(text)
     assert "".join(parts) == text
     assert "小人儿。" in parts
@@ -106,7 +106,7 @@ def test_segments_keep_text_and_punctuation():
 
 
 def test_split_text_does_not_break_a_quote():
-    text = "劳拉说：“我已经问过汉森老师，在假期里我可不可以把波特带回家。”" * 3
+    text = "小满说：“我已经画好了生日卡片，可不可以把卡片送给花花？”" * 3
     chunks = _split_text(text, limit=60)
     assert "".join(chunks) == text
     assert all(not c.startswith("”") for c in chunks)
@@ -115,9 +115,9 @@ def test_split_text_does_not_break_a_quote():
 def test_split_text_keeps_screens_short_and_capped():
     from book2real.storybook import MAX_PARTS
 
-    text = ("“我觉得波特是一只女豚鼠，”劳拉说，“它看起来像个女的，因为它的毛特别漂亮。”"
-            "咪咪说：“不，波特是男豚鼠。”“你怎么这么了解豚鼠啊？”露塔说。"
-            "“因为我家里也有一只……它叫毛毛，是从秘鲁来的。”“秘鲁？”") * 2
+    text = ("“我觉得黄米团最会搭积木，”花花说，“它总把积木叼来叼去。”"
+            "小满说：“不，黄米团是一只小狗。”“那城堡倒了怎么办？”花花说。"
+            "“我们一起重新搭，搭高高，还不倒。”“好呀！”") * 2
     chunks = _split_text(text, limit=64)
     assert "".join(chunks) == text                     # nothing added or lost
     assert 1 < len(chunks) <= MAX_PARTS
@@ -150,10 +150,10 @@ def test_part_framing_contains_its_hotspot():
 
 
 def test_pinyin_tokens_align_to_characters():
-    text = "豚鼠。"
+    text = "积木。"
     toks = pinyin_tokens(text)
     assert [t["ch"] for t in toks] == list(text)
-    assert toks[0]["py"] == "tún"
+    assert toks[0]["py"] == "jī"
     assert toks[-1]["py"] == ""
 
 

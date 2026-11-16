@@ -1,32 +1,47 @@
 # Agent 化：人物、动作、修复
 
-一条链，五个 agent，全部可重跑：
+一条链，五个 agent，全部可重跑。官方样书只有 `books/cn01`–`cn03`、`en01`–`en03`；
+本文示例一律用 `cn01`《一起搭积木吧》。
 
 ```
 PageScout → CastClerk → Rigger → MotionDirector → Critic
 ```
 
 ```bash
-python -m book2real analyze --book books/charlie_lola   # 先出 reader 包（OCR / 拼音 / 清字）
-python -m book2real cast    --book books/charlie_lola   # 再跑人物链
+python -m book2real analyze --book books/cn01              # 先出 reader 包（OCR / 拼音 / 清字）
+python -m book2real cast    --book books/cn01 --max-rigs 2 # 再跑人物链
 ```
 
-真书《我特别了解豚鼠》本次实测 **12.9 s**（22 个阅读屏，纯 CPU，无模型下载；耗时随机器和负载波动）。
+cn01 实测：`cast` **28.89 s**（纯 CPU，无模型下载；耗时随机器和负载波动）。
+reader 包为 **12 页 / 34 个 spots / 3 个 characters**（花花、小满、黄米团），成片 **114.79 s**。
 代码在 `book2real/cast/`，测试在 `tests/test_cast.py`（10 个 CPU 用例）。
+
+## 本次 cn01 跑出来的数
+
+| 阶段 | 结果 |
+|---|---|
+| `PageScout` | 11 页有实体、26 个实体、1 个降级 |
+| `CastClerk` | 4 个人物卡（3 个具名 + 23 个匿名实体）、16 个候选框 |
+| `Rigger` | 2 个成件：`huangmituan` paper_puppet 2 部件 conf 0.93；`ji_mu_cheng_bao` one_arm 1 部件 conf 0.88 |
+| `RiggerCandidates` | 考虑 3 个、接受 0 个 |
+| `MotionDirector` | 11 个 plan / 22 个 beat |
+| `Critic` | 2/2 接受，正文覆盖 100% |
+
+产物在 `books/cn01/reader/characters/`。
 
 ## 现状：什么已经自动化，什么还缺
 
 | Agent | 今天怎么做 | 已自动化 | 仍需模型 / 人工 |
 |---|---|---|---|
 | `PageScout` | 键色抠底 + 连通域 + 形状/面积过滤；命名只在"一页只有一个名字、一个主体"时成立 | 主体 bbox、面积、主色、颜色签名、置信度 | 图内文字标签回填到像素；多主体页的身份判定 |
-| `CastClerk` | 以 `curation.json` 的人工描述为锚，合并 PageScout 的高置信命名，产出人物墙 + 肖像 | 肖像裁切（4:5 只补边不裁脸）、出场页列表、别名 | 跨页同一角色的**身份再认**（需要 CLIP/DINO 或人脸聚类；颜色直方图在绘本书上不可靠，实测余弦 0.3–0.5） |
+| `CastClerk` | 以 `curation.json` 的人工描述为锚，合并 PageScout 的高置信命名，产出人物墙 + 肖像 | 肖像裁切（4:5 只补边不裁脸）、出场页列表、别名 | 跨页同一角色的**身份再认**（需要 CLIP/DINO 或人脸聚类；颜色直方图在绘本书上区分度不足） |
 | `Rigger` | 键色 alpha → 取与选框 IoU 最大的主体 → 开运算找细突起当手臂 → 肩/腕 pivot → 裁到人物框 | 手臂/头的切件、pivot、安全摆幅、置信度；**刚体**（无网格形变） | 半透明边缘、与背景同色的角色（需要 SAM / rembg） |
 | `MotionDirector` | 动词/情绪词表 + 引号对白 → beat JSON | idle / wave / point / nod / shrug / bounce / speak，时长与幅度 | 更细的情绪与节奏（可换 LLM，契约不变） |
 | `Critic` | 规则指标 + 阈值，不通过就降级 | 眼睛成对、切件边缘背景残留、关节开洞、接缝突变、动作舒适区、正文覆盖率 | 用失败样本继续调阈值 |
 
-**诚实结论**：一页里"谁是谁"这件事，纯几何 + 颜色做不到。当前实书的产出是
-5 个人物卡（肖像来自人工 curation）、1 个被 Critic 拒掉的切件、1 个被 Critic
-接受的**无名候选切件**（p17 的特写）。要让它自己认出"p17 那个就是劳拉"，
+**诚实结论**：一页里"谁是谁"这件事，纯几何 + 颜色做不到。cn01 现在跑出
+4 个人物卡（肖像来自人工 curation）、2 个被 Critic 接受的刚体切件，另有 23 个匿名实体
+（RiggerCandidates 考虑 3 个、接受 0 个）。要让 agent 自己认出同一角色跨页出现，
 下一步是给 `CastClerk` 接一个特征模型，而不是继续加规则。
 
 ## 产物
@@ -36,7 +51,7 @@ books/<id>/reader/
 ├─ cast/entities.json         PageScout：每页实体（bbox / 面积 / 主色 / 签名 / 置信度）
 ├─ cast/clerk.json            人物墙 + 每个角色的候选框（assignments）+ 无名候选
 ├─ cast/rig/<cid>.json        Rigger：kind / parts / pivot / amp / key / confidence / notes
-├─ cast/candidates/<id>.json  无名但已切好的候选（等着被认领）
+├─ cast/candidates/<id>.json  无名但已切好的候选（等着被认领；cn01 本次为空）
 ├─ cast/critic.json           Critic：逐角色、逐页面的分数与理由
 ├─ cast/report.json           各阶段耗时、计数、降级、被清理的旧文件
 ├─ characters/characters.json 阅读器真正加载的那份（卡片 + rig + 候选 + 动作索引）
@@ -57,33 +72,41 @@ books/<id>/reader/
 
 ```jsonc
 // CharacterCard（characters/characters.json 的 characters[]）
-{ "id": "lola", "name": "劳拉", "role": "妹妹", "desc": "...",
-  "pages": ["p03", "p06-1", "p06-2", "p16", "p17"],
-  "portrait": "art/char_lola.jpg",
-  "confidence": 0.78, "evidence": "curation|spot|text|none",
+{ "id": "huangmituan", "name": "黄米团", "role": "小狗",
+  "desc": "小满家的小黄狗，脖子上戴着红项圈，会叼着卡片跑来跑去。",
+  "pages": ["p12"], "portrait": "art/char_huangmituan.jpg",
+  "confidence": 0.85, "evidence": "curation|spot|text|none",
   "rig": { "kind": "one_arm|paper_puppet|head_nod|portrait|none",
-           "confidence": 0.88,
-           "art": "characters/lola_body.jpg", "art_w": 508, "art_h": 438,
-           "key": [227, 73, 56],
-           "parts": [{ "name": "arm_l", "image": "characters/lola_arm_l.png",
-                       "pivot": [0.2087, 0.8356], "amp": 14.2 }],
-           "notes": ["no neck line found; head split estimated at 30% height"] } }
+           "confidence": 0.93,
+           "art": "characters/huangmituan_body.jpg", "art_w": 772, "art_h": 595,
+           "key": [247, 245, 239],
+           "parts": [{ "name": "arm_l", "image": "characters/huangmituan_arm_l.png",
+                       "pivot": [0.2176, 0.5092], "amp": 13.4 },
+                     { "name": "arm_r", "image": "characters/huangmituan_arm_r.png",
+                       "pivot": [0.6516, 0.3647], "amp": 18.0 }],
+           "notes": ["no neck line found; head split estimated at 30% height",
+                     "torso narrower than the arms; cuts may be rough"] } }
 ```
 
 ```jsonc
 // 无名候选（cast/candidates/<id>.json，阅读器里显示为"agent 切好的候选"）
-{ "id": "anon_p17", "page": "p17", "box": [0.19, 0.14, 0.60, 0.86],
-  "area": 0.35, "rig": {}, "preview": "characters/anon_p17_preview.jpg",
+// cn01 本次 RiggerCandidates 接受 0 个，目录为空；下面是文件形状，
+// page / box 取自 cn01 clerk.json 的候选（p07）。
+{ "id": "anon_<page>", "page": "p07", "box": [0.0243, 0.06, 0.4457, 0.8143],
+  "area": 0.316, "rig": {}, "preview": "characters/anon_<page>_preview.jpg",
   "verdict": { "accept": true, "scores": {}, "reasons": [] } }
 ```
 
 ```jsonc
-// MotionPlan（motion/<page>.json）
-{ "page": "p17", "character": "lola", "duration": 4.46, "emotion": "neutral",
+// MotionPlan（motion/<page>.json），cn01 p03 实件
+{ "page": "p03", "character": "ji_mu_cheng_bao", "duration": 5.65, "emotion": "neutral",
+  "beats": [ { "t": 0.0, "action": "idle", "dur": 5.65, "loop": true } ] }
+
+// 有对白时的形状（文本取自该页原文）
+{ "page": "p03", "character": "ji_mu_cheng_bao", "duration": 5.65, "emotion": "neutral",
   "beats": [
-    { "t": 0.0,  "action": "idle",  "dur": 4.46, "loop": true },
-    { "t": 1.11, "action": "speak", "dur": 1.8, "text": "波特……彻底不见了！" }
-  ] }
+    { "t": 0.0, "action": "idle",  "dur": 5.65, "loop": true },
+    { "t": 1.1, "action": "speak", "dur": 1.8, "text": "六块、八块、九块……" } ] }
 ```
 
 `MotionDirector` 只输出这份 JSON：网页按 beat 驱动 DOM 动画，视频管线将来可以直接
@@ -105,14 +128,14 @@ books/<id>/reader/
 
 ## 人工只做两件事
 
-1. **认领候选**：agent 已经把无名人物切好、验收过了。要把 p17 那个特写认给劳拉，
-   在 `books/<id>/curation.json` 里加一行（既有的人工校订层，不是代码）：
+1. **认领候选**：agent 已经把无名人物切好、验收过了。要把它认给某个角色，
+   在 `books/cn01/curation.json` 里加一行（既有的人工校订层，不是代码）：
 
    ```jsonc
-   { "characters": [ { "id": "lola", "name": "劳拉", "rig_from": "p17" } ] }
+   { "characters": [ { "id": "huangmituan", "name": "黄米团", "rig_from": "p10" } ] }
    ```
 
-   下一次 `python -m book2real cast` 会把该页主体切成劳拉的刚体 puppet，
+   下一次 `python -m book2real cast --book books/cn01` 会把该页主体切成该角色的刚体 puppet，
    Critic 仍然可以否决它。
 
 2. **改描述**：`role` / `desc` / `portrait` 永远以 curation 为准，agent 不覆盖人工文字。

@@ -51,7 +51,7 @@ def _write_book(tmp: Path) -> Path:
     book = {
         "book_id": "demo",
         "pages": [{"id": "p01", "kind": "page", "art": "art/p01.jpg",
-                   "text": "劳拉挥挥手，说：“你好呀！”", "art_w": 400, "art_h": 560}],
+                   "text": "花花挥挥手，说：“你好呀！”", "art_w": 400, "art_h": 560}],
         "characters": [],
     }
     (book_dir / "reader" / "book.json").write_text(
@@ -76,16 +76,16 @@ def test_pagescout_names_only_when_unambiguous():
     with tempfile.TemporaryDirectory() as td:
         book_dir = _write_book(Path(td))
         book = json.loads((book_dir / "reader" / "book.json").read_text(encoding="utf-8"))
-        known = {"劳拉": "lola"}
+        known = {"花花": "huahua"}
         found = pagescout.scan_page(book_dir / "reader" / "art" / "p01.jpg", ["p01"],
-                                    "劳拉挥挥手。", known=known, roles={"劳拉": "妹妹"})
-        assert found["entities"][0]["name"] == "劳拉"
+                                    "花花挥挥手。", known=known, roles={"花花": "主角"})
+        assert found["entities"][0]["name"] == "花花"
         assert found["entities"][0]["name_source"] == "text"
 
-        # a guinea pig name must not stick to a tall figure
+        # an animal name must not stick to a tall figure
         found = pagescout.scan_page(book_dir / "reader" / "art" / "p01.jpg", ["p01"],
-                                    "波特不见了。", known={"波特": "port"},
-                                    roles={"波特": "豚鼠"})
+                                    "黄米团不见了。", known={"黄米团": "huangmituan"},
+                                    roles={"黄米团": "小狗"})
         assert found["entities"][0]["name"] == ""
 
 
@@ -94,14 +94,14 @@ def test_castclerk_keeps_curation_text():
         book_dir = _write_book(Path(td))
         reader = book_dir / "reader"
         book = json.loads((reader / "book.json").read_text(encoding="utf-8"))
-        curation = {"characters": [{"id": "lola", "name": "劳拉", "role": "妹妹",
+        curation = {"characters": [{"id": "huahua", "name": "花花", "role": "主角",
                                     "desc": "人工写的描述。"}]}
         scan = pagescout.scan(book, book_dir, curation)
         out = castclerk.build(scan, book, curation, book_dir, reader / "characters")
-        card = next(c for c in out["characters"] if c["id"] == "lola")
+        card = next(c for c in out["characters"] if c["id"] == "huahua")
         assert card["desc"] == "人工写的描述。"
-        assert card["role"] == "妹妹"
-        assert card["portrait"].startswith("characters/portrait_lola")
+        assert card["role"] == "主角"
+        assert card["portrait"].startswith("characters/portrait_huahua")
         assert "p01" in card["pages"]
 
 
@@ -111,7 +111,7 @@ def test_rigger_cuts_two_arms():
         reader = book_dir / "reader"
         out = reader / "characters"
         out.mkdir(parents=True, exist_ok=True)
-        rig = rigger.build(reader, out, "lola", "art/p01.jpg", (0.3, 0.01, 0.42, 0.9))
+        rig = rigger.build(reader, out, "huahua", "art/p01.jpg", (0.3, 0.01, 0.42, 0.9))
         assert rig.kind == "paper_puppet", rig.notes
         arms = [p for p in rig.parts if p.name.startswith("arm_")]
         assert len(arms) == 2
@@ -134,7 +134,7 @@ def test_critic_accepts_the_synthetic_rig():
         reader = book_dir / "reader"
         out = reader / "characters"
         out.mkdir(parents=True, exist_ok=True)
-        rig = rigger.build(reader, out, "lola", "art/p01.jpg", (0.3, 0.01, 0.42, 0.9))
+        rig = rigger.build(reader, out, "huahua", "art/p01.jpg", (0.3, 0.01, 0.42, 0.9))
         art = np.asarray(Image.open(reader / rig.art).convert("RGB"))
         key, _ = K.border_key(art)
         for p in rig.parts:
@@ -152,7 +152,7 @@ def test_motion_plan_stays_in_the_comfort_range():
 
     rig = Rig(kind="paper_puppet",
               parts=[RigPart("arm_r", "characters/x_arm_r.png", (0.7, 0.7), 18.0)])
-    plan = motion.plan("p01", "劳拉挥挥手，说：“你好呀！”", "lola", rig)
+    plan = motion.plan("p01", "花花挥挥手，说：“你好呀！”", "huahua", rig)
     kinds = [b.action for b in plan.beats]
     assert "idle" in kinds and "wave" in kinds
     wave = next(b for b in plan.beats if b.action == "wave")
@@ -166,17 +166,17 @@ def test_motion_roundtrip():
 
     rig = Rig(kind="paper_puppet",
               parts=[RigPart("arm_l", "characters/y_arm_l.png", (0.3, 0.6), 14.0)])
-    plan = motion.plan("p02", "查理说：“走吧！”", "charlie", rig)
+    plan = motion.plan("p02", "小满说：“走吧！”", "xiaoman", rig)
     again = MotionPlan.from_dict(json.loads(json.dumps(plan.to_dict())))
     assert again.to_dict() == plan.to_dict()
 
 
 def test_text_coverage_flags_a_missing_character():
-    book = {"pages": [{"text": "劳拉和露塔都笑了。" * 3}]}
-    cards = [{"id": "lola", "name": "劳拉", "pages": ["p01"]},
-             {"id": "lotta", "name": "露塔", "pages": []}]
+    book = {"pages": [{"text": "花花和小满都笑了。" * 3}]}
+    cards = [{"id": "huahua", "name": "花花", "pages": ["p01"]},
+             {"id": "xiaoman", "name": "小满", "pages": []}]
     cov, missing = critic.text_coverage(book, cards)
-    assert cov == 0.5 and missing == ["露塔"]
+    assert cov == 0.5 and missing == ["小满"]
 
 
 def test_prune_removes_only_previously_managed_files():
@@ -186,7 +186,7 @@ def test_prune_removes_only_previously_managed_files():
         cast_dir = root / "reader" / "cast"
         char_dir.mkdir(parents=True)
         cast_dir.mkdir(parents=True)
-        for name in ("stale_body.jpg", "kept_body.jpg", "portrait_mimi.jpg", "manual.svg",
+        for name in ("stale_body.jpg", "kept_body.jpg", "portrait_huahua.jpg", "manual.svg",
                      "orphan_this_run.jpg"):
             (char_dir / name).write_bytes(b"asset")
         manifest = cast_dir / "managed_character_files.json"
@@ -200,7 +200,7 @@ def test_prune_removes_only_previously_managed_files():
         assert not (char_dir / "stale_body.jpg").exists()
         assert not (char_dir / "orphan_this_run.jpg").exists()
         assert (char_dir / "kept_body.jpg").exists()
-        assert (char_dir / "portrait_mimi.jpg").exists()   # never recorded as generated
+        assert (char_dir / "portrait_huahua.jpg").exists()  # never recorded as generated
         assert (char_dir / "manual.svg").exists()          # hand-made file is never touched
         assert json.loads(manifest.read_text(encoding="utf-8")) == {
             "files": ["kept_body.jpg", "new_body.jpg"]}

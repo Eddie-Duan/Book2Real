@@ -1,6 +1,6 @@
 """Build every layered 2.5D page for a book, then index them for the reader.
 
-    python -m book2real layers --book books/charlie_lola [--no-models]
+    python -m book2real layers --book books/cn01 [--no-models]
 
 Reads the reader package (art + cast entities) and writes:
 

@@ -1,6 +1,6 @@
 """Build the character wall (portraits) from the *cast* agents, not by hand.
 
-    python scripts/build_characters.py --book books/charlie_lola
+    python scripts/build_characters.py --book books/cn01
 
 Wraps the existing cast chain and then, for each character, makes sure the
 portrait keeps the whole head: a 4:5 crop that has a detected face outside its

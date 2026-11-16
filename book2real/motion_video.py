@@ -5,7 +5,7 @@
 A plan is plain JSON (no code, no model) so a planning agent can write one and a
 different agent can render it, on another machine, without this conversation:
 
-    {"page": "p17", "size": [360, 460], "bg": "#cf3f2f", "fps": 20, "seconds": 2.4,
+    {"page": "p01", "size": [360, 460], "bg": "#cf3f2f", "fps": 20, "seconds": 2.4,
      "layers": [
         {"image": "frame.png", "x": 0, "y": 0, "w": 360, "h": 460},
         {"image": "arm_00.png", "x": 88, "y": 20, "pivot": [0.85, 0.5],

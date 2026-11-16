@@ -1,6 +1,6 @@
 """One Rigger step: cut a frame out of a page and return it as a rigid puppet.
 
-    python -m book2real agent rig-gap --from books/.../art/p17.jpg \\
+    python -m book2real agent rig-gap --from books/.../art/p03.jpg \\
         --to runs/agent/out --cx 0.55 --cy 0.72 --r 0.18 [--pivot 0.52,0.55]
 
     python -m book2real agent rig-arm --from books/.../art/frame.jpg \\

@@ -5,7 +5,7 @@ the `motion_gif` links the agent tools added. This module re-attaches them by
 scanning `reader/motion_gif/<page>*.gif`, so a rebuild never silently loses the
 animation a page already has.
 
-    python -m book2real sync --book books/charlie_lola
+    python -m book2real sync --book books/cn01
 """
 from __future__ import annotations
 

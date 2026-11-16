@@ -7,8 +7,8 @@ is not "three beats", it is one beat printed three times (p06 shipped like that)
 This module is the decision an agent is expected to make, written down so it can
 be reviewed and re-run:
 
-    python -m book2real screens --book books/charlie_lola            # report plan
-    python -m book2real screens --book books/charlie_lola --apply    # write overrides
+    python -m book2real screens --book books/cn01            # report plan
+    python -m book2real screens --book books/cn01 --apply    # write overrides
 
 For every page it answers two questions:
 

@@ -6,7 +6,7 @@ new word a real, child-sized sentence from a small hand-written context
 dictionary, so the reader never shows a fake gloss — and so the whole thing stays
 offline.
 
-    python -m book2real words --book books/charlie_lola   # rewrites placeholders
+    python -m book2real words --book books/cn01   # rewrites placeholders
 """
 from __future__ import annotations
 
@@ -17,13 +17,11 @@ from pathlib import Path
 # the kind of thing they are so the sentence stays consistent
 MEANINGS = {
     # 人物 / 动物
-    "劳拉": "这本书的小主人公，查理的妹妹。",
-    "查理": "劳拉的哥哥，会照顾妹妹。",
-    "露塔": "劳拉的同学，特别了解豚鼠。",
-    "咪咪": "劳拉的同学，家里也养了豚鼠。",
-    "波特": "劳拉班里的豚鼠，棕色长毛。",
-    "豚鼠": "一种毛茸茸的小动物，也叫荷兰猪。",
-    "毛毛": "咪咪家的豚鼠，从秘鲁来的。",
+    "花花": "这本书的小主人公，喜欢和小满一起搭积木。",
+    "小满": "花花的好朋友，两个人一起搭城堡。",
+    "黄米团": "小满家的小狗，总在旁边看着她们玩。",
+    "积木城堡": "用一块块积木搭起来的高塔。",
+    "生日卡片": "小满画给花花的生日礼物。",
     # 时间 / 场景
     "第二天": "过了这一晚之后的那天。",
     "此时": "就是这个时候。",
@@ -91,7 +89,6 @@ MEANINGS = {
     "土豆": "地里长的一种圆圆的、可以吃的植物。",
     "薯条": "把土豆切成条炸出来的食物。",
     "萝卜": "红的或者白的、长在地里的蔬菜。",
-    "荷兰猪": "豚鼠的另一个名字。",
     "声音": "耳朵听到的动静。",
     "颜色": "红的、黄的、蓝的这些都是颜色。",
     "照片": "拍下来的图画。",

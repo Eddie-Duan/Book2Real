@@ -156,7 +156,7 @@ def metric_coverage() -> dict:
 
 
 # --------------------------------------------------------------------------- 2 TTS 首字节
-TTS_TEXT = "你好，我是纸间生灵。"
+TTS_TEXT = "你好，我是纸书智伴。"
 
 
 def metric_tts(port: int) -> dict:
@@ -199,8 +199,8 @@ def metric_tts(port: int) -> dict:
 
 
 # --------------------------------------------------------------------------- 3 /api/ask 首响
-ASK_PAYLOAD = {"book": "charlie_lola", "page": "p03", "mode": "free",
-               "query": "劳拉在做什么？", "history": []}
+ASK_PAYLOAD = {"book": "cn01", "page": "p03", "mode": "free",
+               "query": "小满和花花在做什么？", "history": []}
 
 
 def metric_ask(port: int) -> dict:
@@ -279,11 +279,11 @@ def metric_front(port: int) -> dict:
 
 # --------------------------------------------------------------------------- 5 引用可回溯
 def _pick_book() -> tuple[str, dict]:
-    """优先 charlie_lola；否则第一本有 reader 包的书。"""
+    """优先 cn01；否则第一本有 reader 包的书。"""
     books = sorted((REPO / "books").glob("*/reader/book.json"))
     if not books:
         return "", {}
-    preferred = REPO / "books" / "charlie_lola" / "reader" / "book.json"
+    preferred = REPO / "books" / "cn01" / "reader" / "book.json"
     path = preferred if preferred.is_file() else books[0]
     try:
         data = json.loads(path.read_text(encoding="utf-8"))

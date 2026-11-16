@@ -1,8 +1,8 @@
 """Report characters that share a portrait, and fix the curation box that caused it.
 
-    python -m book2real castcheck --book books/charlie_lola
+    python -m book2real castcheck --book books/cn01
 
-This is the check that would have caught 露塔 and 咪咪 showing the same face: both
+This is the check that catches two characters showing the same face: both
 portraits were cropped from different boxes on the same page, so the wall had one
 girl twice. It reports the pair and the page each crop came from; it never
 rewrites curation (faces are a human/creative decision), it just makes the

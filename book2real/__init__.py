@@ -1,4 +1,4 @@
-"""纸间生灵 (repo: Book2Real) — turn picture-book pages into a living book.
+"""纸书智伴 (repo: Book2Real) — turn picture-book pages into a living book.
 
 cast     : PageScout -> CastClerk -> Rigger -> MotionDirector -> Critic
 layers   : depth + SAM outline -> background plate + characters (2.5D parallax)

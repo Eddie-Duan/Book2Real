@@ -94,7 +94,7 @@ sha256(canonical(spec) + page_digest + track + film_config + backend_params)
 
 ```jsonc
 // ClipOut —— 生成阶段的输出，QC 与合成的输入
-{ "shot_id": "p03", "path": "moon_rabbit/_cache/ab12cd/clip.mp4",
+{ "shot_id": "p03", "path": "cn01/_cache/ab12cd/clip.mp4",
   "width": 1280, "height": 720, "fps": 24, "frames": 144, "duration": 6.0,
   "backend": { "id": "procedural", "seed": 1003, "params": {...} },
   "cost": { "wall_s": 4.1 }, "qc": { "accept": true, "score": 0.82, "metrics": {...} },
@@ -113,7 +113,7 @@ sha256(canonical(spec) + page_digest + track + film_config + backend_params)
 | `black_ratio` | 暗帧占比 | 编码/素材错误 |
 | `drift_ncc` | 首尾帧中心互相关（仅诊断，不判） | 运动让首尾天然不同，不再作为拒收理由 |
 
-阈值在 `configs/default.json`，当前值按 21 页真书 + 3 个负控重标（见 `HANDOFF.md` §6.1）。
+阈值在 `configs/default.json`；旧阈值按已移除的样书标定，需用官方 cn01 重跑后重标（待重测）。
 
 ## 6 前端
 
@@ -128,5 +128,5 @@ sha256(canonical(spec) + page_digest + track + film_config + backend_params)
 |---|---|
 | 单页分层（720px 工作分辨率） | 约 1–3 s（CPU） |
 | 单镜头 6 s @1280×720（单块板） | 约 12–21 s 渲染 + 1 s 编码 |
-| 21 页真书整片（`--jobs 2`） | 195 s 首跑 / 15.8 s 全缓存复跑（114 s 成片） |
-| 8 页样张整片 | 见 `docs/HANDOFF.md` |
+| cn01 整片（`--jobs 2`） | 待重测 |
+| cn01 官方成片（`storyfilm`） | 114.79 s / 1280×720 / 24 fps（见 `OFFICIAL_REQUIREMENTS.md`） |

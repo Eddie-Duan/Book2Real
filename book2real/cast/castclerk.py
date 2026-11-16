@@ -22,7 +22,7 @@ from . import imagekit as K
 from .contracts import CharacterCard, Rig
 
 ROLE_WORDS = ("妈妈", "爸爸", "爷爷", "奶奶", "外婆", "外公", "哥哥", "姐姐", "弟弟",
-              "妹妹", "老师", "同学", "朋友", "豚鼠")
+              "妹妹", "老师", "同学", "朋友", "小狗")
 
 
 def _slug(name: str, fallback: str) -> str:

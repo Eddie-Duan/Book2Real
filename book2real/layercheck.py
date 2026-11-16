@@ -10,7 +10,7 @@ Two things were wrong in how layer pages were built:
 
 This module answers both:
 
-    python -m book2real layercheck --book books/charlie_lola
+    python -m book2real layercheck --book books/cn01
 
 It scores every page from the layer index and rewrites `index.json` so that
 pages whose near layer is a rectangle (`outline == "box"`) are marked

@@ -1,4 +1,4 @@
-# 集成契约 · 纸间生灵并行打磨（本会话）
+# 集成契约 · 纸书智伴
 
 > 四个 agent 并行改代码，**这份文件是唯一的地面真相**。任何与本文件冲突的实现以本文件为准；
 > 想改契约，先在共享任务里说明，由 Lead 改这一份。
@@ -73,11 +73,11 @@ JS 侧 `web/voice.js` 必须与上表 1:1；Python 侧是本仓库唯一被测�
 ### 2.1 请求
 ```jsonc
 POST /api/ask
-{ "book":"charlie_lola", "page":"p03",
+{ "book":"cn01", "page":"p03",
   "mode":"spot|word|free",                       // spot=点画/点角色, word=点字, free=自由问
-  "query":"这是什么？",                            // 可为空（点画时）
-  "entity": {"name":"劳拉","desc":"妹妹"},        // 可空
-  "box":[0.12,0.30,0.55,0.80],                    // 归一化 xywh，可空
+  "query":"小满和花花在做什么？",                  // 可为空（点画时）
+  "entity": {"name":"积木城堡","desc":"已经搭到九块的积木城堡，底下宽、上面窄。"},  // 可空
+  "box":[0.65,0.27,0.10,0.26],                    // 归一化 xywh，可空
   "history":[{"q":"...","a":"..."}] }             // 最多取最后 6 轮
 ```
 ### 2.2 响应（**永远 200**，字段不许缺）
@@ -90,7 +90,8 @@ POST /api/ask
 ```
 ### 2.3 无 key 模式（默认，必须能演示）
 - 语料 = 该页 `text` + `segments` + `scene` + `spots[].desc` + 该页角色的 `name/role/desc`。
-- **实测校正（2026-11-14）**：真书 `book.json` 里 `pages[].characters` **全为 `[]`**，`spots` 只出现在 7/30 页。
+- **实测校正（2026-11-16，cn01）**：`book.json` 的 `pages[]` 不带 `characters` 字段；
+  `spots` 在页级（cn01：12 页共 34 个 spots，每页都有）。
   所以"该页角色"只能从 `reader/characters/characters.json` 的 `characters[].pages` **反查**得到，
   其余页靠 `text` + `scene`。不许为了凑字段而新造索引文件。
 - 抽句式回答：按**中文二元组重合度**打分取 top-2 句，`citations` 必带页码与原文片段（`quote` 必须真是原文子串，测试会校验）。
@@ -124,7 +125,7 @@ LLM 报错 → 回落 rule 答案 + `fallback="llm_error"`（这是赛题要的"
 | `tts.js` | `speakText(text)->Promise<void>`、`stop()`、`splitSentences(text)`、`interpChars(chars, t, dur)->i` | 句级切分 + 字级时间轴插值；服务端 503 `fallback:"l1"` 时回落 `speechSynthesis` |
 | `offline.js` | `initOffline()`、`downloadBook(id,onProgress)`、`verifyBook(id)`、`removeBook(id)`、`offlineStatus()` | 只在 `isSecureContext` 注册 SW；否则 `offlineStatus().available=false` 且 UI **明说不可用**，不许假装可用 |
 | `sw.js` | — | `CACHE_V` 单点版本号；导航 network-first、`/api/` network-first 可回存、其余 cache-first；预缓存 `reader.html/reader.css/reader.js`，逐项失败只告警 |
-| `manifest.json` | — | `display: standalone`、`start_url:"/"`、`scope:"/"`、中文名"纸间生灵" |
+| `manifest.json` | — | `display: standalone`、`start_url:"/"`、`scope:"/"`、中文名"纸书智伴" |
 
 `reader.js` 的接入点（**只加钩子，不改既有行为**）：
 - 启动末尾：`import('./offline.js').then(m=>m.initOffline()).catch(()=>{})`（动态 import，缺文件不报错）。
@@ -149,7 +150,7 @@ LLM 报错 → 回落 rule 答案 + `fallback="llm_error"`（这是赛题要的"
 5. **前端门**：`web/` 下 6 个模块存在且能被 `node --check` 过（ESM：用 `node --input-type=module --check`）；`manifest.json` 是合法 JSON。
 
 ### 4.2 `python scripts/eval_metrics.py`
-产出 `runs/eval/metrics.json` + `docs/METRICS.md`（表格），全部是**实测**数字，不许写"目标值"冒充实测。
+产出 `runs/eval/metrics.json`（表格），全部是**实测**数字，不许写"目标值"冒充实测。
 至少 5 项：①页面覆盖率 ②`/api/tts` 二次命中首字节（ms，10 次取中位/最大）③`/api/ask` rule 模式首响 P50/P95（30 次）④前端静态资源总字节 ⑤`/api/ask` 引用可回溯率（抽样 N 条，`quote` 是否为原文子串）。
 每项写清 n、环境（本机 CPU/无 GPU）、时间戳。
 
@@ -157,7 +158,7 @@ LLM 报错 → 回落 rule 答案 + `fallback="llm_error"`（这是赛题要的"
 
 ## 5 不许动
 - `tests/test_smoke.py`、`tests/test_cast.py`、`tests/test_layers.py` 必须继续全绿（当前 15/10/通过）。
-- `books/` 下已有产物、`.env`、`docs/AGENTS.md`、`docs/HANDOFF.md`（Lead 最后统一更新）。
+- `books/` 下已有产物、`.env`、`docs/AGENTS.md`（Lead 最后统一更新）。
 - 不引入新的第三方依赖（只用 stdlib + 已装的 numpy/Pillow/edge-tts/pypinyin/jieba/rapidocr）。
 - 不上传任何东西到外网；不写 `.env` 里的真实 key。
 

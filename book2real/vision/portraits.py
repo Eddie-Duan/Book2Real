@@ -2,8 +2,8 @@
 
 Two failure modes the user actually hit:
 
-* two different characters showing the same face (咪咪's crop was taken from the
-  page where 露塔 is drawn, so the wall had 露塔 twice);
+* two different characters showing the same face (one character's crop was taken from the
+  page where another character is drawn, so the wall had the same face twice);
 * a portrait that is mostly background/petri dish instead of a head.
 
 Both are checked with colour statistics, not a model: a face-to-face comparison

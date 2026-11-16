@@ -54,7 +54,7 @@ def _start() -> None:
     env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
         [sys.executable, "-m", "book2real", "reader", "--port", str(port),
-         "--books", str(ROOT / "tests" / "fixtures" / "books")],
+         "--books", str(ROOT / "books")],
         cwd=str(ROOT), stdout=out, stderr=subprocess.STDOUT, env=env,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     out.close()
@@ -424,8 +424,8 @@ def test_unknown_api_is_json_404():
 
 
 def test_ask_never_500():
-    body = json.dumps({"book": "charlie_lola", "page": "p03", "mode": "free",
-                       "query": "这是什么？", "history": []}).encode("utf-8")
+    body = json.dumps({"book": "cn01", "page": "p03", "mode": "free",
+                       "query": "积木城堡搭得高吗", "history": []}).encode("utf-8")
     status, _h, payload = _json_body("/api/ask", "POST", body)
     assert status == 200, status
     assert isinstance(payload.get("answer"), str) and payload["answer"], payload
@@ -448,7 +448,7 @@ def test_ask_with_garbled_body_still_200():
 def test_books_traversal_is_forbidden():
     for target in ("/books/../../Windows/win.ini",
                    "/books/..%2f..%2fWindows/win.ini",
-                   "/books/charlie_lola/../../../Windows/win.ini",
+                   "/books/cn01/../../../Windows/win.ini",
                    "/books/../booksX/evil.txt",          # the old startswith() hole
                    "/books/../book2real/reader_app.py"):  # sibling package, never served
         assert _raw(target) in (403, 404), target

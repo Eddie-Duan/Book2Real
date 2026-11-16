@@ -1,6 +1,7 @@
 #Requires -Version 5
 <#
-  End-to-end demo: sample book -> film -> player.
+  End-to-end demo on the official sample book `cn01`:
+  read the PDF (if not imported) -> analyze -> film -> reader.
   Usage:  powershell -ExecutionPolicy Bypass -File scripts\run_demo.ps1
 #>
 $ErrorActionPreference = "Stop"
@@ -10,8 +11,9 @@ Set-Location $root
 $py = if (Test-Path ".venv\Scripts\python.exe") { ".venv\Scripts\python.exe" } else { "python" }
 $env:PYTHONPATH = $root
 
-& $py -m book2real sample --out books
-if (-not (Test-Path "books\moon_rabbit\pages")) { throw "sample book was not generated" }
-
-& $py -m book2real run --book books/moon_rabbit --out runs --jobs 2
-& $py -m book2real ui --runs runs --port 8765 --open
+if (-not (Test-Path "books\cn01\book.json")) {
+    & $py -m book2real import-pdf "纸书智伴企业预选赛绘本素材\绘本素材\中文绘本01.pdf" --id cn01
+}
+& $py -m book2real analyze --book books/cn01
+& $py -m book2real film --book books/cn01
+& $py -m book2real reader --books books --port 8770 --open

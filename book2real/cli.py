@@ -3,7 +3,6 @@
   plan      show the shot list for a book without rendering
   run       plan -> render -> QC -> assemble a film
   ui        serve the player + dashboard for a runs/ directory
-  sample    generate a synthetic demo book
   doctor    environment check (ffmpeg, numpy, Pillow, fonts)
 """
 from __future__ import annotations
@@ -321,15 +320,6 @@ def cmd_film(args) -> int:
     return 0
 
 
-def cmd_sample(args) -> int:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from samples.make_book import build
-
-    out = build(args.out, pages=args.pages)
-    print(f"sample book -> {out}")
-    return 0
-
-
 def cmd_evaluate(args) -> int:
     from . import evaluate as ev
 
@@ -541,11 +531,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("film", help="render the interactive book as a 16:9 film")
     sp.add_argument("--book", required=True)
     sp.set_defaults(func=cmd_film)
-
-    sp = sub.add_parser("sample", help="generate the demo book")
-    sp.add_argument("--out", default="books")
-    sp.add_argument("--pages", type=int, default=8)
-    sp.set_defaults(func=cmd_sample)
 
     sp = sub.add_parser("evaluate", help="offline ASR/retrieval/QA report for a book")
     sp.add_argument("--book", required=True)

@@ -1,6 +1,6 @@
 """Cut a piece by its *negative space*, not by its own outline.
 
-p17 is the hard case: the hand is drawn overlapping the cheek, so there is no
+A hard case is a hand drawn overlapping the cheek: there is no
 closed ink outline around the arm — the arm is bounded by the paper on one side
 and by the face on the other. No single-outline operator can separate it; but
 the *region that is not face, not dress, not hair* under a few seed points is
