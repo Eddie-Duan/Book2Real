@@ -4,6 +4,13 @@ runs/
 .b2r_cache/
 *.tmp
 
+# official sample books: the organisers' watermarked pages and the OCR/art
+# derived from them stay local (the rules forbid redistributing the samples).
+# book.json + curation.json are ours and stay tracked.
+books/*/pages/
+books/*/reader/
+books/*/text/
+
 # secrets — never commit keys (see docs/AGENTS.md "模型与密钥")
 .env
 .env.*

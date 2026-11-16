@@ -225,6 +225,29 @@ def _duration(page: dict) -> float:
     return max(3.4, min(9.0, 2.2 + len(page.get("text", "")) * 0.18))
 
 
+def _fit_durations(durs: list[float], target: float) -> list[float]:
+    """Stretch/shrink page holds so the whole film lands near ``target``.
+
+    The official brief asks for 100-200 s per book (Q26/Q39); twelve short
+    pages otherwise make a 75 s film. Narration is unaffected - only the hold
+    time between pages changes. Cuts are clamped so no page turns into a slide.
+    """
+    if not target or not durs:
+        return durs
+    total = sum(durs) + 5.0                    # 3 s title + 2 s end card
+    if abs(total - target) <= max(6.0, target * 0.05):
+        return durs
+    pages_time = max(1.0, target - 5.0)
+    k = pages_time / max(0.001, sum(durs))
+    out = [min(15.0, max(3.0, d * k)) for d in durs]
+    # clamping can leave the film short; spread the remainder evenly
+    need = pages_time - sum(out)
+    if need > 0.5:
+        add = min(1.5, need / len(out))
+        out = [min(16.0, d + add) for d in out]
+    return out
+
+
 def _load_layers(book: dict) -> dict:
     """page id -> [{"_img": RGBA/RGB PIL} or None]; empty when layers are absent."""
     reader = ROOT / "books" / book["book_id"] / "reader"
@@ -246,13 +269,22 @@ def _load_layers(book: dict) -> dict:
     return out
 
 
-def _frames(book: dict, on_progress=None):
+def _art_geom(book_id: str, page: dict) -> tuple[Image.Image, int, int, int, int]:
+    """The framed art for one page: image plus its rectangle inside the frame."""
+    art = _fit(imread(ROOT / "books" / book_id / "reader" / page["art"]), 590, 600)
+    art_img = _rounded(Image.fromarray(art), 18)
+    ax, ay = 640 + (590 - art_img.width) // 2, 60 + (600 - art_img.height) // 2
+    return art_img, ax, ay, art_img.width, art_img.height
+
+
+def _frames(book: dict, durs: list[float], timeline: list, on_progress=None):
     theme = book.get("theme") or {}
     layer_index = _load_layers(book)
     bg = _paper_bg(theme)
     pages = book["pages"]
     total = len(pages)
     title = book.get("title", "")
+    clock = 0.0
 
     # cover / title card
     cover = next((p for p in pages if p.get("kind") == "cover"), None)
@@ -260,16 +292,23 @@ def _frames(book: dict, on_progress=None):
         cover = dict(cover, _book_title=title, _book_subtitle=book.get("subtitle", ""),
                      _book_author=book.get("author", ""))
         panel = _text_panel(cover, bg, theme)
-        art = _fit(imread(ROOT / "books" / book["book_id"] / "reader" / cover["art"]), 590, 600)
-        art_img = _rounded(Image.fromarray(art), 18)
+        art_img, ax, ay, aw, ah = _art_geom(book["book_id"], cover)
         shadow = _shadow(art_img)
-        ax, ay = 640 + (590 - art_img.width) // 2, 60 + (600 - art_img.height) // 2
         n = FPS * 3
         for i in range(n):
             t = i / (n - 1)
             f = _composite(panel if i else bg, art_img, shadow, ax, ay, 1.0 + 0.02 * t, 0, 0, t)
             k = min(1.0, i / 12.0)
             yield (bg.astype(np.float32) * (1 - k) + f.astype(np.float32) * k).astype(np.uint8)
+        timeline.append({"kind": "cover", "id": cover.get("id", "cover"),
+                         "source_page": cover.get("source_page"),
+                         "t0": 0.0, "t1": 3.0,
+                         "art_rect": [ax, ay, aw, ah],
+                         "art": cover.get("art"), "text": title,
+                         "scene": cover.get("scene", ""),
+                         "spots": [], "characters": [], "ocr_lines": [],
+                         "text_boxes": []})
+        clock = 3.0
         pages = [p for p in pages if p.get("kind") != "cover"]
         total = len(pages)
 
@@ -277,13 +316,10 @@ def _frames(book: dict, on_progress=None):
         if on_progress:
             on_progress(idx, max(1, total), f"绘制第 {idx + 1}/{total} 页")
         panel = _text_panel(page, bg, theme)
-        art_path = ROOT / "books" / book["book_id"] / "reader" / page["art"]
-        art = _fit(imread(art_path), 590, 600)
-        art_img = _rounded(Image.fromarray(art), 18)
+        art_img, ax, ay, aw, ah = _art_geom(book["book_id"], page)
         shadow = _shadow(art_img)
-        ax, ay = 640 + (590 - art_img.width) // 2, 60 + (600 - art_img.height) // 2
         layers = layer_index.get(page.get("id")) or layer_index.get(page.get("art_page") or "")
-        dur = _duration(page)
+        dur = durs[idx]
         n = max(1, int(round(dur * FPS)))
         for i in range(n):
             t = i / (n - 1)
@@ -297,6 +333,20 @@ def _frames(book: dict, on_progress=None):
                 f = _composite(panel, art_img, shadow, ax, ay, scale, dx, dy, t)
             k = min(1.0, i / 7.0, (n - 1 - i) / 7.0)
             yield (bg.astype(np.float32) * (1 - k) + f.astype(np.float32) * k).astype(np.uint8)
+        timeline.append({
+            "kind": page.get("kind") or "page", "id": page.get("id"),
+            "source_page": page.get("source_page"),
+            "t0": round(clock, 3), "t1": round(clock + dur, 3),
+            "art_rect": [ax, ay, aw, ah],
+            "art": page.get("art"), "art_w": page.get("art_w"),
+            "art_h": page.get("art_h"),
+            "text": page.get("text", ""), "scene": page.get("scene", ""),
+            "spots": page.get("spots") or [],
+            "characters": page.get("characters") or [],
+            "ocr_lines": page.get("ocr_lines") or [],
+            "text_boxes": page.get("text_boxes") or [],
+        })
+        clock += dur
 
     # closing card
     end = bg.copy()
@@ -309,6 +359,10 @@ def _frames(book: dict, on_progress=None):
     for i in range(FPS * 2):
         k = min(1.0, i / 12.0)
         yield (bg.astype(np.float32) * (1 - k) + arr * k).astype(np.uint8)
+    timeline.append({"kind": "end", "id": "end",
+                     "t0": round(clock, 3), "t1": round(clock + 2.0, 3),
+                     "art_rect": None, "art": "", "text": "", "scene": "",
+                     "spots": [], "characters": [], "ocr_lines": [], "text_boxes": []})
     if on_progress:
         on_progress(total, total, "编码影片")
 
@@ -317,12 +371,17 @@ def _narrate(book: dict, on_progress=None) -> None:
     """Pre-synthesise one mp3 per story page (cached by text)."""
     from . import tts
 
+    voice = tts.voice_for(book.get("language"))
     pages = [p for p in book["pages"] if p.get("kind") != "cover"]
     for i, page in enumerate(pages):
         if on_progress:
             on_progress(i, max(1, len(pages)), f"配音第 {i + 1}/{len(pages)} 页")
+        if not (page.get("text") or "").strip():
+            page["_audio"] = ""
+            page["_audio_dur"] = 0.0
+            continue
         try:
-            path, dur = tts.synth(page.get("text", ""))
+            path, dur = tts.synth(page.get("text", ""), voice=voice)
             page["_audio"] = str(path)
             page["_audio_dur"] = dur
         except Exception:
@@ -330,14 +389,13 @@ def _narrate(book: dict, on_progress=None) -> None:
             page["_audio_dur"] = 0.0
 
 
-def _audio_track(book: dict, run_dir: Path) -> Path | None:
+def _audio_track(book: dict, run_dir: Path, durs: list[float]) -> Path | None:
     """Pad each page's narration to its shot length and concatenate."""
     parts = []
     entries = [("silence", 3.0)]
-    for p in book["pages"]:
-        if p.get("kind") == "cover":
-            continue
-        entries.append((p.get("_audio") or "silence", _duration(p)))
+    pages = [p for p in book["pages"] if p.get("kind") != "cover"]
+    for p, dur in zip(pages, durs):
+        entries.append((p.get("_audio") or "silence", dur))
     if not any(src != "silence" for src, _ in entries):
         return None
     entries.append(("silence", 2.0))
@@ -368,12 +426,16 @@ def render(book_dir: str | Path, on_progress=None) -> dict:
     silent = run_dir / "film_silent.mp4"
     t0 = time.perf_counter()
     _narrate(book, on_progress)
+    pages = [p for p in book["pages"] if p.get("kind") != "cover"]
+    durs = [_duration(p) for p in pages]
+    durs = _fit_durations(durs, float(book.get("film_target") or 0))
+    timeline: list = []
     if on_progress:
         on_progress(0, 1, "排版与绘制")
-    encode_frames(_frames(book, on_progress), silent, FPS, (W, H))
+    encode_frames(_frames(book, durs, timeline, on_progress), silent, FPS, (W, H))
     track = None
     try:
-        track = _audio_track(book, run_dir)
+        track = _audio_track(book, run_dir, durs)
     except Exception:
         track = None
     if track:
@@ -389,10 +451,18 @@ def render(book_dir: str | Path, on_progress=None) -> dict:
         dur = float(info.get("format", {}).get("duration", 0) or 0)
     except Exception:
         pass
+    write_json(run_dir / "timeline.json", {
+        "book_id": book["book_id"], "video": out.name,
+        "width": W, "height": H, "fps": FPS, "duration": round(dur, 3),
+        "language": book.get("language") or "zh",
+        "title": book.get("title", ""),
+        "segments": timeline,
+    })
     meta = {"book_id": book["book_id"], "title": book.get("title", ""),
             "path": out.relative_to(ROOT / "runs").as_posix(),
             "duration": round(dur, 2), "width": W, "height": H, "fps": FPS,
             "pages": len(book["pages"]), "narrated": bool(track),
+            "timeline": "timeline.json",
             "wall_s": round(time.perf_counter() - t0, 1)}
     write_json(run_dir / "manifest.json", meta)
     return meta

@@ -1,0 +1,187 @@
+{
+  "book_id": "en01",
+  "title": "Going to the Cinema",
+  "subtitle": "Story by Ted Kluck and Alli Horst · Pictures by Xiumin Zhang",
+  "author": "Ted Kluck, Alli Horst",
+  "fps": 24,
+  "layers": false,
+  "language": "en",
+  "source": {
+    "kind": "pdf",
+    "name": "英文绘本01.pdf",
+    "sha256": "ad71a557868b918066adf81205b06f3b085d9a34c2a64c938d56a571162b2466",
+    "pages": 28,
+    "dpi": 170
+  },
+  "pages": [
+    {
+      "file": "p01.jpg",
+      "move": "dolly_in",
+      "mode": "card",
+      "duration": 6.0
+    },
+    {
+      "file": "p02.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p03.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p04.jpg",
+      "move": "dolly_out",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p05.jpg",
+      "move": "pan_rl",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p06.jpg",
+      "move": "dolly_in",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p07.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p08.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p09.jpg",
+      "move": "dolly_out",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p10.jpg",
+      "move": "pan_rl",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p11.jpg",
+      "move": "dolly_in",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p12.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p13.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p14.jpg",
+      "move": "dolly_out",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p15.jpg",
+      "move": "pan_rl",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p16.jpg",
+      "move": "dolly_in",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p17.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p18.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p19.jpg",
+      "move": "dolly_out",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p20.jpg",
+      "move": "pan_rl",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p21.jpg",
+      "move": "dolly_in",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p22.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p23.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p24.jpg",
+      "move": "dolly_out",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p25.jpg",
+      "move": "pan_rl",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p26.jpg",
+      "move": "dolly_in",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p27.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p28.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    }
+  ],
+  "film_target": 150
+}

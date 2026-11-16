@@ -30,6 +30,10 @@ if VENDOR.exists() and str(VENDOR) not in sys.path:
     sys.path.insert(0, str(VENDOR))
 
 CJK = re.compile(r"[\u3400-\u9fff]")
+LATIN = re.compile(r"[A-Za-z]")
+#: The official sample PDFs carry a printed "仅供…参赛使用，请勿外传" watermark.
+#: It is part of the raster, so OCR sees it; it must never become story text.
+WATERMARK = re.compile(r"仅供|参赛使用|请勿外传|纸书智伴")
 NO_LINE_START = "，。！？、；：”’）》」』…"
 DEFAULT_GLOSSARY = {
     "我": "说话的人自己。", "你": "正在听的人。", "他": "那个男孩子。", "她": "那个女孩子。",
@@ -90,17 +94,51 @@ def _merge_intervals(spans: list[tuple[float, float]], gap: float) -> list[list[
     return groups
 
 
-def story_text(blocks: list[dict], page_w: int) -> tuple[str, list[dict]]:
+def _clean_ocr_text(s: str) -> str:
+    return WATERMARK.sub("", s).strip()
+
+
+#: Printed sidebar material in the graded-reader samples: etymology strips and
+#: parent prompts. It is real printed text, but it is not the story.
+GUIDE = re.compile(r"汉字源流|阅读指导|亲子阅读|阅读建议|甲骨文|金文|小篆|隶书")
+GUIDE_CUT = re.compile(r"汉字源流|阅读指导|亲子阅读|阅读建议")
+
+
+def _layer_usable(text: str, lang: str) -> bool:
+    """A PDF text layer is only trusted when enough *story* text survives cleaning."""
+    t = _clean_ocr_text(text)
+    t = GUIDE_CUT.split(t, 1)[0]
+    if lang == "en":
+        return len(re.findall(r"[A-Za-z]{2,}", t)) >= 3 and len(LATIN.findall(t)) >= 12
+    return len(CJK.findall(t)) >= 6
+
+
+def _layer_story(text: str, lang: str) -> str:
+    t = _clean_ocr_text(text)
+    if lang != "en":
+        t = GUIDE_CUT.split(t, 1)[0]
+    return re.sub(r"\s+", " " if lang == "en" else "", t).strip()
+
+
+def story_text(blocks: list[dict], page_w: int, lang: str = "zh") -> tuple[str, list[dict]]:
     """Pick the main text column and read it top-to-bottom.
 
     Picture-book pages put narration in one column; labels baked into the art
-    are short, detached fragments. Choosing the column with the most Chinese
-    characters keeps the narration and drops the labels.
+    are short, detached fragments. Choosing the column with the most characters
+    (Chinese) or letters (English) keeps the narration and drops the labels.
+    The printed competition watermark is removed before anything is measured.
     """
+    for b in blocks:
+        if b.get("text"):
+            b["text"] = _clean_ocr_text(b["text"])
+    use_cjk = lang != "en"
+    pat = CJK if use_cjk else LATIN
     cand = []
     for b in blocks:
         h = b["y1"] - b["y0"]
-        if 14 <= h <= 58 and b["score"] >= 0.5 and CJK.search(b["text"]):
+        if not b["text"]:
+            continue
+        if 14 <= h <= 58 and b["score"] >= 0.5 and pat.search(b["text"]):
             cand.append(b)
     if not cand:
         return "", []
@@ -108,16 +146,23 @@ def story_text(blocks: list[dict], page_w: int) -> tuple[str, list[dict]]:
     groups = _merge_intervals([(b["x0"], b["x1"]) for b in cand], gap)
     best, best_score = [], -1
     for g in groups:
-        chars = sum(len(CJK.findall(cand[i]["text"])) for i in g)
+        chars = sum(len(pat.findall(cand[i]["text"])) for i in g)
         if chars > best_score:
             best, best_score = g, chars
     picked = sorted((cand[i] for i in best), key=lambda b: (round(b["y0"] / 8), b["x0"]))
-    lines = [b["text"] for b in picked]
-    return "".join(lines), picked
+    sep = "" if use_cjk else " "
+    text = sep.join(b["text"] for b in picked)
+    return re.sub(r"\s+", sep, text).strip(), picked
 
 
 def pinyin_tokens(text: str) -> list[dict]:
-    """One token per character, with its Mandarin reading (empty for punctuation)."""
+    """One token per character, with its Mandarin reading (empty for punctuation).
+
+    A Latin-script page has nothing to read aloud in Mandarin: return the same
+    per-character shape with empty readings so the reader/film layout is shared.
+    """
+    if not CJK.search(text):
+        return [{"ch": c, "py": ""} for c in text]
     try:
         from pypinyin import Style, pinyin
     except Exception:
@@ -134,6 +179,8 @@ def pinyin_tokens(text: str) -> list[dict]:
 
 def segments(text: str) -> list[str]:
     """Word groups for line breaking; punctuation stays with the word before it."""
+    if not CJK.search(text):
+        return [w for w in re.split(r"(?<=\s)", text) if w]
     try:
         import jieba
         words = [w for w in jieba.cut(text, HMM=True) if w.strip()]
@@ -214,13 +261,18 @@ def _flat_fill(img: np.ndarray, blocks: list[dict],
 
 
 def clean_art(image_path: Path, blocks: list[dict], *, max_side: int = 1400,
-              extra: list | None = None, crop: list | None = None) -> np.ndarray:
+              extra: list | None = None, crop: list | None = None,
+              trim: bool = True) -> np.ndarray:
     """Remove printed text, then keep only `crop` (normalised x, y, w, h).
 
     Order matters: the OCR boxes are in *page* pixels, so the text must be erased
     before the art is cropped. Cropping first and erasing with page coordinates
     deletes whatever happens to sit at those coordinates in the cropped image —
     that is how the cover's "升级版" badge shredded a drawing of a little TV.
+
+    ``trim=False`` keeps the page rectangle untouched. The official PDF samples
+    need that: clickable boxes are stored in page coordinates, and trimming the
+    white margin would silently shift them.
     """
     img = imread(image_path)
     cleaned, _ = _flat_fill(img, blocks, extra=extra)
@@ -229,13 +281,14 @@ def clean_art(image_path: Path, blocks: list[dict], *, max_side: int = 1400,
         x, y, cw, chh = (float(v) for v in crop)
         cleaned = cleaned[int(y * h):int((y + chh) * h), int(x * w):int((x + cw) * w)]
     # trim uniform white margins (scanned pages often carry a paper border)
-    g = I.to_gray(cleaned)
-    ys, xs = np.where(g < 0.965)
-    if len(xs):
-        pad = 4
-        x0, x1 = max(0, xs.min() - pad), min(cleaned.shape[1], xs.max() + 1 + pad)
-        y0, y1 = max(0, ys.min() - pad), min(cleaned.shape[0], ys.max() + 1 + pad)
-        cleaned = cleaned[y0:y1, x0:x1]
+    if trim:
+        g = I.to_gray(cleaned)
+        ys, xs = np.where(g < 0.965)
+        if len(xs):
+            pad = 4
+            x0, x1 = max(0, xs.min() - pad), min(cleaned.shape[1], xs.max() + 1 + pad)
+            y0, y1 = max(0, ys.min() - pad), min(cleaned.shape[0], ys.max() + 1 + pad)
+            cleaned = cleaned[y0:y1, x0:x1]
     h, w = cleaned.shape[:2]
     k = min(1.0, max_side / max(h, w))
     if k < 1.0:
@@ -471,6 +524,9 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
     art_dir = ensure_dir(out_dir / "art")
     cur_path = book_dir / "curation.json"
     curation = json.loads(cur_path.read_text(encoding="utf-8")) if cur_path.exists() else {}
+    lang = str(meta.get("language") or curation.get("language") or "").lower()
+    if lang not in ("zh", "en"):
+        lang = "zh"
     cpages = curation.get("pages", {})
     text_limit = max(30, min(200, int(curation.get("text_limit", TEXT_LIMIT))))
     max_parts = max(1, min(5, int(curation.get("max_parts", MAX_PARTS))))
@@ -490,12 +546,19 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
         else:
             blocks = ocr_blocks(src)
             write_json(ocr_p, blocks)
-        text, picked = story_text(blocks, imread(src).shape[1])
+        text, picked = story_text(blocks, imread(src).shape[1], lang)
+        # a real PDF text layer is the book's own text and beats OCR; the
+        # printed watermark is not text (en01 has nothing else in its layer).
+        tl = book_dir / "text" / f"{pid}.txt"
+        if tl.exists():
+            layer_text = tl.read_text(encoding="utf-8")
+            if _layer_usable(layer_text, lang):
+                text = _layer_story(layer_text, lang)
         c = cpages.get(pid, {})
         if c.get("skip"):
             continue
         text = (c.get("text") or text).strip()
-        text = re.sub(r"\s+", "", text)
+        text = re.sub(r"\s+", " " if lang == "en" else "", text).strip()
         if pending_carry:
             # a tail from the previous page that was too short to stand alone
             text = pending_carry + text
@@ -506,7 +569,8 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
 
             keep_blocks = drop_kept(blocks, c.get("keep_text"))
             art = clean_art(src, keep_blocks, max_side=max_side,
-                            extra=c.get("clean_boxes"), crop=None)
+                            extra=c.get("clean_boxes"), crop=None,
+                            trim=bool(c.get("trim", True)))
             # crop after restore so the boxes stay in page coordinates
             art = apply_restore(art, c.get("restore"))
             box = c.get("crop")
@@ -571,6 +635,8 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
                 "art_fg": "",
                 "art_bg": "",
                 "art_w": part_w, "art_h": part_h,
+                "source_w": int(imread(src).shape[1]),
+                "source_h": int(imread(src).shape[0]),
                 "scene": c.get("scene", ""),
                 # curated words win; generated ones (reader/words/<page>.json,
                 # from `book2real words`) fill the rest
@@ -607,6 +673,8 @@ def build(book_dir: str | Path, *, force: bool = False, max_side: int = 1400,
         "title": curation.get("title") or meta.get("title", book_dir.name),
         "subtitle": curation.get("subtitle") or meta.get("subtitle", ""),
         "author": curation.get("author", ""),
+        "language": lang,
+        "film_target": curation.get("film_target") or meta.get("film_target") or 0,
         "theme": curation.get("theme", {}),
         "characters": characters,
         "glossary": {**DEFAULT_GLOSSARY, **(curation.get("glossary") or {})},

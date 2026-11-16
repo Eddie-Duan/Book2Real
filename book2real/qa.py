@@ -543,14 +543,22 @@ def _no_evidence(label: str):
 # LLM mode (§2.4, optional; tests exercise the fallback with a fake response)
 # --------------------------------------------------------------------------- #
 def _llm_config():
-    base = os.environ.get("B2R_LLM_BASE", "").strip()
-    key = os.environ.get("B2R_LLM_KEY", "").strip()
-    model = os.environ.get("B2R_LLM_MODEL", "").strip()
+    from .cloud import load_env
+
+    load_env()
+    base = (os.environ.get("B2R_LLM_BASE") or os.environ.get("DEEPSEEK_BASE_URL")
+            or os.environ.get("LLM_API_BASE_URL") or "").strip()
+    key = (os.environ.get("B2R_LLM_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+           or os.environ.get("LLM_API_KEY") or "").strip()
+    model = (os.environ.get("B2R_LLM_MODEL") or os.environ.get("DEEPSEEK_MODEL")
+             or os.environ.get("LLM_API_MODEL") or "").strip()
+    if not base:
+        base = "https://api.deepseek.com"
     if not base or not key:
         return None
     if not base.rstrip("/").endswith("/chat/completions"):
         base = base.rstrip("/") + "/chat/completions"
-    return {"url": base, "key": key, "model": model or "gpt-4o-mini"}
+    return {"url": base, "key": key, "model": model or "deepseek-chat"}
 
 
 def _post_json(url: str, payload: dict, headers: dict, timeout: int = LLM_TIMEOUT):

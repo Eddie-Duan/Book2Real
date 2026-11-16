@@ -111,7 +111,7 @@ def test_manifest_is_a_valid_standalone_web_app_manifest():
     assert data["display"] == "standalone"
     assert data["start_url"] == "/"
     assert data["scope"] == "/"
-    assert "纸间生灵" in data["name"]
+    assert "纸书智伴" in data["name"]
     assert data["lang"] == "zh-CN"
     assert isinstance(data.get("icons"), list) and data["icons"]
 

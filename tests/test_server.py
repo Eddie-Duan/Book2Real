@@ -53,7 +53,8 @@ def _start() -> None:
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
-        [sys.executable, "-m", "book2real", "reader", "--port", str(port)],
+        [sys.executable, "-m", "book2real", "reader", "--port", str(port),
+         "--books", str(ROOT / "tests" / "fixtures" / "books")],
         cwd=str(ROOT), stdout=out, stderr=subprocess.STDOUT, env=env,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     out.close()

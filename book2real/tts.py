@@ -19,7 +19,13 @@ from .util import ensure_dir, ffprobe
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "runs" / "tts"
 VOICE = "zh-CN-XiaoxiaoNeural"
+VOICE_EN = "en-US-AriaNeural"
 RATE = "-8%"
+
+
+def voice_for(lang: str | None) -> str:
+    """Pick a reading voice for a book language; English books must not read Chinese."""
+    return VOICE_EN if str(lang or "").lower().startswith("en") else VOICE
 
 #: Cache cap in MB, overridable with the ``BOOK2REAL_TTS_MB`` env var.
 #: A value <= 0 disables eviction (the cartesian default is 200 MB).
@@ -55,10 +61,12 @@ def _sapi(text: str, out: Path, voice: str) -> None:
     txt = out.with_suffix(".txt")
     txt.write_text(text, encoding="utf-8")
     ps = ROOT / "scripts" / "tts.ps1"
+    sapi_voice = "Microsoft Zira Desktop" if str(voice).lower().startswith("en") \
+        else "Microsoft Huihui Desktop"
     subprocess.run([
         "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
         "-File", str(ps), "-TextFile", str(txt), "-OutFile", str(out),
-        "-Voice", "Microsoft Huihui Desktop", "-Rate", "-1",
+        "-Voice", sapi_voice, "-Rate", "-1",
     ], check=True, capture_output=True)
     txt.unlink(missing_ok=True)
 

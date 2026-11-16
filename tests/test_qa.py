@@ -19,7 +19,11 @@ from book2real import qa  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOK = "charlie_lola"
-READER = ROOT / "books" / BOOK / "reader"
+#: Content fixture kept out of ``books/``: the shipped books must be the official
+#: PDF samples. These assertions are about the QA contract, not the story.
+FIXTURE = ROOT / "tests" / "fixtures" / "books"
+qa.BOOKS = FIXTURE
+READER = FIXTURE / BOOK / "reader"
 
 REQUIRED_KEYS = {"answer", "citations", "source", "fallback",
                  "socratic", "latency_ms", "page"}

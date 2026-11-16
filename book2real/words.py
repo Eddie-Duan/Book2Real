@@ -98,10 +98,13 @@ def llm_meanings(words: list[str], *, context: str = "", timeout: int = 60) -> d
     import requests
 
     env = _load_env()
-    key = env.get("LLM_API_KEY", "")
-    base = env.get("LLM_API_BASE_URL", "").rstrip("/")
-    model = env.get("LLM_API_MODEL", "")
+    key = env.get("LLM_API_KEY") or env.get("DEEPSEEK_API_KEY", "")
+    base = (env.get("LLM_API_BASE_URL") or env.get("DEEPSEEK_BASE_URL", "")).rstrip("/")
+    model = env.get("LLM_API_MODEL") or env.get("DEEPSEEK_MODEL", "")
     if not key or not base or not model:
+        base = base or "https://api.deepseek.com"
+        model = model or "deepseek-chat"
+    if not key:
         return {}
     prompt = (
         "你是给 6-9 岁孩子写绘本注音读物的编辑。"

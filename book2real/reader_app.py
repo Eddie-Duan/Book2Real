@@ -5,8 +5,10 @@ and report progress through an in-memory job table that the page polls.
 
 The routes and their headers follow ``docs/INTEGRATION_CONTRACT.md`` §1:
 ``/api/tts`` (probe + cache headers + LRU cap), ``/api/ask`` (lazy ``qa`` module
-with a hard fallback), ``/api/books/<id>/files``, a directory-wide ``/static/``
-and CSP/nosniff on every response.  The server binds ``127.0.0.1`` by default.
+with a hard fallback), ``/api/books/<id>/files``, ``/film`` + ``/api/film/<id>``
+(timeline with ``source_w/source_h`` backfilled) + ``/api/film/<id>/video``
+(Range-capable mp4), a directory-wide ``/static/`` and CSP/nosniff on every
+response.  The server binds ``127.0.0.1`` by default.
 """
 from __future__ import annotations
 
@@ -160,6 +162,164 @@ def _book_files(book_id: str) -> tuple[int, dict]:
     return 200, {"book": bid, "bytes": total, "files": files}
 
 
+# ------------------------------------------------------------------ film
+#: ``/api/film/<id>`` is read-only over ``runs/``: the newest run directory that
+#: holds both ``timeline.json`` and ``film.mp4`` wins.  The timeline is handed to
+#: the page as-is except for ``source_w``/``source_h``, which older runs never
+#: wrote — the OCR boxes are in *source page* pixels, so without them the page
+#: cannot map a line back onto the frame.
+def _clean_book_id(book_id: str) -> str:
+    """A bare book id, or ``""``.  Rejects anything that could walk a path."""
+    bid = (book_id or "").strip().strip("/")
+    if not bid or bid in (".", "..") or "/" in bid or "\\" in bid:
+        return ""
+    return bid
+
+
+def _film_dir(book_id: str) -> Path | None:
+    """Newest ``runs/<id>/reader_film/*/`` with both timeline and video."""
+    bid = _clean_book_id(book_id)
+    if not bid:
+        return None
+    base = _within(RUNS, bid)
+    if base is None:
+        return None
+    films = base / "reader_film"
+    if not films.is_dir():
+        return None
+    try:
+        cands = [p for p in films.iterdir()
+                 if p.is_dir()
+                 and (p / "timeline.json").is_file()
+                 and (p / "film.mp4").is_file()]
+    except OSError:
+        return None
+    # run names are ``YYYYmmdd-HHMMSS``, so the lexical max is the newest run
+    return max(cands, key=lambda p: p.name) if cands else None
+
+
+def _int_or_none(value) -> int | None:
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
+def _book_pages(book_id: str) -> list[dict]:
+    """``books/<id>/reader/book.json`` pages, or ``[]`` when unreadable."""
+    book_dir = _within(ROOT / "books", book_id)
+    if book_dir is None:
+        return []
+    try:
+        data = json.loads((book_dir / "reader" / "book.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    pages = data.get("pages") if isinstance(data, dict) else None
+    return [p for p in pages or [] if isinstance(p, dict)]
+
+
+def _page_size_from_jpeg(book_id: str, page: dict) -> tuple[int, int]:
+    """Read the source page size straight off ``books/<id>/pages/pNN.jpg``."""
+    book_dir = _within(ROOT / "books", book_id)
+    if book_dir is None:
+        return 0, 0
+    names: list[str] = []
+    num = _int_or_none(page.get("source_page"))
+    if num:
+        names += [f"p{num:02d}.jpg", f"p{num}.jpg"]
+    pid = str(page.get("id") or "")
+    if re.fullmatch(r"[A-Za-z0-9_-]{1,32}", pid):
+        names.append(f"{pid}.jpg")
+    for name in names:
+        target = _within(book_dir / "pages", name)
+        if target is None or not target.is_file():
+            continue
+        try:
+            with Image.open(target) as im:      # header only, no pixels decoded
+                return int(im.width), int(im.height)
+        except (OSError, ValueError):
+            continue
+    return 0, 0
+
+
+def _segment_source_size(book_id: str, seg: dict, pages: list[dict],
+                         by_id: dict) -> tuple[int, int, str]:
+    """(source_w, source_h, how) for one segment; ``how`` is book|pages|fallback."""
+    page = by_id.get(str(seg.get("id") or ""))
+    if page is None:
+        num = _int_or_none(seg.get("source_page"))
+        if num and 1 <= num <= len(pages):
+            page = pages[num - 1]
+    if page is not None:
+        w, h = _int_or_none(page.get("source_w")), _int_or_none(page.get("source_h"))
+        if w and h:
+            return w, h, "book"
+    if page is not None:
+        w, h = _page_size_from_jpeg(book_id, page)
+        if w and h:
+            return w, h, "pages"
+    w, h = _int_or_none(seg.get("art_w")), _int_or_none(seg.get("art_h"))
+    if w and h:
+        return w, h, "fallback"
+    return 0, 0, "fallback"
+
+
+def film_timeline(book_id: str) -> tuple[int, dict]:
+    """(status, payload) for ``/api/film/<id>``.  Missing film is a 404, never 500."""
+    bid = _clean_book_id(book_id)
+    if not bid:
+        return 404, {"error": "book not found"}
+    film_dir = _film_dir(bid)
+    if film_dir is None:
+        return 404, {"error": "这本书还没有成片", "book": bid}
+    try:
+        data = json.loads((film_dir / "timeline.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return 500, {"error": "timeline 读不出来", "book": bid}
+    segs = data.get("segments") if isinstance(data, dict) else None
+    if not isinstance(segs, list):
+        return 500, {"error": "timeline 格式不对", "book": bid}
+    pages = _book_pages(bid)
+    by_id = {str(p.get("id")): p for p in pages if p.get("id")}
+    kinds: set[str] = set()
+    for seg in segs:
+        if not isinstance(seg, dict):
+            continue
+        rect = seg.get("art_rect")
+        if not (isinstance(rect, list) and len(rect) == 4):
+            # the closing card has no page art, so it has no source page either
+            seg["source_w"], seg["source_h"], seg["mapping"] = 0, 0, "none"
+            continue
+        w, h, how = _segment_source_size(bid, seg, pages, by_id)
+        seg["source_w"], seg["source_h"] = w, h
+        seg["mapping"] = how
+        kinds.add(how)
+    # the page needs to know whether the boxes are trustworthy; say so plainly
+    data["mapping"] = "fallback" if "fallback" in kinds else (
+        "book" if "book" in kinds else ("pages" if "pages" in kinds else "fallback"))
+    data.setdefault("book_id", bid)
+    data["run"] = film_dir.name
+    data["video_url"] = f"/api/film/{bid}/video"
+    return 200, data
+
+
+def film_video(book_id: str) -> Path | None:
+    """The ``film.mp4`` of the newest run, resolved inside ``runs/`` only."""
+    film_dir = _film_dir(book_id)
+    if film_dir is None:
+        return None
+    target = _within(film_dir, "film.mp4")
+    if target is None or not target.is_file():
+        return None
+    try:                                   # belt and braces: still under runs/
+        if not target.resolve().is_relative_to(RUNS.resolve()):
+            return None
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return target
+
+
 # ------------------------------------------------------------------ ask
 def ask(payload: dict) -> dict:
     """Call ``book2real.qa.answer`` lazily; never raise, never 500 (contract §1.2).
@@ -250,6 +410,68 @@ class Handler(BaseHTTPRequestHandler):
                 return
         self._send(200, data, ctype, hdrs)
 
+    # ---------------------------------------------------------------- video
+    def _range(self, size: int):
+        """Parse ``Range`` for one file: None (whole file), tuple or ``"bad"``."""
+        raw = (self.headers.get("Range") or "").strip()
+        if not raw:
+            return None
+        m = re.fullmatch(r"bytes\s*=\s*(\d*)\s*-\s*(\d*)", raw)
+        if not m or not (m.group(1) or m.group(2)):
+            return "bad"
+        first, last = m.group(1), m.group(2)
+        if not first:                        # ``bytes=-N``: the last N bytes
+            n = int(last)
+            if n <= 0:
+                return "bad"
+            return max(0, size - n), size - 1
+        start = int(first)
+        end = int(last) if last else size - 1
+        if start >= size or start > end:
+            return "bad"
+        return start, min(end, size - 1)
+
+    def _video(self, path: Path):
+        """Stream an mp4 with Range support, so the page can scrub the timeline."""
+        if not path.is_file():
+            return self._error(404, "film not found")
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return self._error(404, "film not found")
+        if size <= 0:
+            return self._error(404, "film not found")
+        rng = self._range(size)
+        if rng == "bad":
+            return self._json({"error": "range not satisfiable"}, 416,
+                              {"Content-Range": f"bytes */{size}",
+                               "Accept-Ranges": "bytes"})
+        start, end = rng if rng else (0, size - 1)
+        length = end - start + 1
+        self.send_response(206 if rng else 200)
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Content-Length", str(length))
+        self.send_header("Accept-Ranges", "bytes")
+        if rng:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        if self.command == "HEAD":
+            return
+        try:                                  # a 16MB film must not be read in one go
+            with path.open("rb") as fh:
+                fh.seek(start)
+                left = length
+                while left > 0:
+                    chunk = fh.read(min(256 * 1024, left))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass                              # the browser aborted the seek
+
     # ---------------------------------------------------------------- tts
     def _tts(self, q):
         """Contract §1.1: keep the old audio response, add probe + cache headers."""
@@ -323,6 +545,17 @@ class Handler(BaseHTTPRequestHandler):
             if target is None:
                 return self._error(403, "forbidden")
             return self._file(target)
+        if p == "/film":
+            return self._file(WEB / "film.html")
+        if p.startswith("/api/film/"):
+            rest = p[len("/api/film/"):]
+            if rest.endswith("/video"):
+                target = film_video(unquote(rest[:-len("/video")]))
+                if target is None:
+                    return self._error(404, "film not found")
+                return self._video(target)
+            code, payload = film_timeline(unquote(rest))
+            return self._json(payload, code)
         if p == "/api/job":
             jid = (q.get("id") or [""])[0]
             j = JOBS.get(jid)
@@ -420,8 +653,9 @@ LOOPBACK = ("127.0.0.1", "localhost", "::1")
 
 def serve(books_dir="books", port: int = 8770, open_browser: bool = False,
           host: str = "127.0.0.1") -> int:
-    global ROOT
+    global ROOT, RUNS
     ROOT = Path(books_dir).resolve().parent if Path(books_dir).name == "books" else ROOT
+    RUNS = ROOT / "runs"                      # /api/film reads runs/ next to books/
     httpd = ThreadingHTTPServer((host, port), Handler)
     bound = httpd.server_address[1]
     url = f"http://127.0.0.1:{bound}/"

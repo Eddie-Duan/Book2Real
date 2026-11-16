@@ -1,0 +1,652 @@
+{
+  "title": "Going to the Cinema",
+  "subtitle": "Story by Ted Kluck and Alli Horst · Pictures by Xiumin Zhang",
+  "author": "Ted Kluck, Alli Horst",
+  "pages": {
+    "p01": {
+      "kind": "cover",
+      "text": "Going to the Cinema",
+      "trim": false,
+      "scene": "A spotlight glows over dark, empty rows of cinema seats."
+    },
+    "p02": {
+      "trim": false,
+      "scene": "Two film posters are taped to a wall: a yellow Kung Fu poster and a black-and-white Chaplin poster.",
+      "spots": [
+        {
+          "name": "Film poster",
+          "box": [
+            0.02,
+            0.15,
+            0.72,
+            0.63
+          ],
+          "desc": "A yellow film poster that says Kung Fu, with a man holding a long stick."
+        },
+        {
+          "name": "Chaplin poster",
+          "box": [
+            0.6,
+            0.2,
+            0.39,
+            0.56
+          ],
+          "desc": "A black-and-white poster of Charlie Chaplin in a bowler hat."
+        }
+      ]
+    },
+    "p03": {
+      "trim": false,
+      "scene": "A Cars poster is taped up beside the Chaplin poster, below the story text.",
+      "spots": [
+        {
+          "name": "Film poster",
+          "box": [
+            0.43,
+            0.11,
+            0.53,
+            0.62
+          ],
+          "desc": "A Cars poster with a smiling red race car and the word Cars."
+        },
+        {
+          "name": "Chaplin poster",
+          "box": [
+            0.0,
+            0.13,
+            0.28,
+            0.6
+          ],
+          "desc": "The corner of the black-and-white Chaplin poster."
+        }
+      ]
+    },
+    "p04": {
+      "trim": false,
+      "scene": "A boy cries in front of an actress in a big blue musical dress; a bearded man in a fur vest stands at the edge.",
+      "spots": [
+        {
+          "name": "Kuan",
+          "box": [
+            0.12,
+            0.45,
+            0.17,
+            0.37
+          ],
+          "desc": "Kuan is the little boy with spiky red hair, crying with his fists clenched."
+        },
+        {
+          "name": "Musical actress",
+          "box": [
+            0.29,
+            0.41,
+            0.37,
+            0.47
+          ],
+          "desc": "A dancer in a big light-blue dress, holding out a tissue."
+        }
+      ]
+    },
+    "p05": {
+      "trim": false,
+      "scene": "A musical scene: a king and queen in a carriage, a dancer in a green costume, and a little man with a wand.",
+      "spots": [
+        {
+          "name": "King and queen",
+          "box": [
+            0.14,
+            0.3,
+            0.42,
+            0.56
+          ],
+          "desc": "A king with a crown and a queen in a pink dress, riding in a carriage."
+        },
+        {
+          "name": "Dancer",
+          "box": [
+            0.42,
+            0.28,
+            0.4,
+            0.58
+          ],
+          "desc": "A dancer in a green costume and a frilly skirt, kicking one leg high."
+        }
+      ]
+    },
+    "p06": {
+      "trim": false,
+      "scene": "In the dark cinema a nervous girl shrinks into her seat while the woman beside her tries to calm her.",
+      "spots": [
+        {
+          "name": "Scared girl",
+          "box": [
+            0.55,
+            0.45,
+            0.23,
+            0.39
+          ],
+          "desc": "A little girl with a bow in her hair, squeezing her hands because she is scared."
+        },
+        {
+          "name": "Woman",
+          "box": [
+            0.23,
+            0.32,
+            0.23,
+            0.57
+          ],
+          "desc": "The woman next to her leans over to comfort her."
+        }
+      ]
+    },
+    "p07": {
+      "trim": false,
+      "scene": "Dad leans back in his cinema seat with the big blue robot resting against him; a popcorn tub sits on the next seat.",
+      "spots": [
+        {
+          "name": "Dad",
+          "box": [
+            0.03,
+            0.34,
+            0.19,
+            0.3
+          ],
+          "desc": "Dad wears glasses and a green cardigan."
+        },
+        {
+          "name": "Robot",
+          "box": [
+            0.44,
+            0.35,
+            0.52,
+            0.58
+          ],
+          "desc": "A big round blue robot with an antenna and round mechanical eyes."
+        },
+        {
+          "name": "Popcorn",
+          "box": [
+            0.72,
+            0.6,
+            0.14,
+            0.16
+          ],
+          "desc": "A tub of popcorn with the word popcorn on the box."
+        }
+      ]
+    },
+    "p08": {
+      "trim": false,
+      "scene": "Kuan gives a thumbs-up next to the big blue robot, a tub of popcorn tucked under his arm.",
+      "spots": [
+        {
+          "name": "Robot",
+          "box": [
+            0.0,
+            0.29,
+            0.55,
+            0.7
+          ],
+          "desc": "The big blue robot, taking up most of the seat."
+        },
+        {
+          "name": "Kuan",
+          "box": [
+            0.8,
+            0.36,
+            0.2,
+            0.47
+          ],
+          "desc": "Kuan in his blue T-shirt gives a thumbs-up."
+        },
+        {
+          "name": "Popcorn",
+          "box": [
+            0.17,
+            0.71,
+            0.29,
+            0.16
+          ],
+          "desc": "A popping tub of popcorn that says POPCORN."
+        }
+      ]
+    },
+    "p09": {
+      "trim": false,
+      "scene": "Kuan sits in his seat with a drink, a bald, bearded man with a newspaper beside him.",
+      "spots": [
+        {
+          "name": "Kuan",
+          "box": [
+            0.0,
+            0.35,
+            0.28,
+            0.62
+          ],
+          "desc": "Kuan sits in his seat holding a big red drink."
+        },
+        {
+          "name": "Man with a beard",
+          "box": [
+            0.55,
+            0.07,
+            0.45,
+            0.86
+          ],
+          "desc": "A big bald man with a black beard, reading in his seat."
+        }
+      ]
+    },
+    "p10": {
+      "trim": false,
+      "scene": "Someone in a green cap plays the arcade machine; the screen shows the score 360.",
+      "spots": [
+        {
+          "name": "Arcade machine",
+          "box": [
+            0.11,
+            0.32,
+            0.57,
+            0.65
+          ],
+          "desc": "An arcade machine with blocks on the screen and the score 360."
+        },
+        {
+          "name": "Player",
+          "box": [
+            0.24,
+            0.52,
+            0.2,
+            0.44
+          ],
+          "desc": "A boy in a green cap stands at the machine, playing."
+        }
+      ]
+    },
+    "p11": {
+      "trim": false,
+      "scene": "Kuan pulls the big blue robot along and points up at the stand selling popcorn and drinks.",
+      "spots": [
+        {
+          "name": "Robot",
+          "box": [
+            0.0,
+            0.58,
+            0.36,
+            0.42
+          ],
+          "desc": "The big blue robot is being pulled along by its arm."
+        },
+        {
+          "name": "Kuan",
+          "box": [
+            0.28,
+            0.37,
+            0.36,
+            0.47
+          ],
+          "desc": "Kuan points up at the snack stand and grins."
+        },
+        {
+          "name": "Snack stand",
+          "box": [
+            0.34,
+            0.13,
+            0.37,
+            0.18
+          ],
+          "desc": "A stand selling popcorn and drinks, with the seller behind it."
+        }
+      ]
+    },
+    "p12": {
+      "trim": false,
+      "scene": "A popcorn machine puffs out fresh popcorn above its big POPCORN sign.",
+      "spots": [
+        {
+          "name": "Popcorn machine",
+          "box": [
+            0.07,
+            0.27,
+            0.8,
+            0.63
+          ],
+          "desc": "A glass popcorn machine full of yellow popcorn."
+        },
+        {
+          "name": "POPCORN sign",
+          "box": [
+            0.1,
+            0.79,
+            0.74,
+            0.14
+          ],
+          "desc": "A big sign on the machine that says POPCORN."
+        }
+      ]
+    },
+    "p13": {
+      "trim": false,
+      "scene": "A snack counter loaded with popcorn tubs and cupcakes, with Superman and Iron Man posters and a woman in a red cap.",
+      "spots": [
+        {
+          "name": "Popcorn",
+          "box": [
+            0.28,
+            0.59,
+            0.46,
+            0.16
+          ],
+          "desc": "Three boxes of popcorn lined up on the counter."
+        },
+        {
+          "name": "Superman poster",
+          "box": [
+            0.44,
+            0.11,
+            0.34,
+            0.35
+          ],
+          "desc": "A Superman poster with the words SUPER MAN and sugar."
+        },
+        {
+          "name": "Snack seller",
+          "box": [
+            0.0,
+            0.17,
+            0.31,
+            0.78
+          ],
+          "desc": "A woman in a red cap and striped apron, stacking the snacks."
+        }
+      ]
+    },
+    "p14": {
+      "trim": false,
+      "scene": "The big blue robot fills the whole picture, its hands held out in front of it.",
+      "spots": [
+        {
+          "name": "Robot",
+          "box": [
+            0.1,
+            0.05,
+            0.85,
+            0.72
+          ],
+          "desc": "The big round blue robot holds its hands up to its face."
+        }
+      ]
+    },
+    "p15": {
+      "trim": false,
+      "scene": "Kuan grins and rubs his hands together, thinking about popcorn.",
+      "spots": [
+        {
+          "name": "Kuan",
+          "box": [
+            0.13,
+            0.29,
+            0.57,
+            0.51
+          ],
+          "desc": "Kuan rubs his hands together and grins at the idea of popcorn."
+        }
+      ]
+    },
+    "p16": {
+      "trim": false,
+      "scene": "Kuan stands beside the tall blue robot and looks up at it.",
+      "spots": [
+        {
+          "name": "Robot",
+          "box": [
+            0.02,
+            0.32,
+            0.73,
+            0.56
+          ],
+          "desc": "The blue robot stands beside Kuan, taller than he is."
+        },
+        {
+          "name": "Kuan",
+          "box": [
+            0.74,
+            0.32,
+            0.26,
+            0.53
+          ],
+          "desc": "Kuan looks up at the robot with his hands behind his back."
+        }
+      ]
+    },
+    "p17": {
+      "trim": false,
+      "scene": "Dad bends down, pointing a finger and talking.",
+      "spots": [
+        {
+          "name": "Dad",
+          "box": [
+            0.05,
+            0.22,
+            0.77,
+            0.63
+          ],
+          "desc": "Dad with his glasses and green cardigan, bending down to point."
+        }
+      ]
+    },
+    "p18": {
+      "trim": false,
+      "scene": "The robot's flat blue hand holds out banknotes and two gold coins.",
+      "spots": [
+        {
+          "name": "Money",
+          "box": [
+            0.18,
+            0.35,
+            0.75,
+            0.46
+          ],
+          "desc": "Banknotes and two shiny coins held out in the robot's blue hand."
+        }
+      ]
+    },
+    "p19": {
+      "trim": false,
+      "scene": "A child's hand holds out the banknotes and coins for the snacks.",
+      "spots": [
+        {
+          "name": "Money",
+          "box": [
+            0.1,
+            0.36,
+            0.51,
+            0.26
+          ],
+          "desc": "A green banknote and gold coins in a child's hand."
+        }
+      ]
+    },
+    "p20": {
+      "trim": false,
+      "scene": "The hall is dark; a bright line of screen light shines over the heads of the seated audience."
+    },
+    "p21": {
+      "trim": false,
+      "scene": "Rows of shadowy heads and cinema seats as the film plays."
+    },
+    "p22": {
+      "trim": false,
+      "scene": "Kuan gasps with his hand at his mouth, a popcorn tub hugged to his chest.",
+      "spots": [
+        {
+          "name": "Kuan",
+          "box": [
+            0.25,
+            0.09,
+            0.57,
+            0.56
+          ],
+          "desc": "Kuan stares wide-eyed at the screen with his hand at his mouth."
+        },
+        {
+          "name": "Popcorn",
+          "box": [
+            0.29,
+            0.71,
+            0.36,
+            0.26
+          ],
+          "desc": "A big tub of popcorn hugged against his chest."
+        }
+      ]
+    },
+    "p23": {
+      "trim": false,
+      "scene": "We look past a seat back at the bright screen glowing in the dark."
+    },
+    "p24": {
+      "trim": false,
+      "scene": "On the screen, a purple car with big eyes and a toothy grin.",
+      "spots": [
+        {
+          "name": "Talking car",
+          "box": [
+            0.31,
+            0.13,
+            0.68,
+            0.36
+          ],
+          "desc": "A purple car on the screen with eyes and a big toothy smile."
+        }
+      ]
+    },
+    "p25": {
+      "trim": false,
+      "scene": "The screen shows a KARATE poster with a car in a headband, and the purple car beside it.",
+      "spots": [
+        {
+          "name": "KARATE poster",
+          "box": [
+            0.25,
+            0.09,
+            0.5,
+            0.33
+          ],
+          "desc": "A poster on the screen that says KARATE, showing a car in a karate pose."
+        },
+        {
+          "name": "Talking car",
+          "box": [
+            0.0,
+            0.27,
+            0.27,
+            0.23
+          ],
+          "desc": "The purple talking car, pulling a grin beside the poster."
+        }
+      ]
+    },
+    "p26": {
+      "trim": false,
+      "scene": "At the dinner table Dad reads the newspaper while Kuan lifts a toy car; the spotted dog begs beside him.",
+      "spots": [
+        {
+          "name": "Dad",
+          "box": [
+            0.57,
+            0.17,
+            0.42,
+            0.35
+          ],
+          "desc": "Dad in a green spotted top, reading at the table."
+        },
+        {
+          "name": "Kuan",
+          "box": [
+            0.12,
+            0.32,
+            0.34,
+            0.53
+          ],
+          "desc": "Kuan in striped pyjamas lifts his blue toy car high."
+        },
+        {
+          "name": "Dog",
+          "box": [
+            0.0,
+            0.54,
+            0.54,
+            0.45
+          ],
+          "desc": "A white dog with big dark spots begs beside the table."
+        }
+      ]
+    },
+    "p27": {
+      "trim": false,
+      "scene": "The blue robot sits at the dinner table in front of a bowl of soup, the girl in green looking at it.",
+      "spots": [
+        {
+          "name": "Robot",
+          "box": [
+            0.15,
+            0.28,
+            0.6,
+            0.57
+          ],
+          "desc": "The blue robot sits at the dinner table with a bowl of soup."
+        },
+        {
+          "name": "Soup",
+          "box": [
+            0.3,
+            0.49,
+            0.31,
+            0.15
+          ],
+          "desc": "A white bowl of soup in front of the robot."
+        }
+      ]
+    },
+    "p28": {
+      "trim": false,
+      "scene": "Dad is fast asleep, his head tipped back and his green sleeve resting on the seat."
+    }
+  },
+  "language": "en",
+  "characters": [
+    {
+      "id": "kuan",
+      "name": "Kuan",
+      "role": "main character",
+      "desc": "The boy in the blue T-shirt with spiky red hair. He used to be afraid of films and is braver now.",
+      "crop": {
+        "page": "p22",
+        "from_original": true,
+        "box": [
+          0.25,
+          0.09,
+          0.57,
+          0.55
+        ]
+      }
+    },
+    {
+      "id": "dad",
+      "name": "Dad",
+      "role": "main character",
+      "desc": "Kuan's dad, with curly red hair and glasses, usually in a green cardigan. He falls asleep in the cinema.",
+      "crop": {
+        "page": "p26",
+        "from_original": true,
+        "box": [
+          0.565,
+          0.17,
+          0.425,
+          0.33
+        ]
+      }
+    }
+  ]
+}

@@ -77,6 +77,102 @@ def cmd_reader(args) -> int:
                  host=getattr(args, "host", "127.0.0.1"))
 
 
+def cmd_import_pdf(args) -> int:
+    from .ingest import import_pdf
+
+    report = import_pdf(args.pdf, book_id=args.id, out_root=args.out,
+                        dpi=args.dpi, force=args.force)
+    print(f"book   : {report['book_id']}  ({report['title']})")
+    print(f"dir    : {report['dir']}")
+    print(f"pages  : {report['pages']}  rendered {report['rendered']}"
+          f"  skipped {report['skipped']}  text layer {report['text_pages']}")
+    print("next   : python -m book2real analyze --book " + report["dir"])
+    return 0
+
+
+def cmd_cloud(args) -> int:
+    from . import cloud
+
+    cloud.load_env()
+    if args.check:
+        print(f"{'provider':<10}{'ready':<7}{'model':<42}base")
+        for r in cloud.provider_status():
+            print(f"{r['provider']:<10}{'yes' if r['ready'] else 'no':<7}"
+                  f"{r['model']:<42}{r['base']}")
+        print(f"\n已用 元{cloud.spent_cny():.2f} / 上限 元{cloud._cfg()['budget']:.2f}"
+              f"  账本 runs/cloud/ledger.jsonl")
+        missing = [r["env"] for r in cloud.provider_status() if not r["ready"]]
+        if missing:
+            print(f"缺 key：{', '.join(sorted(set(missing)))}（写进 .env，见 docs/API_KEYS.md）")
+        return 0
+
+    if args.llm:
+        out = cloud.deepseek([{"role": "user", "content": args.llm}],
+                             dry_run=args.dry_run)
+        if not args.dry_run:
+            print(out["text"])
+        print(f"[cloud] deepseek {out['model']}  元{out['cny']}", file=sys.stderr)
+        return 0
+
+    if args.image:
+        out = cloud.seedream(args.image, args.out or ".tmp/cloud/image.png",
+                             size=args.size, dry_run=args.dry_run)
+        print(out.get("path") or "(dry run)")
+        print(f"[cloud] seedream {out['model']}  元{out['cny']}", file=sys.stderr)
+        return 0
+
+    if args.video:
+        out = cloud.seedance(args.video, args.out or ".tmp/cloud/video.mp4",
+                             image=args.image_path, seconds=args.seconds,
+                             resolution=args.resolution, ratio=args.ratio,
+                             dry_run=args.dry_run)
+        print(out.get("path") or "(dry run)")
+        print(f"[cloud] seedance {out['model']}  元{out['cny']}", file=sys.stderr)
+        return 0
+
+    print("用法：cloud --check | --llm TEXT | --image PROMPT --out FILE | "
+          "--video PROMPT --out FILE [--image-path PAGE]")
+    return 2
+
+
+def cmd_story(args) -> int:
+    from .creative import apply_scenes, story
+
+    data = story(args.book, force=args.force, model=args.model)
+    print(f"story -> {Path(args.book) / 'reader' / 'story' / 'story.json'}")
+    print(f"pages {len(data.get('pages') or [])}  model {data.get('model')}"
+          f"  cost CNY {data.get('cny')}")
+    if args.apply:
+        n = apply_scenes(args.book)
+        print(f"applied scene to curation.json: {n} page(s); re-run analyze to publish")
+    else:
+        print("tip: pass --apply to copy the scenes into curation.json")
+    return 0
+
+
+def cmd_visuals(args) -> int:
+    from .creative import visuals
+
+    rows = visuals(args.book, force=args.force, limit=args.limit, model=args.model)
+    print(f"visuals: {len(rows)} generated")
+    for r in rows:
+        print(f"  {r['page']}  {r['path']}  CNY {r.get('cny')}")
+    if rows:
+        print("next: python -m book2real analyze --book " + args.book)
+    return 0
+
+
+def cmd_clip(args) -> int:
+    from .creative import clip
+
+    out = args.out or f"runs/{Path(args.book).name}/clips/{args.page}.mp4"
+    r = clip(args.book, args.page, args.prompt, out, seconds=args.seconds,
+             model=args.model, image=not args.text_only)
+    print(f"clip -> {r.get('path')}  model {r.get('model')}  CNY {r.get('cny')}")
+    print("note: 仅用于演示/试片；正式成片仍走单趟 film 路径（Q43）")
+    return 0
+
+
 def cmd_analyze(args) -> int:
     from .storybook import build
 
@@ -234,6 +330,40 @@ def cmd_sample(args) -> int:
     return 0
 
 
+def cmd_evaluate(args) -> int:
+    from . import evaluate as ev
+
+    try:
+        report = ev.evaluate(
+            book=args.book,
+            audio=args.audio,
+            script=args.script,
+            limit=args.limit,
+            asr=args.asr,
+            labels=args.labels,
+        )
+        paths = ev.write_report(report)
+        if args.json:
+            out = Path(args.json)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+                           encoding="utf-8")
+            print(f"[evaluate] json -> {out}")
+    except ev.EvaluateError as exc:
+        print(f"[evaluate] {exc}", file=sys.stderr)
+        return 2
+
+    m = report["metrics"]
+    print(f"[evaluate] json -> {paths['json']}")
+    print(f"[evaluate] md   -> {paths['md']}")
+    if m["transport_skipped"]:
+        print(f"[evaluate] transport 行 {m['transport_skipped']} 条不计 Query")
+    print(f"[evaluate] accuracy {'null（未提供 --labels）' if report['accuracy'] is None else report['accuracy']}"
+          f"  coverage {m['coverage']}")
+    print(f"结果：{m['total']} 条，成功 {m['success']}，跳过 {m['skipped']}")
+    return 0
+
+
 def cmd_doctor(args) -> int:
     import importlib
 
@@ -300,6 +430,53 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--open", action="store_true")
     sp.set_defaults(func=cmd_reader)
 
+    sp = sub.add_parser("cloud", help="DeepSeek / Seedream / Seedance probes and calls")
+    g = sp.add_mutually_exclusive_group()
+    g.add_argument("--check", action="store_true", help="who is configured, and spend so far")
+    g.add_argument("--llm", metavar="TEXT")
+    g.add_argument("--image", metavar="PROMPT")
+    g.add_argument("--video", metavar="PROMPT")
+    sp.add_argument("--image-path", help="first frame for Seedance image-to-video")
+    sp.add_argument("--out")
+    sp.add_argument("--size", default="1024x1024")
+    sp.add_argument("--seconds", type=int, default=5)
+    sp.add_argument("--resolution", default="720p")
+    sp.add_argument("--ratio", default="16:9")
+    sp.add_argument("--dry-run", action="store_true", help="price the call, do not send it")
+    sp.set_defaults(func=cmd_cloud)
+
+    sp = sub.add_parser("import-pdf", help="render an official picture-book PDF into books/<id>")
+    sp.add_argument("pdf")
+    sp.add_argument("--id", help="book id / directory name (default: PDF file name)")
+    sp.add_argument("--out", default="books")
+    sp.add_argument("--dpi", type=int, default=170)
+    sp.add_argument("--force", action="store_true")
+    sp.set_defaults(func=cmd_import_pdf)
+
+    sp = sub.add_parser("story", help="DeepSeek writes per-page scenes and questions")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--model")
+    sp.add_argument("--force", action="store_true")
+    sp.add_argument("--apply", action="store_true", help="copy scenes into curation.json")
+    sp.set_defaults(func=cmd_story)
+
+    sp = sub.add_parser("visuals", help="Seedream fills split-screen art marked 'regenerate'")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--model")
+    sp.add_argument("--limit", type=int, default=0)
+    sp.add_argument("--force", action="store_true")
+    sp.set_defaults(func=cmd_visuals)
+
+    sp = sub.add_parser("clip", help="one Seedance probe clip for a page (not the film)")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--page", required=True)
+    sp.add_argument("--prompt", required=True)
+    sp.add_argument("--out")
+    sp.add_argument("--seconds", type=int, default=5)
+    sp.add_argument("--model")
+    sp.add_argument("--text-only", action="store_true", help="ignore the page image")
+    sp.set_defaults(func=cmd_clip)
+
     sp = sub.add_parser("analyze", help="OCR a book and build its reader package")
     sp.add_argument("--book", required=True)
     sp.add_argument("--force", action="store_true")
@@ -363,14 +540,31 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--pages", type=int, default=8)
     sp.set_defaults(func=cmd_sample)
 
+    sp = sub.add_parser("evaluate", help="offline ASR/retrieval/QA report for a book")
+    sp.add_argument("--book", required=True)
+    sp.add_argument("--audio", required=True, help="official per-book audio directory")
+    sp.add_argument("--script", help="recording script override (default: official by id)")
+    sp.add_argument("--limit", type=int, help="evaluate only the first N queries")
+    sp.add_argument("--asr", choices=("auto", "none"), default="auto")
+    sp.add_argument("--labels", help="JSON {n: page_id} to compute top-1 accuracy")
+    sp.add_argument("--json", help="write a copy of the report JSON here")
+    sp.set_defaults(func=cmd_evaluate)
+
     sp = sub.add_parser("doctor", help="environment check")
     sp.set_defaults(func=cmd_doctor)
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
+    from . import cloud
+
+    cloud.load_env()
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except cloud.CloudError as exc:
+        print(f"[cloud] {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

@@ -1,0 +1,91 @@
+{
+  "book_id": "cn01",
+  "title": "一起搭积木吧",
+  "subtitle": "学而思阅读树 · 儿童中文分级读物",
+  "author": "学而思内容中心 著",
+  "fps": 24,
+  "layers": false,
+  "language": "zh",
+  "source": {
+    "kind": "pdf",
+    "name": "中文绘本01.pdf",
+    "sha256": "b67867acccc32dce6c78d644e39d2af72d008bb3980ec726e765068c4473899a",
+    "pages": 12,
+    "dpi": 170
+  },
+  "pages": [
+    {
+      "file": "p01.jpg",
+      "move": "dolly_in",
+      "mode": "card",
+      "duration": 6.0
+    },
+    {
+      "file": "p02.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p03.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p04.jpg",
+      "move": "dolly_out",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p05.jpg",
+      "move": "pan_rl",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p06.jpg",
+      "move": "dolly_in",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p07.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p08.jpg",
+      "move": "pan_lr",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p09.jpg",
+      "move": "dolly_out",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p10.jpg",
+      "move": "pan_rl",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p11.jpg",
+      "move": "dolly_in",
+      "mode": "fill",
+      "duration": 6.0
+    },
+    {
+      "file": "p12.jpg",
+      "move": "kenburns",
+      "mode": "fill",
+      "duration": 6.0
+    }
+  ],
+  "film_target": 120
+}

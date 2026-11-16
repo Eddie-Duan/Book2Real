@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>纸书智伴 · 影片里找一找</title>
+<meta name="theme-color" content="#f6efe2">
+<link rel="stylesheet" href="/static/film.css?v=20261116">
+</head>
+<body>
+<header class="topbar">
+  <a class="back" href="/" title="回到互动绘本">← 绘本</a>
+  <div class="brand">
+    <span class="mark">片</span>
+    <div class="brand-text"><b id="filmTitle">影片里找一找</b><small id="filmMeta">正在打开…</small></div>
+  </div>
+  <label class="book-pick">
+    <span>这本书</span>
+    <select id="bookSelect"></select>
+  </label>
+</header>
+
+<main class="stage-wrap">
+  <div class="player" id="player">
+    <video id="film" playsinline preload="metadata" aria-label="绘本影片"></video>
+    <canvas id="mark" aria-hidden="true"></canvas>
+    <div class="empty" id="empty" hidden>
+      <b id="emptyTitle">还没有成片</b>
+      <span id="emptyNote"></span>
+      <a href="/">先去读绘本</a>
+    </div>
+  </div>
+
+  <div class="scrub">
+    <button class="icon-btn" id="btnPlay" type="button" aria-label="播放">▶</button>
+    <span class="time" id="timeNow">0:00</span>
+    <input class="seek" id="seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="播放进度">
+    <span class="time" id="timeAll">0:00</span>
+    <button class="nav-btn" id="btnPrev" type="button">◀ 上一页</button>
+    <button class="nav-btn" id="btnNext" type="button">下一页 ▶</button>
+    <span class="seg-label" id="segLabel">—</span>
+  </div>
+</main>
+
+<section class="tools" aria-label="在影片里找东西">
+  <form class="find" id="findForm" autocomplete="off">
+    <input id="findInput" type="search" placeholder="找到…（例如：找到搭了九块积木的画面）" aria-label="找画面">
+    <button class="primary" id="btnFind" type="submit">找到…</button>
+  </form>
+  <form class="find" id="wordForm" autocomplete="off">
+    <input id="wordInput" type="search" placeholder="查找字/词（例如：生日快乐 / braver）" aria-label="查找字词">
+    <button class="ghost" id="btnWord" type="submit">查找字/词</button>
+  </form>
+  <div class="row">
+    <button class="ghost" id="btnDescribe" type="button">描述这一帧</button>
+    <button class="ghost" id="btnMic" type="button" title="按住说出你要找的画面">🎤 语音提问</button>
+  </div>
+  <p class="tip">搜索会跳到那一帧并暂停；点击画面可以看看那里有什么。</p>
+</section>
+
+<aside class="card" id="info" hidden aria-live="polite">
+  <button class="x" id="infoClose" type="button" aria-label="关闭">×</button>
+  <div class="card-kicker" id="infoKicker">画面里的东西</div>
+  <b id="infoName"></b>
+  <p id="infoDesc"></p>
+  <span class="card-page" id="infoPage"></span>
+</aside>
+
+<aside class="sheet" id="desc" hidden aria-live="polite">
+  <button class="x" id="descClose" type="button" aria-label="关闭">×</button>
+  <div class="sheet-kicker" id="descKicker">这一帧</div>
+  <p id="descBody"></p>
+</aside>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/static/film.js?v=20261116"></script>
+</body>
+</html>

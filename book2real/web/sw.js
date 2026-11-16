@@ -1,8 +1,11 @@
-/* Service worker for 纸间生灵 · 互动绘本. No build step, no dependencies.
+/* Service worker for 纸书智伴 · 互动绘本. No build step, no dependencies.
  *
  * Strategies (docs/INTEGRATION_CONTRACT.md §3):
  *   navigation      network-first, fall back to the cached shell
  *   /api/...        network-first, store a copy when the network answers 200
+ *   /static/...     network-first, fall back to cache (so a code update is
+ *                   picked up on the next reload instead of being masked by a
+ *                   stale module; this bit the film player once)
  *   anything else   cache-first, then network (and keep a copy)
  *
  * `CACHE_V` is the single version switch: bump it and the old caches are
@@ -111,6 +114,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (url.pathname.indexOf("/api/") === 0) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+  if (url.pathname.indexOf("/static/") === 0) {
     event.respondWith(networkFirst(request));
     return;
   }
