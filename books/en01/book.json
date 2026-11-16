@@ -183,5 +183,8 @@
       "duration": 6.0
     }
   ],
-  "film_target": 150
+  "film_target": 150,
+  "age_range": "4-8",
+  "ai_generated": true,
+  "content_reviewer": ""
 }

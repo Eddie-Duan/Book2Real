@@ -111,6 +111,17 @@ button, input, select { font: inherit; color: inherit; }
 }
 #mark.fade { opacity: 0; }
 
+.age-badge {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid rgba(120, 95, 70, .28);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--soft);
+  background: rgba(255, 250, 240, .7);
+  white-space: nowrap;
+}
+
 .empty {
   position: absolute; inset: 0;
   display: grid; place-content: center; gap: 8px;

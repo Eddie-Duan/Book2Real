@@ -107,7 +107,9 @@ python -m book2real clip    --book books/cn01 --page p03 --prompt "..." --second
 | 评测 | `scripts/gate.py` 五门 + `scripts/eval_metrics.py` → [`docs/METRICS.md`](docs/METRICS.md)（实测值/目标值分列，n 与环境齐全） |
 | 旁白 | edge-tts（中文晓晓 / 英文 Aria），缓存复用；失败回退 Windows SAPI |
 | 视频 | 16:9 单趟渲染，`film_target` 控制 100–200 s；AAC 音轨；timeline 供检索 |
+| 互动录屏 | 真实浏览器操作录制：播放/暂停、翻页、找画面、点选、描述帧、查词；cn01 30.68 s、en01 22.92 s，均 ≤5 min |
 | 云模型 | `cloud.py`：DeepSeek / 豆包 Seedream / Seedance，预算护栏 + 流水账 |
+| 提交包 | `scripts/package_submission.py`：四件套 + `学校-院系-姓名.zip`，缺件如实报 |
 
 ## 两条产品线
 
@@ -120,6 +122,7 @@ python -m book2real clip    --book books/cn01 --page p03 --prompt "..." --second
 - [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) — 素材/模型来源、IP 承诺、儿童内容安全
 - [`docs/API_KEYS.md`](docs/API_KEYS.md) — DeepSeek / 火山方舟 key 与预算护栏
 - [`docs/EVALUATION.md`](docs/EVALUATION.md) — 50 条 Query 音频的评测口径与已知局限
+- [`docs/项目说明书.pdf`](docs/项目说明书.pdf) — 按官方模板写的 13 页说明书（docx 同目录）
 - [`docs/READER.md`](docs/READER.md) — 互动绘本的产品设计、分析管线、视频版式
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 旧版 2.5D 渲染与编排
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — 实测数据、已知问题、下一步

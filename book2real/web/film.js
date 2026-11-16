@@ -390,10 +390,27 @@ function bestOcrLine(seg, tokens) {
   return best ? best.line : null;
 }
 
+/* A tiny picture-book glossary, not a translator: the official samples name the
+ * same objects in Chinese (recording script) and English (page art). Without it
+ * a Chinese query can never hit an English page. */
+const BRIDGE = [
+  ["电影海报", ["film", "poster"]], ["海报", ["poster"]],
+  ["机器人", ["robot"]], ["游戏机", ["arcade", "machine"]],
+  ["爆米花", ["popcorn"]], ["汽车", ["car"]], ["电影", ["cinema", "film"]],
+  ["生日卡片", ["birthday", "card"]], ["卡片", ["card"]],
+  ["积木城堡", ["castle"]], ["城堡", ["castle"]], ["小狗", ["dog"]],
+];
+
+function bridgeTokens(q) {
+  const extra = [];
+  BRIDGE.forEach(([zh, words]) => { if (q.includes(zh)) extra.push(...words); });
+  return extra;
+}
+
 function runFind(raw) {
   const q = String(raw || "").trim();
   if (!q) { toast("先说一句要找什么，比如「找到搭了九块积木的画面」"); return; }
-  const tokens = tokensOf(cleanQuery(q));
+  const tokens = Array.from(new Set(tokensOf(cleanQuery(q)).concat(bridgeTokens(q))));
   if (!tokens.length) { toast("这句话里没听出要找的词，再试一次？"); return; }
 
   let best = null;

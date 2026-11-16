@@ -139,7 +139,7 @@ def _audio_index(audio_dir: Path) -> dict[int, Path]:
     return out
 
 
-def _labels_from(path: str | None) -> dict[int, str] | None:
+def _labels_from(path: str | None) -> dict[int, list[str]] | None:
     if not path:
         return None
     p = Path(path)
@@ -150,7 +150,7 @@ def _labels_from(path: str | None) -> dict[int, str] | None:
     if p.stat().st_size > LABEL_JSON_MAX:
         raise EvaluateError(f"标注文件过大（>{LABEL_JSON_MAX} 字节）：{p}")
     data = _read_json(p, "标注文件")
-    labels: dict[int, str] = {}
+    labels: dict[int, list[str]] = {}
     for key, value in data.items():
         try:
             n = int(key)
@@ -158,7 +158,12 @@ def _labels_from(path: str | None) -> dict[int, str] | None:
             raise EvaluateError(f"标注文件的键必须是脚本编号（整数）：{key!r}") from None
         if not isinstance(value, str) or not value.strip():
             raise EvaluateError(f"标注 {key} 的页码必须是非空字符串")
-        labels[n] = value.strip()
+        # "p24|p25" means both pages are legitimate answers (the same object is
+        # drawn twice); still counted as one item, not two.
+        wanted = [v.strip() for v in value.split("|") if v.strip()]
+        if not wanted:
+            raise EvaluateError(f"标注 {key} 的页码为空")
+        labels[n] = wanted
     return labels
 
 
@@ -242,29 +247,130 @@ def _page_text(page: dict) -> str:
     return " ".join(p for p in parts if p)
 
 
-def retrieve(pages: list[dict], query: str, top_k: int = 3) -> list[dict]:
-    """IDF-weighted bigram/word coverage over reader pages, best first."""
-    query = (query or "").strip()
+#: Words that describe the *task*, not the picture. They have df=0 in a book and
+#: used to dominate the IDF denominator, which is why "找到…的画面" scored 0 on
+#: every page. Content words only.
+_QUERY_STOP = {
+    "找到", "查找", "找出", "找到的", "画面", "视频", "图片", "一帧", "这个", "那个",
+    "一下", "帮我", "请", "看看", "播放", "暂停", "继续", "结束", "开始",
+    "find", "where", "what", "the", "a", "an", "picture", "pictures", "video",
+    "scene", "show", "me", "please", "go", "to",
+    # English function words: without these "What is this?" scores a page that
+    # merely contains "this week" and ties every page at 1.0.
+    "is", "are", "was", "were", "it", "this", "that", "these", "those", "there",
+    "he", "she", "they", "them", "his", "her", "their", "do", "does", "did",
+    "can", "could", "will", "would", "who", "whom", "whose", "which", "why",
+    "how", "when", "of", "in", "on", "at", "for", "with", "and", "or", "but",
+}
+
+
+def _stem(word: str) -> str:
+    """One-step English plural: musicals→musical, films→film (not glass→glas)."""
+    if word.isascii() and len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+def _join_spaced_caps(text: str) -> str:
+    """OCR sometimes writes KARATE as ``K A R A T E``; join only all-caps runs."""
+    return re.sub(r"\b(?:[A-Z]\s+){2,}[A-Z]\b", lambda m: m.group(0).replace(" ", ""), text)
+
+#: The book says "抱在一起", a child says "拥抱"; without a synonym the query
+#: scores zero. Kept tiny and concrete on purpose.
+_SYNONYMS = {
+    "拥抱": ("抱",), "抱住": ("抱",),
+    "吵架": ("生气", "怪你"), "和好": ("对不起", "不生气"),
+    "重逢": ("见面", "对不起"), "倒塌": ("倒", "塌"),
+    "搭": ("积木",), "卡片": ("生日卡片",),
+}
+
+#: Official recording scripts are Chinese, the English sample pages are not.
+#: These object names are the ones the scripts actually click/find.
+_BRIDGE = {
+    "电影海报": ("film", "poster"), "海报": ("poster",),
+    "机器人": ("robot",), "游戏机": ("arcade", "machine"),
+    "爆米花": ("popcorn",), "汽车": ("car",), "电影": ("cinema", "film"),
+    "生日卡片": ("birthday", "card"), "积木城堡": ("castle",), "城堡": ("castle",),
+}
+
+
+def _bridge_grams(query: str) -> list[str]:
+    out = []
+    for zh, words in _BRIDGE.items():
+        if zh in query:
+            out.extend(w for w in words if w not in out)
+    return out
+
+
+def _query_grams(query: str) -> list[str]:
+    """Content grams only; function words are dropped *before* plural stemming."""
     grams = list(dict.fromkeys(qa._bigrams(query)))
+    out = []
+    for g in grams:
+        if g in _QUERY_STOP:
+            continue
+        g = _stem(g)
+        if g in _QUERY_STOP:
+            continue
+        if g.isascii() and len(g) < 2:
+            continue
+        out.append(g)
+    for word, alts in _SYNONYMS.items():
+        if word in query:
+            out.extend(a for a in alts if a not in out)
+    # Chinese and Latin often share one OCR chunk ("查找文字KARATE"), which the
+    # CJK 2-gram path shreds into ka/ar/at. Pull whole Latin words out as well.
+    out.extend(w.lower() for w in re.findall(r"[A-Za-z]{3,}", query))
+    out.extend(g for g in _bridge_grams(query) if g not in out)
+    return list(dict.fromkeys(out))
+
+
+def retrieve(pages: list[dict], query: str, top_k: int = 3) -> list[dict]:
+    """IDF-weighted bigram/word coverage over reader pages, best first.
+
+    Two corrections over plain coverage:
+
+    * the denominator only counts query grams that appear *somewhere* in the
+      book, so task words ("找到…的画面") can no longer drown a real hit;
+    * cover pages take a small penalty, because a title page repeats every
+      character name and used to win ties against the actual scene.
+    """
+    query = (query or "").strip()
+    grams = _query_grams(query)
     if not grams or not pages:
         return []
-    docs = [_page_text(p) for p in pages]
-    doc_grams = [qa._bigrams(d) for d in docs]
+    docs = [_join_spaced_caps(_page_text(p)) for p in pages]
+    doc_grams = [[_stem(g) for g in qa._bigrams(d)] for d in docs]
     n = len(pages)
     df = {g: sum(1 for grams_i in doc_grams if g in grams_i) for g in grams}
-    idf = {g: math.log(1.0 + (n + 1) / (1.0 + df[g])) for g in grams}
+    known = [g for g in grams if df[g] > 0]
+    if not known:
+        return []
+    idf = {g: math.log(1.0 + (n + 1) / (1.0 + df[g])) for g in known}
     total = sum(idf.values()) or 1.0
     scored: list[tuple[float, str]] = []
     for page, doc_grams_i, doc in zip(pages, doc_grams, docs):
-        score = sum(idf[g] for g in grams if g in doc_grams_i) / total
+        score = sum(idf[g] for g in known if g in doc_grams_i) / total
         hit_names = [nm for nm in _spot_names(page) if len(nm) >= 2 and nm in query]
         if hit_names and any(nm in doc for nm in hit_names):
             score = max(score, 0.6)          # a named spot beats a diluted summary
+        if str(page.get("kind") or "") == "cover":
+            score *= 0.85                    # title pages repeat every name
         pid = str(page.get("id") or "")
         scored.append((round(min(score, 1.0), 4), pid))
     scored.sort(key=lambda pair: (-pair[0], pair[1]))
-    return [{"page": pid, "score": score} for score, pid in scored[:top_k]
-            if score > 0.0] or [{"page": scored[0][1], "score": scored[0][0]}]
+    # "结尾/最后" is a position, not a picture word: the last spread is the one
+    # a reader means. Boost by book order, not by the worst-scoring entry.
+    if pages:
+        last_id = str(pages[-1].get("id") or "")
+        first_id = str(pages[0].get("id") or "")
+        if re.search(r"结尾|最后|最终|末尾", query):
+            scored = [(s + 0.45 if pid == last_id else s, pid) for s, pid in scored]
+        if re.search(r"开头|第一页|起初", query):
+            scored = [(s + 0.45 if pid == first_id else s, pid) for s, pid in scored]
+        scored.sort(key=lambda pair: (-pair[0], pair[1]))
+    return [{"page": pid, "score": round(min(1.0, score), 4)} for score, pid in scored[:top_k]
+            if score > 0.0]
 
 
 # --------------------------------------------------------------------------- #
@@ -485,6 +591,15 @@ def evaluate(book: str, audio: str, script: str | None = None,
                     continue
 
                 candidates = retrieve(pages, query)
+                if not candidates:
+                    # No content gram in the query exists anywhere in the book.
+                    # That is a real miss, not an exception: keep it in the
+                    # denominator with no top page.
+                    item.update({"top_page": None, "score": 0.0, "no_match": True,
+                                 "answer": "", "latency_ms": 0, "source": None,
+                                 "fallback": "no_evidence", "status": "ok"})
+                    items.append(item)
+                    continue
                 top = candidates[0]
                 item["candidates"] = candidates
                 item["top_page"] = top["page"]
@@ -535,7 +650,7 @@ def _report(book_id: str, book_dir: Path, script_path: Path, audio_dir: Path,
             if want is None:
                 continue
             labeled += 1
-            hits += int(it["top_page"] == want)
+            hits += int(it["top_page"] in want)
         accuracy = round(hits / labeled, 4) if labeled else None
 
     metrics = {

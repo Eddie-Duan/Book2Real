@@ -358,8 +358,15 @@ def cmd_evaluate(args) -> int:
     print(f"[evaluate] md   -> {paths['md']}")
     if m["transport_skipped"]:
         print(f"[evaluate] transport 行 {m['transport_skipped']} 条不计 Query")
-    print(f"[evaluate] accuracy {'null（未提供 --labels）' if report['accuracy'] is None else report['accuracy']}"
-          f"  coverage {m['coverage']}")
+    acc = report["accuracy"]
+    if acc is None:
+        if report.get("labels", {}).get("provided"):
+            acc_text = "null（标注与可评测条目无交集）"
+        else:
+            acc_text = "null（未提供 --labels）"
+    else:
+        acc_text = str(acc)
+    print(f"[evaluate] accuracy {acc_text}  coverage {m['coverage']}")
     print(f"结果：{m['total']} 条，成功 {m['success']}，跳过 {m['skipped']}")
     return 0
 

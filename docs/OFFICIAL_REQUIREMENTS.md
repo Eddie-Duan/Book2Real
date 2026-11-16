@@ -1,6 +1,6 @@
 # 纸书智伴 · 官方硬性要求与现状对照
 
-> **一句话结论**：官方口径已钉死 24 条可验收项——**6 本授权绘本、每本 50 条 Query、提交 1 中 1 英两本、两段视频（非交互 100–200 s ＋ 交互 ≤5 min）、≥720P/≥24 fps、一次生成不得二次编辑、语音首响 2 s、回答正确率 ≥0.60、视频内检索四能力、触控到独立语义对象级、中英＋跨语言、现场新 PDF 实时生成、官方三件套模型**。我方现有 **8 项已有、8 项部分、5 项欠缺**；最紧的三个缺口是**50 条 Query 的 ASR/正确率评测、交互演示录屏、内容安全责任人与分龄标注**（云端三件套已接但 key 未填，真实调用未验证）。
+> **一句话结论**：官方口径已钉死 24 条可验收项——**6 本授权绘本、每本 50 条 Query、提交 1 中 1 英两本、两段视频（非交互 100–200 s ＋ 交互 ≤5 min）、≥720P/≥24 fps、一次生成不得二次编辑、语音首响 2 s、回答正确率 ≥0.60、视频内检索四能力、触控到独立语义对象级、中英＋跨语言、现场新 PDF 实时生成、官方三件套模型**。我方现有 **9 项已有、8 项部分、4 项欠缺**；最紧的三个缺口是**50 条 Query 的人工标注正确率、内容安全复核责任人、云端三件套真实调用**（key 未填，未验证）。
 >
 > **来源**
 > - 官方赛题规则 PDF：`docs/纸书智伴.pdf`（9 页）；OCR 全文 `.tmp/rules_ocr.json`（按 `page` 数组，页码 = PDF 页脚"一N一"）。
@@ -24,23 +24,23 @@
 | A4 | 输出两段视频 | "离线交两个视频：①带交互 ②不带交互" | Q4；PDF 第4页 5.a | 非交互两本已出：`runs/cn01/reader_film/20261116-160542/film.mp4`（**114.79 s**）、`runs/en01/reader_film/20261116-161136/film.mp4`（**150.38 s**）；交互：**无** |
 | A5 | 绘本视频 100–200 s | "100–200 秒" | Q26 | 114.79 s / 150.38 s，两本均在区间内 |
 | A6 | 绘本视频 ≤3 min | "两段分别计时：交互视频 ≤5 min、绘本视频 ≤3 min" | Q39 | 同上，均 < 180 s；上限口径冲突见 5.1 |
-| A7 | 交互演示视频 ≤5 min | "带交互版交操作录屏即可" | Q39 | **无录屏**；打包器实测报"缺失：需要录制交互演示（cn01 / en01）" |
+| A7 | 交互演示视频 ≤5 min | "带交互版交操作录屏即可" | Q39 | **已有**：`runs/cn01/interactive/交互演示录屏.mp4`（30.68 s）、`runs/en01/interactive/交互演示录屏.mp4`（22.92 s），1276×804 / 25 fps，真实浏览器操作录屏（播放暂停、翻页、找画面、点选、描述帧、查词），未二次剪辑 |
 | A8 | ≥720P、≥24 fps | "≥720P（1280×720），推荐 1080P；≥24 fps" | Q26 | 两片 ffprobe 实测均 `h264 1280×720 24/1` + `aac`（`book2real/storyfilm.py:21-22` `W,H=1280,720`、`FPS=24`）；`manifest.json` 记录同值 |
 | A9 | 一次生成，不得二次编辑 | "同一册绘本的视频必须一次生成，不能二次编辑（含生成视频与交互视频）" | Q43 | 交付路径 `python -m book2real film` 为**单趟逐帧编码**：`encode_frames(_frames(...), ...)` 直出（`storyfilm.py:435`）后只 mux 音轨（`:442`），无镜头拼接；但旧 `run` 管线的逐页 `clip.mp4`+`concat`（`storyfilm.py:413-417`）仍在代码里，交付时必须固定走 `film` |
 | A10 | 完整覆盖正文情节 | "正文每页都必须在成片中有体现，不强制一页一镜；跨 2–3 页可合并" | Q33 | `timeline.json`：cn01 **13 段**（12 页 + cover/end）、en01 **29 段**（28 页 + cover/end），无掉页 |
 | A11 | 语音首响 2 s（含口径） | "2 s，口径＝话音结束 → 用户听到 TTS 首音；统计达标比例；warmup 后再统计" | Q9、Q34 | 只有分项：`docs/METRICS.md`（/api/tts 缓存首字节中位 63.9 ms、/api/ask 规则模式 P95 16.4 ms）；**端到端未测** |
-| A12 | 回答正确率 ≥0.60 | "回答正确率不低于 0.60"；按 Query 条数计 | PDF 第4页 3；Q11 | **无**：Query 音频的 ASR→问答评测脚本与结果都还没有（`scripts/eval_metrics.py` 仍只有覆盖率/TTS/ask/静态资源/引用 5 项） |
+| A12 | 回答正确率 ≥0.60 | "回答正确率不低于 0.60"；按 Query 条数计 | PDF 第4页 3；Q11 | **部分**：`python -m book2real evaluate` 已能跑官方音频/脚本，人工页级标注后 cn01 检索投中 **0.857（6/7）**、en01 **0.545（6/11，其中英文问句 6/8）**；但这是**检索 top1**，不是 50 条 Query 的问答正确率；SAPI ASR CER≈0.67，英文无识别器 → 端到端正确率仍缺 |
 | A13 | 视频内检索四能力 | "跳到指定帧／框选人物动物等元素／描述指定帧内容／查找指定字词（非字幕）并框出" | Q11；官方脚本第 04 行"找到搭了九块积木的画面" | **已实现**：`/film?book=<id>` + `/api/film/<id>`（timeline，回填 `source_w/source_h`，`book2real/reader_app.py:268`）+ `/api/film/<id>/video`（Range 206，`:307`、`:401`）；前端 `book2real/web/film.js` 提供按句跳帧（`:298` `jump`）、点选目标暂停并展示、描述当前帧（`:450` `describeFrame`）、查字/词并框出（`:341` 2-gram+拉丁词索引 → `:441` 跳转高亮）；`python tests/test_film.py` = **9 passed**，13 段实测 |
 | A14 | 触控独立语义对象级 | "区分人物/动物/物品"；"点击目标 → 视频立即暂停 → 展示该目标介绍"；"所有可见且可识别的帧都要能点" | Q28、Q35；Q13 | **部分**：`spots` 已进成片时间轴（cn01 **34 个**、en01 **45 个**），`film.js` 点选即 `video.pause()` 并展示介绍；cn01 实测搜索「找到搭了九块积木的画面」跳到第 12 页并框出积木城堡。**缺**："所有可见帧可点"的抽帧验收，且未消费 PDF 标注（本地 6 本 PDF `Annots=0`，见 5.7） |
 | A15 | 中英双语 + 跨语言问答 | "测中文和英文；新绘本语种现场决定；会测跨语言问答" | Q41 | **部分**：`books/en01` 全书跑通（英文 OCR 110 行、29 段、45 spots、150.38 s 成片），中文 cn01 同链路跑通；`book2real/qa.py` 的意图词/分句仍是中文规则，**跨语言问答未验** |
 | A16 | 现场新绘本实时生成 | "实时生成、现场提问、无需准备"；"现场给一本全新绘本 PDF" | Q21、Q32 | **部分**：`import-pdf → analyze → film` 单机可跑、无需 GPU，两本官方 PDF 已实测；**未做"进场→出片"计时演练** |
-| A17 | 提交 4 份材料 | "项目说明书.pdf／项目源代码.zip／绘本名称+非交互视频.mp4／绘本名称+交互演示视频.mp4" | Q20；PDF 第4–5页 5.a–5.d | `scripts/package_submission.py` 实测 `--dry-run` = **6 通过 0 失败**：2 份非交互视频就绪、源码包 292 文件/32.6 MB；**缺** 2 份交互录屏 + 1 份 `项目说明书.pdf`（脚本如实报缺，不拿别的 PDF 冒充） |
+| A17 | 提交 4 份材料 | "项目说明书.pdf／项目源代码.zip／绘本名称+非交互视频.mp4／绘本名称+交互演示视频.mp4" | Q20；PDF 第4–5页 5.a–5.d | `scripts/package_submission.py` 实测 `--dry-run` = **8 通过 0 失败**：2 份非交互视频 + 2 份交互录屏就绪、源码包 316 文件/33.8 MB；**仅缺** 1 份 `项目说明书.pdf`（脚本如实报缺，不拿别的 PDF 冒充） |
 | A18 | 打包命名 `学校-院系-姓名.zip` | "整体打成一个文件夹压缩，命名 学校-院系-姓名.zip" | Q20 | `python scripts/package_submission.py --name "学校-院系-姓名" --out dist`（`--dry-run` 不落盘）；`python tests/test_package.py` = **7 passed** |
-| A19 | 提交 2 本（1 中 1 英） | "提交 2 本（1 中 1 英）" | Q2 | **部分**：`books/cn01`（中文《一起搭积木吧》）、`books/en01`（英文《Going to the Cinema》）两本非交互成片齐；交互演示片缺 → 材料面仍未齐 |
+| A19 | 提交 2 本（1 中 1 英） | "提交 2 本（1 中 1 英）" | Q2 | **已有**：6 本官方样书全部导入（cn01–03 / en01–03），提交用的 `cn01`（《一起搭积木吧》）与 `en01`（《Going to the Cinema》）非交互成片 + 交互录屏齐备 |
 | A20 | 隐藏测试集同分布 | "与公开集同分布，为 6 本之外同级别两本" | Q12 | **部分**：`import-pdf` 对任意 PDF 通用，但 6 本只导入 2 本，无跨书泛化记录 |
 | A21 | 多 Agent 可编排可复用 | "构建可编排、可复用的多 Agent 协同链路"；框架不指定 | PDF 第4页 (4)；Q25 | **已有**：`book2real/cast/`（PageScout→CastClerk→Rigger→MotionDirector→Critic）+ `python -m book2real agent`；另有 `story`/`visuals`/`clip` 三个云端 agent 入口 |
 | A22 | 官方模型三件套 | "企业主体赛提供 DeepSeek-V4.1 Flash、豆包文生图基础版、Seedance 文生视频基础版" | Q16；Q42 | **已接未验**：`book2real/cloud.py`（DeepSeek=`deepseek-chat`、Seedream=`doubao-seedream-3-0-t2i-250415`、Seedance=`doubao-seedance-1-0-lite-t2v-250428`），命令 `cloud --check/--llm/--image/--video`，预算护栏 `CLOUD_MAX_SPEND_CNY` + 流水 `runs/cloud/ledger.jsonl`；**`.env` 里 key 为空，真实调用未验证** |
-| A23 | 内容安全人工复核 + 责任人 | "生成式 AI 输出应进行人工复核并标注不确定性"；"未指定内容安全复核责任人或审核机制缺失…扣分" | PDF 第6页、第8页 八；Q30 | 见 `docs/COMPLIANCE.md` §4（**责任人仍为 `____` 占位**） |
+| A23 | 内容安全人工复核 + 责任人 | "生成式 AI 输出应进行人工复核并标注不确定性"；"未指定内容安全复核责任人或审核机制缺失…扣分" | PDF 第6页、第8页 八；Q30 | 年龄适配已落：6 本 `book.json` 增加 `age_range="4-8"`、`ai_generated=true`，视频页与阅读页均显示“AI 生成 · 适龄 4–8 岁”；**责任人仍为 `____` 占位**，见 `docs/COMPLIANCE.md` §4 |
 | A24 | 年龄适配标注 | "儿童内容审核机制与复核责任人落实；年龄适配标注完整" | PDF 第5页 6 量化评分表"规范合规"行 | **无**任何分龄标注字段或产物 |
 
 > 口径提醒：PDF 第4页只写"交互延迟达到基础门槛（具体数值以定稿为准）"，**2 s 只来自答疑 Q9/Q34**；引用时写"Q9/Q34 口径"，勿说成 PDF 原文。
@@ -72,7 +72,7 @@
 | 每本 50 条 Query 音频 | **部分** | 实收 223 条（37/37/38/37/37/37），缺 77 条，无 50 条/本台账 |
 | ASR→问答正确率评测（≥0.60） | **欠缺** | 无 ASR 批量转写、无 gold、无 0.60 实现；`scripts/eval_metrics.py` 仍 5 个 metric |
 | 两本非交互成片 | **已有** | `runs/cn01/reader_film/20261116-160542/film.mp4` 114.79 s、`runs/en01/reader_film/20261116-161136/film.mp4` 150.38 s；同目录 `manifest.json` + `timeline.json` |
-| 交互演示录屏 ≤5 min | **欠缺** | `runs/cn01 与 runs/en01/` 下无交互 mp4；打包器明确报"缺失：需要录制交互演示" |
+| 交互演示录屏 ≤5 min | **已有** | `runs/<id>/interactive/交互演示录屏.mp4`：cn01 30.68 s、en01 22.92 s，真实操作录屏 |
 | 规格 720P / 24 fps / 时长 | **已有** | 两片 ffprobe：`1280×720`、`24/1`、h264+aac、114.79 s / 150.38 s（均在 100–180 s） |
 | 一次生成不二次编辑 | **部分** | `film` 为单趟逐帧编码 + 仅 mux 音轨；旧 `run` 管线的逐页 concat 仍可调用，**无门禁禁止** → 交付前必须固定 `film` |
 | 视频内检索四能力 | **已有** | `/film`、`/api/film/<id>`（回填 `source_w/h`）、`/api/film/<id>/video`（Range 206）；`web/film.js` 四能力；`tests/test_film.py` 9 passed；cn01 13 段实测 |
@@ -107,7 +107,8 @@
 - [ ] 50 条 Query 正确率表：ASR 转写 + 逐条判定，给 ≥0.60 的实测（Q11）
 - [ ] 双语/跨语言：en01 问答 + 1 组跨语言问答截图
 - [ ] 云端：`python -m book2real cloud --check` 显示三个 key 就绪与剩余预算（`CLOUD_MAX_SPEND_CNY`）；真实调用一次 `--llm/--image/--video` 并留 `runs/cloud/ledger.jsonl`
-- [ ] 交互演示录屏 ≤5 min：按官方 TXT 的【必选】动作顺序录制，放到 `runs/cn01/interactive.mp4`、`runs/en01/interactive.mp4`
+- [x] 交互演示录屏 ≤5 min：`runs/cn01/interactive/交互演示录屏.mp4`、`runs/en01/interactive/交互演示录屏.mp4`（打包器实测能发现）
+- [ ] 项目说明书.pdf：按官方模板填完并导出
 - [ ] 指标重跑：`python scripts/eval_metrics.py` 后核对 `docs/METRICS.md` 无"未测"占位
 - [ ] 合规落位：`docs/COMPLIANCE.md` §4 责任人、§5 自检全勾、产物带分龄标注
 - [ ] 打包预演：`python scripts/package_submission.py --name "学校-院系-姓名" --out dist --dry-run` → 末行 `结果：N 通过，M 失败`，缺失项 0；再去掉 `--dry-run` 出 `dist/<学校-院系-姓名>.zip`
