@@ -95,12 +95,6 @@ async function openBook(id) {
       state.entities = j;
       if (state.book) render();
     }).catch(() => {});
-  state.layerIndex = {};
-  fetch(`/books/${encodeURIComponent(id)}/reader/layers/index.json`)
-    .then(r => r.ok ? r.json() : null).then(j => {
-      state.layerIndex = (j && j.pages) || {};
-      if (state.book) renderArt(state.book.pages[state.index]);
-    }).catch(() => {});
   localStorage.setItem("b2r.book", id);
   const theme = data.theme || {};
   for (const [k, v] of Object.entries(theme)) document.documentElement.style.setProperty(`--${k}`, v);
@@ -215,7 +209,6 @@ function resolveSpots(page) {
 }
 
 function renderArt(page) {
-  stopLayerIdle();
   const layers = $("#artLayers");
   if (state._animId) { cancelAnimationFrame(state._animId); state._animId = null; }
   layers.innerHTML = "";
@@ -229,10 +222,6 @@ function renderArt(page) {
       <div class="art-img art-fg" style="background-image:url('${base}${esc(page.art_fg)}')"></div>`;
   } else {
     layers.innerHTML = `<div class="art-img art-one" style="background-image:url('${base}${esc(page.art)}')"></div>`;
-      const lay = state.layerIndex && state.layerIndex[page.id];
-    // a page whose character cut fell back to a rectangle keeps its original art:
-    // a rectangle leaves a soft band around the figure, a flat page never does
-    if (lay && !lay.flat) attachLayers(lay, base);
   }
   const seed = state.index * 37 + 11;
   const motes = Array.from({ length: 9 }, (_, i) => {
@@ -268,7 +257,6 @@ function renderArt(page) {
     btn.onclick = (e) => { e.stopPropagation(); showSpot(s); if (s.cid) openStage(castList().find(c => c.id === s.cid)); };
     spots.appendChild(btn);
   });
-  if (state.layoutLayers) setTimeout(state.layoutLayers, 0);
   state.layoutSpots = () => {
     const stage = $("#artStage"); const r = stage.getBoundingClientRect();
     const ar = (page.art_w || 4) / (page.art_h || 3);
@@ -283,94 +271,6 @@ function renderArt(page) {
   };
   state.layoutSpots();
   $("#sceneChip").style.display = pageSpots.length ? "none" : "flex";
-
-  if (!stage._parallax) {
-    stage.addEventListener("mousemove", (e) => {
-      const r = stage.getBoundingClientRect();
-      const dx = (e.clientX - r.left) / r.width - 0.5;
-      const dy = (e.clientY - r.top) / r.height - 0.5;
-      const bg = $(".art-bg"), fg = $(".art-fg");
-      if (bg) bg.style.transform = `scale(1.07) translate(${dx * -10}px,${dy * -8}px)`;
-      if (fg) fg.style.transform = `scale(1.02) translate(${dx * -22}px,${dy * -16}px)`;
-      // depth layers: same gesture, amounts come from the depth map, not a constant
-      $$(".art-depth").forEach(el => {
-        const p = parseFloat(el.dataset.parallax || "0");
-        el.style.transform = `scale(${el.dataset.zoom || 1}) translate(${dx * -p * 100}px,${dy * -p * 60}px)`;
-      });
-    });
-    stage.addEventListener("mouseleave", () => {
-      const bg = $(".art-bg"), fg = $(".art-fg");
-      if (bg) bg.style.transform = "";
-      if (fg) fg.style.transform = "";
-      $$(".art-depth").forEach(el => { el.style.transform = `scale(${el.dataset.zoom || 1})`; });
-    });
-    stage._parallax = true;
-  }
-}
-
-/* The near layer of a page is the characters. Give it a small, slow idle motion
-   so the story page itself breathes instead of being a still: a 2-3 px lateral
-   sway plus a tiny scale, both well under the parallax amount so it reads as
-   "alive" and never as "the picture is shaking". */
-
-/* Replace the flat page with depth layers. Amounts were baked at build time
-   (depth map + figure mask), so this is pure CSS transforms: no per-frame JS. */
-function attachLayers(lay, base) {
-  const layers = $("#artLayers");
-  if (!lay || !lay.layers || !lay.layers.length) return;
-  // A page with a baked loop (cut parts swinging about a pivot) plays that loop:
-  // the characters on the page itself move, not just the camera.
-  if (lay.motion_gif) {
-    layers.innerHTML = `<img class="art-loop" alt=""
-      style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain"
-      src="${base}${esc(lay.motion_gif)}">`;
-    state.layerInfo = lay;
-    return;
-  }
-  // The flat page is drawn "contain" inside the stage (letterboxed). Layer boxes
-  // must use the same fitted rectangle, otherwise the near layer is redrawn at a
-  // different scale and the page looks ghosted.
-  layers.innerHTML = lay.layers.map(l => `
-    <div class="art-img art-depth" data-parallax="${l.parallax || 0}" data-zoom="${l.zoom || 1}"
-         style="inset:auto;background-image:url('${base}${esc(l.image)}');z-index:${l.z};
-                transform:scale(${l.zoom || 1})"></div>`).join("");
-  const stage = $("#artStage");
-  const place = () => {
-    const r = stage.getBoundingClientRect();
-    const ar = (lay.art_w || 4) / (lay.art_h || 3);
-    let w = r.width, h = w / ar;
-    if (h > r.height) { h = r.height; w = h * ar; }
-    const left = (r.width - w) / 2, top = (r.height - h) / 2;
-    $$(".art-depth", layers).forEach(el => {
-      Object.assign(el.style, { left: left + "px", top: top + "px", width: w + "px", height: h + "px" });
-    });
-  };
-  state.layoutLayers = place;
-  place();
-  state.layerInfo = lay;
-  startLayerIdle();
-}
-
-let layerIdleAnims = [];
-function stopLayerIdle() {
-  layerIdleAnims.forEach(a => { try { a.cancel(); } catch (_) {} });
-  layerIdleAnims = [];
-}
-function startLayerIdle() {
-  stopLayerIdle();
-  const near = $$(".art-depth").filter(el => Number(el.dataset.z || 0) > 0);
-  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduce) return;
-  near.forEach(el => {
-    const zoom = Number(el.dataset.zoom || 1);
-    try {
-      layerIdleAnims.push(el.animate(
-        [{ transform: `scale(${zoom}) translate(-1.6px, 0.8px)` },
-         { transform: `scale(${zoom * 1.008}) translate(1.6px, -1.2px)` },
-         { transform: `scale(${zoom}) translate(-1.6px, 0.8px)` }],
-        { duration: 7200, iterations: Infinity, easing: "ease-in-out" }));
-    } catch (_) {}
-  });
 }
 
 /* ------------------------------------------------------------- 2.5D rig
