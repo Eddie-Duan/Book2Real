@@ -53,6 +53,9 @@ ASR_CULTURES = {"zh": "zh-CN", "en": "en-US"}
 DEFAULT_ASR_TIMEOUT = 30.0
 # faster-whisper (preferred): wheels live in .deps, models in .cache/whisper/<size>
 WHISPER_DEFAULT_SIZE = "small"
+# words the app itself expects to hear: navigation verbs and UI nouns
+ASR_COMMANDS = ("找到", "查找", "高亮", "播放", "暂停", "继续", "画面", "文字", "单词")
+HOTWORD_MAX_TERMS = 150
 _WHISPER_STATE: dict = {}
 LABEL_JSON_MAX = 4 * 1024 * 1024
 
@@ -207,9 +210,18 @@ def _levenshtein(a: list[str], b: list[str]) -> int:
 
 
 def cer(reference: str, hypothesis: str, language: str = "zh") -> float | None:
-    """Character (zh) / word (en) error rate; ``None`` for an empty reference."""
-    ref = _norm_words(reference) if language == "en" else _norm_zh(reference)
-    hyp = _norm_words(hypothesis) if language == "en" else _norm_zh(hypothesis)
+    """Character (zh) / word (en) error rate; ``None`` for an empty reference.
+
+    The official English scripts are Chinese instructions with English words
+    embedded (``查找文字save``), so the tokenisation follows the *line*, not the
+    book: a line containing CJK is scored per character. Otherwise whisper's
+    comma insertion after a hotword ("查找, 文字, Save") would count as three
+    extra words.
+    """
+    per_char = language != "en" or any("\u4e00" <= ch <= "\u9fff" for ch in reference or "")
+    norm = _norm_zh if per_char else _norm_words
+    ref = norm(reference)
+    hyp = norm(hypothesis)
     if not ref:
         return None
     return round(_levenshtein(ref, hyp) / len(ref), 4)
@@ -549,6 +561,33 @@ def _to_simplified(text: str) -> str:
     return conv.convert(text) if conv is not None else text
 
 
+def build_hotwords(pages: list[dict]) -> str:
+    """Vocabulary the book itself uses, for whisper's ``hotwords`` bias.
+
+    Proper nouns are where ASR actually loses retrieval hits in practice
+    (``KARATE`` heard as ``Carrot``, ``城堡`` as ``重保``), so bias with the
+    reader package's spot names and word list plus the app's command words.
+    Multi-character Chinese terms also contribute their 2-char pairs.
+    """
+    terms: set[str] = set()
+    for page in pages or []:
+        for spot in page.get("spots") or []:
+            name = str((spot or {}).get("name") or "").strip()
+            if name:
+                terms.add(name)
+        for word in page.get("words") or []:
+            text = word.get("word") if isinstance(word, dict) else word
+            if isinstance(text, str) and text.strip():
+                terms.add(text.strip())
+    variants = set(terms) | set(ASR_COMMANDS)
+    for term in terms:
+        if 3 <= len(term) <= 8 and all("\u4e00" <= ch <= "\u9fff" for ch in term):
+            for i in range(len(term) - 1):
+                variants.add(term[i:i + 2])
+    picked = [v for v in sorted(variants) if 1 < len(v) <= 24]
+    return ", ".join(picked[:HOTWORD_MAX_TERMS])
+
+
 def _whisper_recognize(path: Path, culture: str) -> tuple[str, str]:
     model, reason = _load_whisper()
     if model is None:
@@ -557,9 +596,10 @@ def _whisper_recognize(path: Path, culture: str) -> tuple[str, str]:
         audio = _read_wav_16k(path)
     except Exception:  # noqa: BLE001
         return "", "asr_error"
+    hotwords = _WHISPER_STATE.get("hotwords") or None
     try:
         # let whisper detect the language: the official scripts mix zh and en
-        segments, info = model.transcribe(audio, beam_size=5)
+        segments, info = model.transcribe(audio, beam_size=5, hotwords=hotwords)
         text = "".join(s.text for s in segments).strip()
     except Exception:  # noqa: BLE001
         return "", "asr_error"
@@ -686,6 +726,7 @@ def evaluate(book: str, audio: str, script: str | None = None,
 
     available = None
     if asr != "none":
+        _WHISPER_STATE["hotwords"] = build_hotwords(pages)
         available = recognizer_available(culture)
 
     items: list[dict] = []

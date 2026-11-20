@@ -52,20 +52,40 @@ python -m book2real evaluate `
   `B2R_WHISPER_COMPUTE`（默认 `int8`）、`B2R_ASR_ENGINE`（`auto|whisper|sapi`）。
 - **每个 wav 单独做语种检测**，不传死 `language`：官方脚本中英混排
   （`What happened?` 这类英文句），强行指定中文会被 whisper 译成中文，CER 直接记 1.0。
+- **用书内词表做 hotwords**：`build_hotwords()` 取 `reader/book.json` 的
+  `spots[].name` + `words[]`，加应用自己的指令词（找到/查找/高亮/播放/暂停/继续/
+  画面/文字/单词），中文长词再拆 2 字组。专项名词（`KARATE`→`Carrot`、`城堡`→`重保`）
+  全靠这一层救回来。
 - 中文结果过 opencc `t2s` 归一为简体，避免繁体字（`為什麼會晃`）抬高 CER。
 - 音频用标准库 `wave` + numpy 解码，不需要 ffmpeg。
 
-本机实测（cn01，36 条 Query，27 条有官方音频；CPU int8）：
+本机实测（CPU int8、`small`、hotwords 开启）：
 
-| 后端 | 识别成功 | CER 均值 | CER p95 | 检索 accuracy | 每条 wall p50 |
+| 书 | 识别 | CER 均值 | CER p95 | 检索 accuracy | 关掉 ASR 的 accuracy |
 |---|---|---|---|---|---|
-| whisper `small` | 27/27 | **5.95%** | 24% | 85.7% | 6.4 s |
-| whisper `medium` | 27/27 | **3.21%** | 23% | 85.7% | 18.3 s |
-| Windows SAPI | 0 | — | — | — | — |
+| `cn01` | 27/27 | 2.90% | 0.23 | **85.7%** | 85.7% |
+| `en01` | 31/31 | 2.15% | 0.00 | **54.5%** | 54.5% |
+| `en02` | 33/33 | 3.60% | 0.20 | 无标注 | — |
+| `en03` | 31/31 | 3.00% | 0.21 | 无标注 | — |
 
-`small` 的残余错误集中在同音字（`城堡` → `重保` / `重堡`、`查找` → `茶找`）；
-`medium` 只剩 `她/他` 一类性别代词混淆，“她想和谁玩” 已能完整识别。
-默认用 `small`（快 3 倍），要更准就 `$env:B2R_WHISPER_MODEL="medium"`。
+两条关键结论：
+
+1. **ASR 已经不是瓶颈**：开 ASR 与关 ASR 的检索 accuracy 完全相同（两本有标注的书
+   都一分不差），说明识别没有吃掉任何命中。这是 hotwords 换来的——只上 whisper
+   不加 hotwords 时 `en01` 只有 36.4%（`KARATE` 被听成 `Carrot`/`Carrotty`，
+   两条精确文字检索直接作废）。
+2. **英文书的瓶颈在检索，不在语音**：`en01` 的 5 条失败里 3 条是泛问句
+   （`What is this?` / `What sport is it?` / `What do they discuss?`），
+   关键词检索没有任何锚点，score 直接 0.0 判 `no_match`；另 2 条是翻错页
+   （`Is Dad awake?` 命中 p07，标注是 p28）。这类问题需要走 QA/语义匹配，
+   而不是靠 IDF 词面覆盖。
+
+### CER 的分词规则（踩过的坑）
+
+CER 按**行**分词，不按书的语言：一行里出现汉字就按字符算，纯英文行才按单词算。
+原因是英文书脚本长这样——`查找文字save`，而 whisper 匹配到 hotword 后会插逗号：
+`查找, 文字, Save`。按单词算就是 3 个词对 1 个词，CER 直接 2.0～3.0；
+按字算两个串的字符序列完全一致，CER 0.0。改这一条把 `en02` 的均值从 60.6% 拉回 3.6%。
 
 ### Windows SAPI（后备，本机不可用）
 
