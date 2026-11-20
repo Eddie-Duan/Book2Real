@@ -537,7 +537,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--audio", required=True, help="official per-book audio directory")
     sp.add_argument("--script", help="recording script override (default: official by id)")
     sp.add_argument("--limit", type=int, help="evaluate only the first N queries")
-    sp.add_argument("--asr", choices=("auto", "none"), default="auto")
+    sp.add_argument("--asr", choices=("auto", "none", "whisper", "sapi"), default="auto",
+                    help="whisper = 本地 faster-whisper（默认优先）；sapi = Windows 识别器")
     sp.add_argument("--labels", help="JSON {n: page_id} to compute top-1 accuracy")
     sp.add_argument("--json", help="write a copy of the report JSON here")
     sp.set_defaults(func=cmd_evaluate)

@@ -40,3 +40,10 @@ backend/.env
 *.sqlite3
 *.log
 pip-cache/
+
+# local ML wheels + whisper models (downloaded, never committed)
+.deps/
+.cache/
+.piptmp/
+.tmp/
+

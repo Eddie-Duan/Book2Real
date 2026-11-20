@@ -10,7 +10,7 @@
 python -m book2real evaluate `
   --book books/cn01 `
   --audio "纸书智伴企业预选赛绘本素材/绘本素材/中文绘本01" `
-  [--limit 5] [--asr auto|none] [--script <录制脚本>] [--labels labels.json] [--json out.json]
+  [--limit 5] [--asr auto|whisper|sapi|none] [--script <录制脚本>] [--labels labels.json] [--json out.json]
 ```
 
 产物固定写到 `runs/<book_id>/eval/`：
@@ -35,22 +35,58 @@ python -m book2real evaluate `
   不算 Query，只在 `metrics.transport_skipped` 里计数。
 - `--limit N` 只截断 Query 条数（按脚本编号顺序取前 N 条），不改变 transport 统计。
 
-## ASR（可选后端）
+## ASR（三个后端，可切换）
 
-`--asr auto` 时通过 PowerShell 调本机 `System.Speech.Recognition`：
+`--asr` 取值：`auto`（默认）= faster-whisper 优先、装不上才退 SAPI；
+`whisper` / `sapi` 强制指定；`none` 完全不启动 ASR。
 
-- 识别器 culture：中文 `zh-CN`，英文 `en-US`（本机只有 `zh-CN`，ID 为
-  `MS-2052-80-DESK`）。
+### faster-whisper（推荐，实测可用）
+
+- 依赖装在仓库根 `.deps/`（`faster_whisper` / `ctranslate2` / `av` /
+  `opencc-python-reimplemented`），`evaluate` 会自动把该目录加进 `sys.path`，
+  不污染系统 Python。正常机器上直接 `pip install faster-whisper` 也行。
+- 模型放在 `.cache/whisper/<size>/`（`model.bin` + `config.json` + `tokenizer.json`
+  + `vocabulary.txt`，从 `hf-mirror.com` 拉取，不依赖 huggingface_hub）。
+- 环境变量：`B2R_WHISPER_MODEL`（`small` / `medium` / 绝对路径，默认 `small`）、
+  `B2R_WHISPER_DEPS`、`B2R_WHISPER_DEVICE`（默认 `cpu`）、
+  `B2R_WHISPER_COMPUTE`（默认 `int8`）、`B2R_ASR_ENGINE`（`auto|whisper|sapi`）。
+- **每个 wav 单独做语种检测**，不传死 `language`：官方脚本中英混排
+  （`What happened?` 这类英文句），强行指定中文会被 whisper 译成中文，CER 直接记 1.0。
+- 中文结果过 opencc `t2s` 归一为简体，避免繁体字（`為什麼會晃`）抬高 CER。
+- 音频用标准库 `wave` + numpy 解码，不需要 ffmpeg。
+
+本机实测（cn01，36 条 Query，27 条有官方音频；CPU int8）：
+
+| 后端 | 识别成功 | CER 均值 | CER p95 | 检索 accuracy | 每条 wall p50 |
+|---|---|---|---|---|---|
+| whisper `small` | 27/27 | **5.95%** | 24% | 85.7% | 6.4 s |
+| whisper `medium` | 27/27 | **3.21%** | 23% | 85.7% | 18.3 s |
+| Windows SAPI | 0 | — | — | — | — |
+
+`small` 的残余错误集中在同音字（`城堡` → `重保` / `重堡`、`查找` → `茶找`）；
+`medium` 只剩 `她/他` 一类性别代词混淆，“她想和谁玩” 已能完整识别。
+默认用 `small`（快 3 倍），要更准就 `$env:B2R_WHISPER_MODEL="medium"`。
+
+### Windows SAPI（后备，本机不可用）
+
+`--asr sapi` 时通过 PowerShell 调 `System.Speech.Recognition`：
+
+- 识别器 culture：中文 `zh-CN`，英文 `en-US`。
 - 每个 wav 单独一个子进程，默认超时 30 s（`B2R_ASR_TIMEOUT` 可覆盖）。
 - 缺识别器 → `asr_unavailable`；空结果 → `asr_empty`；超时 → `asr_timeout`；
-  子进程失败 → `asr_error`。**这些情况逐条降级为 `skipped`，整轮继续跑**，
-  英文书在本机因此整体标 `asr_unavailable`。
+  子进程失败 → `asr_error`。**这些情况逐条降级为 `skipped`，整轮继续跑**。
+- 本机实测：`InstalledRecognizers()` 能列出 `MS-2052-80-DESK (zh-CN)`，但构造
+  `SpeechRecognitionEngine` 抛 `No recognizer of the required ID found.`
+  （按 culture 构造、按 Id 构造、32 位与 64 位 PowerShell 全失败），
+  英文 `en-US` 根本没装。**所以 SAPI 在本机永远是 0 条可识别**，
+  它只作为没有 `.deps` 时的兜底路径保留。
+
 - `--asr none` 不启动任何子进程，直接用脚本文字当查询；此时 `transcript`、
   `cer` 都是 `null`，`metrics.asr.attempted = 0`。
 
 CER 只在识别成功的条目上计算：中文按字符、英文按单词（Levenshtein / 参考长度）；
-转写为空或参考为空时记 `null`。音频质量差、同音字（“高亮”→“高粱”）会推高 CER，
-这只代表 SAPI 的下限，不代表产品链路的上限。
+转写为空或参考为空时记 `null`。9 条 `skipped` 全部是 `no_audio`——官方素材里
+标【必选】的那 13 行没有 wav（`01–05`、`16–18`、`30`、`34`、`38`、`39`、`50`）。
 
 ## 检索
 

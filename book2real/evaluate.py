@@ -34,6 +34,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from contextlib import contextmanager
@@ -50,6 +51,9 @@ EVAL_KINDS = ("ask", "find", "highlight", "click")
 NO_MATCH_EPS = 0.02
 ASR_CULTURES = {"zh": "zh-CN", "en": "en-US"}
 DEFAULT_ASR_TIMEOUT = 30.0
+# faster-whisper (preferred): wheels live in .deps, models in .cache/whisper/<size>
+WHISPER_DEFAULT_SIZE = "small"
+_WHISPER_STATE: dict = {}
 LABEL_JSON_MAX = 4 * 1024 * 1024
 
 _FALLBACKS = {None, "no_llm_key", "llm_error", "no_evidence", "qa_unavailable"}
@@ -450,7 +454,7 @@ def _run_ps(args: list[str], timeout: float) -> tuple[str, str]:
     return out, ""
 
 
-def recognizer_available(culture: str) -> bool:
+def _sapi_available(culture: str) -> bool:
     if culture not in _CULTURE_CACHE:
         out, reason = _run_ps(["-Culture", culture, "-Probe"], 20.0)
         ok = reason == "" and any(
@@ -459,10 +463,133 @@ def recognizer_available(culture: str) -> bool:
     return _CULTURE_CACHE[culture]
 
 
+def _sapi_recognize(path: Path, culture: str,
+                    timeout: float = DEFAULT_ASR_TIMEOUT) -> tuple[str, str]:
+    """-> (transcript, reason).  reason is "" on success, else a skip reason."""
+    return _run_ps(["-Path", str(path), "-Culture", culture], timeout)
+
+
+# --------------------------------------------------------------------------- #
+# faster-whisper ASR (preferred; the Windows SAPI recognizer is a weak fallback)
+# --------------------------------------------------------------------------- #
+def _asr_engine() -> str:
+    """``whisper`` | ``sapi`` | ``auto`` (whisper first, SAPI when it is missing)."""
+    return (os.environ.get("B2R_ASR_ENGINE") or "auto").strip().lower()
+
+
+def _whisper_deps() -> Path:
+    raw = (os.environ.get("B2R_WHISPER_DEPS") or "").strip()
+    return Path(raw).resolve() if raw else (ROOT / ".deps").resolve()
+
+
+def _whisper_model_dir() -> Path:
+    raw = (os.environ.get("B2R_WHISPER_MODEL") or "").strip()
+    if raw and Path(raw).is_dir():
+        return Path(raw).resolve()
+    return (ROOT / ".cache" / "whisper" / (raw or WHISPER_DEFAULT_SIZE)).resolve()
+
+
+def _load_whisper():
+    """Lazy singleton -> (model, reason).  reason != "" means unavailable."""
+    if "model" in _WHISPER_STATE:
+        return _WHISPER_STATE["model"], _WHISPER_STATE["reason"]
+    model, reason = None, ""
+    deps = _whisper_deps()
+    try:
+        if deps.is_dir() and str(deps) not in sys.path:
+            sys.path.insert(0, str(deps))
+        from faster_whisper import WhisperModel  # noqa: PLC0415
+
+        mdir = _whisper_model_dir()
+        if not (mdir / "model.bin").is_file():
+            reason = "asr_unavailable"
+        else:
+            model = WhisperModel(
+                str(mdir),
+                device=(os.environ.get("B2R_WHISPER_DEVICE") or "cpu"),
+                compute_type=(os.environ.get("B2R_WHISPER_COMPUTE") or "int8"),
+            )
+    except Exception:  # noqa: BLE001  (missing wheels / broken model dir)
+        model, reason = None, "asr_unavailable"
+    _WHISPER_STATE.update(model=model, reason=reason)
+    return model, reason
+
+
+def _read_wav_16k(path: Path):
+    """Mono float32 @16k; decoded with the stdlib so no ffmpeg/av is needed."""
+    import wave  # noqa: PLC0415
+
+    import numpy as np  # noqa: PLC0415
+
+    with wave.open(str(path), "rb") as w:
+        channels, rate, width = w.getnchannels(), w.getframerate(), w.getsampwidth()
+        raw = w.readframes(w.getnframes())
+    if width != 2:
+        raise ValueError(f"sample width {width} not supported")
+    pcm = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    if channels > 1:
+        pcm = pcm.reshape(-1, channels).mean(axis=1).astype(np.float32)
+    if rate != 16000:
+        n = int(round(len(pcm) * 16000 / rate))
+        pcm = np.interp(np.linspace(0, len(pcm) - 1, n), np.arange(len(pcm)),
+                        pcm).astype(np.float32)
+    return pcm
+
+
+def _to_simplified(text: str) -> str:
+    """Whisper sometimes emits traditional characters; normalise when opencc is around."""
+    if "t2s" not in _WHISPER_STATE:
+        try:
+            import opencc  # noqa: PLC0415
+
+            _WHISPER_STATE["t2s"] = opencc.OpenCC("t2s")
+        except Exception:  # noqa: BLE001
+            _WHISPER_STATE["t2s"] = None
+    conv = _WHISPER_STATE["t2s"]
+    return conv.convert(text) if conv is not None else text
+
+
+def _whisper_recognize(path: Path, culture: str) -> tuple[str, str]:
+    model, reason = _load_whisper()
+    if model is None:
+        return "", reason or "asr_unavailable"
+    try:
+        audio = _read_wav_16k(path)
+    except Exception:  # noqa: BLE001
+        return "", "asr_error"
+    try:
+        # let whisper detect the language: the official scripts mix zh and en
+        segments, info = model.transcribe(audio, beam_size=5)
+        text = "".join(s.text for s in segments).strip()
+    except Exception:  # noqa: BLE001
+        return "", "asr_error"
+    if (getattr(info, "language", "") or "").lower() == "zh":
+        text = _to_simplified(text)
+    return (text, "") if text else ("", "asr_empty")
+
+
+def recognizer_available(culture: str) -> bool:
+    engine = _asr_engine()
+    if engine in ("whisper", "auto"):
+        model, _reason = _load_whisper()
+        if model is not None:
+            return True
+        if engine == "whisper":
+            return False
+    return _sapi_available(culture)
+
+
 def recognize_wav(path: Path, culture: str,
                   timeout: float = DEFAULT_ASR_TIMEOUT) -> tuple[str, str]:
     """-> (transcript, reason).  reason is "" on success, else a skip reason."""
-    return _run_ps(["-Path", str(path), "-Culture", culture], timeout)
+    engine = _asr_engine()
+    if engine in ("whisper", "auto"):
+        model, _reason = _load_whisper()
+        if model is not None:
+            return _whisper_recognize(path, culture)
+        if engine == "whisper":
+            return "", "asr_unavailable"
+    return _sapi_recognize(path, culture, timeout)
 
 
 # --------------------------------------------------------------------------- #
@@ -523,8 +650,10 @@ def evaluate(book: str, audio: str, script: str | None = None,
              limit: int | None = None, asr: str = "auto",
              labels: str | None = None) -> dict:
     """Run the whole evaluation and return the report dict (never raises per item)."""
-    if asr not in ("auto", "none"):
-        raise EvaluateError(f"--asr 只能是 auto 或 none：{asr!r}")
+    if asr not in ("auto", "none", "whisper", "sapi"):
+        raise EvaluateError(f"--asr 只能是 auto / none / whisper / sapi：{asr!r}")
+    if asr in ("whisper", "sapi"):
+        os.environ["B2R_ASR_ENGINE"] = asr
     if limit is not None and int(limit) <= 0:
         raise EvaluateError(f"--limit 必须是正整数：{limit}")
 
@@ -556,7 +685,7 @@ def evaluate(book: str, audio: str, script: str | None = None,
     transport = sum(1 for r in rows if r.get("kind") == "transport")
 
     available = None
-    if asr == "auto":
+    if asr != "none":
         available = recognizer_available(culture)
 
     items: list[dict] = []
@@ -693,7 +822,9 @@ def _report(book_id: str, book_dir: Path, script_path: Path, audio_dir: Path,
         "script": str(script_path),
         "asr": {
             "mode": asr,
-            "backend": "windows_sapi_system.speech" if asr == "auto" else "none",
+            "backend": ("none" if asr == "none" else
+                        "windows_sapi_system.speech" if _asr_engine() == "sapi"
+                        else "faster-whisper"),
             "culture": culture,
             "available": available,
             "timeout_s": float(os.environ.get("B2R_ASR_TIMEOUT") or DEFAULT_ASR_TIMEOUT),
@@ -786,9 +917,11 @@ def render_markdown(report: dict) -> str:
         "",
         "1. 脚本按数字编号与音频文件配对；只评测 `ask/find/highlight/click`，"
         "transport 行（播放/暂停/继续等）不计 Query，只统计跳过数。",
-        "2. ASR 可选：`auto` 走本机 Windows SAPI（PowerShell + `System.Speech`，"
-        "字典语法）；缺识别器/空结果/报错/超时逐条降级为 `skipped`，不中断；"
-        "`none` 时直接用脚本文字当查询，CER 记 null。",
+        "2. ASR 可选：`whisper` 用本地 faster-whisper（默认，wheels 在 `.deps/`，"
+        "模型在 `.cache/whisper/small`；`--asr whisper` 强制、`--asr sapi` 退回 "
+        "Windows SAPI，`auto` = whisper 优先、装不上才退 SAPI）。缺引擎/空结果/"
+        "报错/超时逐条降级为 `skipped`，不中断；`none` 时直接用脚本文字当查询，"
+        "CER 记 null。",
         "3. 检索只读 `reader/book.json` 的 `pages[].text/scene/spots[].name/desc`，"
         "中文 2-gram / 英文单词做 IDF 覆盖打分；命中的 spot 名至少 0.6。"
         "返回 top1 页、连续分和前 3 候选。",
