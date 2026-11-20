@@ -30,7 +30,7 @@
 [小句切分] 首块 ≥4 中文字/≥8 英文字母，遇标点立即发     │
    │                                                   │
    ▼                                                   │
-[TTS] 首块 SAPI 10–80ms / MiniMax 200–500ms / Cosy 2.5s │
+[TTS] 首块 SAPI 10–80ms / MiniMax 212–374ms / Cosy 2.5s │
    │                                                   │
    ▼                                                   │
 WebSocket 二进制 PCM16 ──> 前端 AudioContext 起播       │
@@ -45,11 +45,11 @@ WebSocket 二进制 PCM16 ──> 前端 AudioContext 起播       │
 | 阶段 | 本地实测 | 云端预估 | 备注 |
 | --- | --- | --- | --- |
 | VAD 尾音 | 500ms | 500ms | 不计入外部 2s 时钟；内部指标会回推最后说话帧 |
-| ASR | 450–700ms | 300–600ms | large-v3 热词；查询音频 1.9s |
+| ASR | 450–790ms（本地）/ 400–720ms（MiniMax） | 300–600ms | 查询音频约 1.9s；本地带热词 |
 | 意图/检索 | 0–5ms | 0–5ms | 纯内存 BM25；找画面/查字直接出动作 |
 | LLM 首 token | 0ms（提取式） | 200–400ms | DeepSeek-Flash / 官方模型 |
 | 首句累积 | 10–50ms | 30–100ms | 首块只等第一个标点/最短长度 |
-| TTS 首块 | 10–80ms（SAPI） | 200–500ms（MiniMax） | CosyVoice3 本机约 2.5s，仅音质备用 |
+| TTS 首块 | 10–80ms（SAPI）/ **212–374ms（MiniMax 实测）** | 200–500ms（MiniMax） | CosyVoice3 本机约 2.5s，仅音质备用 |
 | 网络/播放 | 20–80ms | 20–80ms | 同机/局域网 |
 | **合计** | **0.6–1.3s** | **1.0–1.7s** | 目标 2s |
 
@@ -65,6 +65,19 @@ WebSocket 二进制 PCM16 ──> 前端 AudioContext 起播       │
 批量（`tools/eval_queries.py`，本地 SAPI + Whisper）：**119 回合，2s 达标率 100%，p50 547.5ms，p90 985ms，p95 1150ms，最大 1267ms，填充音 0%**。6 本绘本各抽 5 条 Query 共 30/30 全部达标；中文/英文、找画面/查文字/播放控制/内容问答都覆盖。
 
 > 注：`/api/metrics/latency` 的 `first_audio_ms - speech_end_ms` 已经扣除 VAD 尾音，口径与赛题一致；`warmup=1` 的回合不参与统计。
+MiniMax 云端（TTS + ASR）实测：
+
+| Query | 首音 |
+| --- | --- |
+| 纯文本问句（只走 TTS） | **310ms** |
+| `高亮“积木城堡”` | 1428ms |
+| `找到花花独处的画面` | 1286ms |
+| `Where is Xiao Man?` | 1364ms |
+| `What is the dog carrying?` | 813ms |
+| CN01 前 5 条 | p50 767ms / p95 902ms，5/5 |
+| EN01 前 5 条 | p50 864ms / p95 879ms，5/5 |
+
+
 
 ---
 
@@ -88,7 +101,7 @@ WebSocket 二进制 PCM16 ──> 前端 AudioContext 起播       │
 
 ### 3.3 填充音兜底（关键保险）
 
-`FILLER_DEADLINE_MS=1400`：从**真实说完**起算，1400ms 内还没有任何真音频，就先播预合成的自然垫音：
+`FILLER_DEADLINE_MS=1700`：从**真实说完**起算，1700ms 内还没有任何真音频，就先播预合成的自然垫音：
 
 - 中文：“嗯，我看看。”
 - 英文：“Hmm, let me see.”
@@ -136,7 +149,7 @@ Authorization: Bearer <key>
 
 响应逐行 `data: {"data":{"audio":"<hex pcm>","status":1}}`，客户端 hex 解码后立即通过 WebSocket 转发；`status=2` 结束。首块通常 200–500ms（以实际账号/地域为准）。
 
-ASR：MiniMax 公开文档以 TTS 为主，未确认 ASR 接口；当前用本地 Whisper。若官方提供 ASR，按 `ASRProvider.transcribe()` 新增一个 provider 即可，管线不动。
+ASR：官方 `POST /v1/speech_to_text`（`asr-1.0`）已实测可用，0.40–0.72s；`ASR_PROVIDER=minimax` 即可切云端，`ASR_PROVIDER=local` 保留本地 large-v3 + 热词兜底（专有名词更稳）。详细参数/音色控制见 [MINIMAX.md](MINIMAX.md)。
 
 LLM：`LLM_PROVIDER=openai` + `LLM_BASE_URL/LLM_API_KEY/LLM_MODEL`，兼容 DeepSeek/官方 OpenAI 协议；流式首 token 200–400ms。
 
@@ -176,7 +189,7 @@ python tools/eval_queries.py --book cn01 --base http://127.0.0.1:8790 --out data
 | --- | --- | --- |
 | `VAD_SILENCE_MS` | 500 | 判停静音；太小会切断自然停顿，太大会增加端点等待 |
 | `VAD_MIN_SPEECH_MS` | 100 | 最短语音，防咳嗽/噪声 |
-| `FILLER_DEADLINE_MS` | 1400 | 首音保险触发点；建议 1200–1500 |
+| `FILLER_DEADLINE_MS` | 1700 | 首音保险触发点；SAPI 可降到 1400，MiniMax 建议 1700 |
 | `FILLER_ENABLED` | true | 关闭后只剩真音频，抖动时可能超 2s |
 | `ASR_MODEL` | large-v3 | `large-v3-turbo`/`medium` 更快 |
 | `ASR_PARTIAL_MS` | 0 | >0 开启滚动部分识别（UI 字幕用） |

@@ -8,6 +8,7 @@ from ..config import Settings
 from .base import ASRProvider, ASRResult, LLMProvider, TTSProvider
 from .asr_http import HttpASR
 from .asr_local import LocalWhisperASR
+from .asr_minimax import ASRConfigError, MiniMaxASR
 from .llm import ExtractiveLLM, MockLLM, OpenAICompatLLM
 from .tts_local_stream import LocalStreamTTS
 from .tts_minimax import MiniMaxTTS, TTSConfigError
@@ -38,6 +39,12 @@ def build_asr(settings: Settings) -> ASRProvider:
     provider = settings.asr_provider
     if provider == "http":
         return HttpASR(settings)
+    if provider == "minimax":
+        try:
+            return MiniMaxASR(settings)
+        except ASRConfigError as exc:
+            log.warning("MiniMax ASR not configured (%s), falling back to local", exc)
+            return LocalWhisperASR(settings)
     if provider == "mock":
         return MockASR()
     if provider != "local":

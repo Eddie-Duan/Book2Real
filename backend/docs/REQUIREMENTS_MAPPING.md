@@ -8,8 +8,8 @@
 | 提取逐页文字、页码、图文结构，可与原书核对 | `app/book/ocr.py`：文字层 + RapidOCR + blocks/bbox；`book.json` | ✅ |
 | PDF 内已标注可点击元素 | 本批 6 本 PDF 实测 `annots=0/links=0`；用脚本 `[点击]` + OCR/页序定位兜底；`elements[]` 输出 name/page/bbox/info | ✅（依赖脚本） |
 | OCR 可用 VLM 替代，不强制独立 OCR | 当前 RapidOCR；Provider 可替换 | ✅ |
-| ASR 16k/16bit 单声道 Query 音频 | `/api/asr`、WS 二进制 PCM；本地 large-v3 + 热词 | ✅ |
-| 语音首响 ≤2s（说完→TTS 首音） | SAPI 10–80ms / MiniMax 流式；实测 0.45–1.27s | ✅ |
+| ASR 16k/16bit 单声道 Query 音频 | `/api/asr`、WS 二进制 PCM；本地 large-v3 + 热词 / MiniMax `asr-1.0` | ✅ 双通道 |
+| 语音首响 ≤2s（说完→TTS 首音） | SAPI 10–80ms / MiniMax 流式 212–374ms；本地 0.45–1.27s、MiniMax 0.81–1.43s | ✅ |
 | 首响按达标比例统计，warmup 后统计 | `/api/metrics/latency`：hit_ratio、p50/p90/p95；warmup 排除 | ✅ |
 | 回答正确率按 Query 条数 | `/api/ask` 返回 answer/action/evidence；`tools/eval_queries.py` 批量核对 | ✅（依赖 LLM 质量） |
 | 视频内检索：跳帧、框选元素、描述帧、查字并框出 | `/api/video/{id}/search`、`frame`、`describe`、`elements`；帧 OCR + 时间戳/bbox | ✅（描述为页文本/元素卡，可接 VLM） |
@@ -27,6 +27,6 @@
 
 1. **视觉场景定位**：英文绘本是扫描页，插图页没有文字；纯文本无法精确判断“电影海报/机器人/游戏机”在第几页。用 `manifest` 覆盖最稳；CLIP 尝试过但本机 HF 网络不可达。
 2. **VLM 帧描述**：`describe` 目前返回该帧 OCR 文本 + 对应页故事/元素卡，不是生成式画面描述；如赛题要求自然语言描述，需要接一个 VLM（可复用官方多模态模型或本地 Qwen-VL）。
-3. **MiniMax ASR**：公开文档未确认 ASR 接口；当前 ASR 用本地 Whisper，Provider 已留好。
+3. **MiniMax ASR**：`/v1/speech_to_text`（`asr-1.0`）已实测；专有名词偶尔误识（Xiao Man→Yao Man），导航有脚本页对齐兜底，内容问答建议保留本地 Whisper + 热词。音色克隆本账号返回 `2038 forbidden`，需账号开通。
 4. **答案质量**：提取式兜底只能摘抄原文；正式演示务必接 DeepSeek/官方 LLM，并按 `docs/LATENCY_2S.md` 实测首 token。
 5. **音频留存**：默认不存原始音频；如复盘需要，赛后临时开启并脱敏/删除。

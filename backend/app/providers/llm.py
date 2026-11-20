@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from typing import AsyncIterator, Optional
 
 import httpx
@@ -177,11 +178,16 @@ class OpenAICompatLLM(LLMProvider):
             "temperature": self.settings.llm_temperature,
             "max_tokens": self.settings.llm_max_tokens,
         }
+        if "minimax" in self.settings.llm_base_url:
+            # M3 系列强制 adaptive thinking；关掉可省首 token 延迟（不支持时忽略）
+            payload["enable_thinking"] = False
         import time
 
         t0 = time.perf_counter()
         first = True
         self.requests += 1
+        in_think = False
+        think_buf = ""
         try:
             async with self._client.stream("POST", self.settings.llm_base_url + "/chat/completions", json=payload) as resp:
                 if resp.status_code != 200:
@@ -205,6 +211,30 @@ class OpenAICompatLLM(LLMProvider):
                     delta = choices[0].get("delta") or {}
                     content = delta.get("content")
                     if content:
+                        # 过滤 thinking 模型的 <...> 前缀，只把正式回答流给 TTS
+                        if in_think:
+                            think_buf += content
+                            if "</think>" in think_buf:
+                                in_think = False
+                                content = think_buf.split("</think>", 1)[1]
+                                think_buf = ""
+                            else:
+                                continue
+                        if "<think>" in content:
+                            before, _, rest = content.partition("<think>")
+                            if before.strip():
+                                if first:
+                                    self.first_token_ms = (time.perf_counter() - t0) * 1000
+                                    first = False
+                                yield before
+                            if "</think>" in rest:
+                                content = rest.split("</think>", 1)[1]
+                            else:
+                                in_think = True
+                                think_buf = rest
+                                continue
+                        if not content:
+                            continue
                         if first:
                             self.first_token_ms = (time.perf_counter() - t0) * 1000
                             first = False
@@ -215,8 +245,10 @@ class OpenAICompatLLM(LLMProvider):
 
     async def warmup(self) -> None:
         try:
+            t0 = time.perf_counter()
             async for _ in self.stream([{"role": "user", "content": "你好"}]):
                 break
+            log.info("LLM warmup %.0f ms (first token %.0f ms)", (time.perf_counter() - t0) * 1000, self.first_token_ms or 0)
         except Exception as exc:  # noqa: BLE001
             log.warning("LLM warmup failed: %s", exc)
 

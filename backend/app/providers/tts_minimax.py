@@ -13,6 +13,7 @@ from typing import AsyncIterator, Optional
 import httpx
 
 from ..config import Settings
+from ..utils import cjk_ratio
 from .base import TTSProvider
 
 log = logging.getLogger(__name__)
@@ -59,6 +60,12 @@ class MiniMaxTTS(TTSProvider):
             return "Chinese"
         return "auto"
 
+    def _voice_for(self, text: str, language: Optional[str]) -> str:
+        """音色跟随回答文本：中文回答用中文音色，英文回答用英文音色。"""
+        if cjk_ratio(text) > 0.1:
+            return self.settings.minimax_voice_id
+        return self.settings.minimax_voice_id_en or self.settings.minimax_voice_id
+
     async def stream(
         self,
         text: str,
@@ -75,10 +82,10 @@ class MiniMaxTTS(TTSProvider):
             "stream": True,
             "stream_options": {"exclude_aggregated_audio": True},
             "voice_setting": {
-                "voice_id": self.settings.minimax_voice_id,
-                "speed": 1.0,
-                "vol": 1.0,
-                "pitch": 0,
+                "voice_id": self._voice_for(text, language),
+                "speed": self.settings.minimax_speed,
+                "vol": self.settings.minimax_vol,
+                "pitch": self.settings.minimax_pitch,
             },
             "audio_setting": {
                 "sample_rate": self.sample_rate,
@@ -88,6 +95,8 @@ class MiniMaxTTS(TTSProvider):
             },
             "language_boost": self._language_boost(language),
         }
+        if self.settings.minimax_emotion:
+            payload["voice_setting"]["emotion"] = self.settings.minimax_emotion
         t0 = time.perf_counter()
         first = True
         self.requests += 1
@@ -152,6 +161,7 @@ class MiniMaxTTS(TTSProvider):
             "endpoint": self.endpoint,
             "model": self.settings.minimax_tts_model,
             "voice_id": self.settings.minimax_voice_id,
+            "voice_id_en": self.settings.minimax_voice_id_en,
             "sample_rate": self.sample_rate,
             "first_chunk_ms": round(self.first_chunk_ms or 0, 1),
             "requests": self.requests,

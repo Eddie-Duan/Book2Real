@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import numpy as np
 import re
 import time
 from typing import AsyncIterator, Optional
 
 from ..config import Settings
 from ..providers.base import ASRProvider, LLMProvider, TTSProvider
-from ..utils import detect_lang, now_ms, truncate
+from ..utils import detect_lang, now_ms, pcm_duration_ms, truncate
 from ..book.index import BookIndex, route_intent
 from ..book.store import Store
 from .filler import FillerBank
@@ -63,14 +64,20 @@ def build_messages(
         "你是一位温柔、有耐心的儿童绘本伴读老师，面向 5-8 岁孩子。\n"
         f"当前绘本：《{book.get('title', '')}》，书页语言：{book.get('lang', 'zh')}。\n"
         f"当前页码：{current_page or '未知'}。\n"
-        "只根据下面提供的绘本原文回答；原文没有的信息就说“绘本里没有讲到”。\n"
+        "回答要以下面提供的绘本原文为依据；原文没明说的细节，可以结合故事情节合理推断，但不要编造与故事无关的内容。\n"
         "规则：\n"
         "1. 用孩子提问的语言回答（中文问中文答，英文问英文答）。\n"
         "2. 只答 1-2 句，中文不超过 45 个字，英文不超过 30 个单词。\n"
         "3. 直接回答，不要重复问题，不要开场白，不要 markdown、列表、emoji。\n"
-        "4. 为什么类问题要说出故事里的原因；词语解释要用孩子能懂的话。\n"
+        "4. 为什么类问题优先用故事里的因果；若原文没明说，可根据画面动作合理推断（如积木越搭越高所以倒了），不要只说“绘本没讲”。词语解释要用孩子能懂的话。\n"
         f"绘本原文：\n{context}"
     )
+    if intent.get("intent") == "chitchat":
+        system = (
+            "你是儿童绘本伴读助手“纸书智伴”。孩子现在问的是与绘本内容无关的话（打招呼、测试麦克风/声音、闲聊）。"
+            "用孩子提问的语言，亲切自然地直接回答，1-2 句，不超过 40 个字；不要提绘本原文，不要 markdown、列表、emoji。"
+            "如果孩子在测试声音/麦克风，就确认你听得到并简单回应。"
+        )
     messages = [{"role": "system", "content": system}]
     for msg in history[-8:]:
         if msg.get("content"):
@@ -114,6 +121,13 @@ class VoiceTurnRunner:
     ) -> AsyncIterator[dict]:
         speech_end = speech_end_ms or now_ms()
         pcm, trim_start, trim_end = trim_speech(audio, sample_rate)
+        # 低音量麦克风兜底：峰值过低时归一化放大，避免 ASR 收到近静音
+        if pcm:
+            peak = max(abs(int.from_bytes(pcm[i:i+2], "little", signed=True)) for i in range(0, min(len(pcm), 200000), 2))
+            if 0 < peak < 6000:
+                scale = min(6.0, 16000.0 / peak)
+                arr = np.frombuffer(pcm, dtype="<i2").astype(np.float32) * scale
+                pcm = np.clip(arr, -32768, 32767).astype("<i2").tobytes()
         t_asr = time.perf_counter()
         try:
             result = await self.asr.transcribe(pcm, sample_rate, language=language, partial=False, initial_prompt=book.asr_initial_prompt())
@@ -123,6 +137,12 @@ class VoiceTurnRunner:
             yield {"type": "error", "stage": "asr", "message": str(exc)}
             return
         if not result.text.strip():
+            dur_ms = pcm_duration_ms(pcm, sample_rate)
+            hint = (
+                "只录到很短的声音，可能被浏览器降噪截断了。请改用“按住说话”、关闭降噪，或提高增益/靠近麦克风。"
+                if dur_ms < 500
+                else "我没有听清，可以再说一遍吗？"
+            )
             yield {
                 "type": "asr_final",
                 "text": "",
@@ -130,7 +150,7 @@ class VoiceTurnRunner:
                 "ms": round(asr_ms, 1),
                 "trim": [round(trim_start, 1), round(trim_end, 1)],
             }
-            yield {"type": "answer", "text": "我没有听清，可以再说一遍吗？", "lang": language or "zh"}
+            yield {"type": "answer", "text": hint, "lang": language or "zh"}
             return
         yield {
             "type": "asr_final",
@@ -238,6 +258,10 @@ class VoiceTurnRunner:
                             if state["llm_first_token"] is None:
                                 state["llm_first_token"] = now_ms()
                                 timeline.mark("llm_first_token", state["llm_first_token"])
+                            if not produced:
+                                delta = delta.lstrip()
+                                if not delta:
+                                    continue
                             produced += delta
                             await emit({"type": "answer_delta", "text": delta})
                             for clause in splitter.feed(delta):
@@ -342,7 +366,11 @@ class VoiceTurnRunner:
             timeline.mark("filler_audio", now_ms())
             timeline.mark("first_audio", now_ms())
             await emit({"type": "audio_start", "seq": seq, "sample_rate": rate, "format": "pcm16", "text": "filler", "filler": True})
-            await emit({"type": "audio", "seq": seq, "pcm": pcm})
+            step = max(2, int(rate * 0.1) * 2)
+            for i in range(0, len(pcm), step):
+                piece = pcm[i : i + step]
+                if piece:
+                    await emit({"type": "audio", "seq": seq, "pcm": piece})
             await emit({"type": "audio_end", "seq": seq, "filler": True})
             await emit({"type": "filler_used", "text": self.settings.filler_zh if lang == "zh" else self.settings.filler_en})
 

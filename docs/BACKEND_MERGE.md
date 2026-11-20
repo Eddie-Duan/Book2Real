@@ -2,8 +2,13 @@
 
 > 本文记录融合后的**唯一运行形态**。冲突时以 `backend/`（原
 > [paperbook-backend](https://github.com/chhaaabbbccc/paperbook-backend)，commit
-> `d9ae446`）的代码与方案为准；`book2real/` 保留生成链（成片、分层、人物）与
+> `54fbc62`）的代码与方案为准；`book2real/` 保留生成链（成片、分层、人物）与
 > 阅读器前端。
+>
+> 合并记录：首次合入 `d9ae446`；2026-11-20 同步到 `54fbc62`（7 个提交：MiniMax
+> TTS/ASR 接入、`/test` 实时语音页、客户端 VAD、打断回声修复、实时 MiniMax LLM、
+> 麦克风增益与降噪修正）。同步时保留了本仓库的融合层 `app/frontend.py`、
+> `app/compat.py` 以及 `app/main.py` / `app/config.py` / `.env.example` 的本地改动。
 
 ## 1 目录与职责
 

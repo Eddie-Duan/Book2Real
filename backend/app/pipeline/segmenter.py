@@ -57,8 +57,9 @@ class ClauseSplitter:
         if not text:
             return None
         first = not self.emitted_first
-        min_units = self.first_min_units if first else 6
-        max_units = self.first_max_units if first else max(10, self.max_chars)
+        # 首块更激进：>=3 中文字遇逗号即发，或 >=8 字无标点硬切，让 TTS 尽早开口
+        min_units = 3 if first else 6
+        max_units = 8 if first else max(10, self.max_chars)
         scan = min(len(text), self.max_chars * 2)
         cut = -1
         for i, ch in enumerate(text[:scan]):

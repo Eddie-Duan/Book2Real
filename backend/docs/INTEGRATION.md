@@ -129,6 +129,22 @@ multipart：`book_id`, `audio`(file), `session_id`, `page`, `element`(json strin
 - `POST /api/asr`：multipart `audio` + `language?` → `{text, lang, duration_ms}`
 - `POST /api/tts`：JSON `{text, lang?}` → `application/x-pcm` 流；响应头 `X-Sample-Rate`、`X-Audio-Format: pcm16le`
 
+MiniMax 云端（已实测）：
+
+```ini
+TTS_PROVIDER=minimax
+ASR_PROVIDER=minimax
+MINIMAX_TTS_MODEL=speech-2.8-turbo
+MINIMAX_VOICE_ID=Chinese (Mandarin)_Warm_Girl
+MINIMAX_VOICE_ID_EN=Sweet_Girl
+MINIMAX_EMOTION=calm
+MINIMAX_ASR_MODEL=asr-1.0
+```
+
+- TTS 按回答文本自动选中/英音色；`audio_start.sample_rate` 为 24000。
+- ASR 为 `POST /v1/speech_to_text`，multipart `file` + `model=asr-1.0`；细节与音色列表见 `docs/MINIMAX.md`。
+- 音色克隆本账号返回 `2038`，需要 MiniMax 账号开通；系统音色/情绪/语速/音高可用。
+
 ### 2.3 绘本
 
 | 接口 | 说明 |

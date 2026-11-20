@@ -13,8 +13,8 @@
 | 绘本入库 | ✅ | PDF 文字层 + RapidOCR 扫描页兜底；过滤赛事水印/教学栏；输出页图 + 页文本 + bbox |
 | 脚本文本 | ✅ | 解析 `中文绘本01.txt` 等脚本：必选动作、点击目标、找画面/查文字/播放控制 |
 | 页面定位 | ✅ | 单调 DP 把 50 条脚本动作对齐到页；支持中英别名扩展；可被 manifest 覆盖 |
-| ASR | ✅ | 本地 faster-whisper large-v3（热词偏置）；也支持已有 9881 HTTP ASR；Provider 可换云端 |
-| TTS | ✅ | Windows SAPI（10–80ms，本地联调首选）；CosyVoice3 流式服务（9890）；MiniMax SSE 流式客户端（填 key 即用） |
+| ASR | ✅ | 本地 faster-whisper large-v3（热词偏置）；MiniMax `asr-1.0` 已实测；也支持已有 9881 HTTP ASR |
+| TTS | ✅ | MiniMax 流式（实测首块 212–374ms，327 音色）；Windows SAPI（10–80ms 兜底）；CosyVoice3（9890） |
 | 语音回合 | ✅ | VAD → ASR → 意图路由/检索 → LLM 流 → 小句切分 → TTS 流；首音兜底填充 |
 | 问答 | ✅ | BM25 检索 + 意图路由（找画面/查文字/播放/触控/词语解释/内容问答）；LLM 可换 DeepSeek/OpenAI 兼容 |
 | 视频内检索 | ✅ | 帧采样 + 帧 OCR；查字返回时间戳/bbox；场景/元素按 manifest 提供 |
@@ -47,13 +47,25 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8790
 
 打开 <http://127.0.0.1:8790/docs> 查看交互式 API；<http://127.0.0.1:8790/health> 查看预热/Provider 状态。
 
+### 最小实时语音测试台
+
+打开 **<http://127.0.0.1:8790/test>**：
+
+- 连接后允许麦克风，选绘本/页码，直接说话；
+- “自动 VAD”说完自动回答（服务端约多 0.5s 判停）；“按住说话”松开即回答，延迟更接近真实说完；
+- 页面会显示“说完 → 第一块音频”的毫秒数，并流式播放 MiniMax/本地 TTS；
+- 也可点“文字问一句”只测 TTS（约 0.3s）。
+
+这是纯测试页，不做视频/触控业务；源码在 `web/index.html`。
+
+
 ### 本地 TTS 选择
 
 | Provider | 首块 | 音质 | 用途 |
 | --- | --- | --- | --- |
 | `sapi`（默认） | **10–80ms** | Windows 系统音色（中/英） | 本地联调、断网兜底、2s 首音压测 |
 | `local` | ~2.5s（CosyVoice3） | 克隆音色，明显更好 | 需要音质时；先启动 `scripts/start_local_tts.py` |
-| `minimax` | 待实测（预期 0.2–0.5s） | 官方云端音色 | 11.30 拿到官方 API 后切换 |
+| `minimax` | **实测 212–374ms** | 官方云端音色（327 个系统音色，含童声） | 已接入；推荐 `speech-2.8-turbo` + 中文 `Warm_Girl` / 英文 `Sweet_Girl` |
 
 CosyVoice3 流式服务（可选）：
 
@@ -65,18 +77,28 @@ set COSYVOICE_PY=<你的 cosyvoice 环境>\python.exe
 
 > IndexTTS-2.5 在本机 8GB 显存上实测 RTF≈36（s2mel 极慢），**不建议**用于实时；已保留脚本但默认不启用。
 
-### MiniMax 云端切换（拿到 API 后）
+### MiniMax 云端（已实测）
 
 ```ini
 TTS_PROVIDER=minimax
-MINIMAX_API_KEY=<your-key>
-MINIMAX_GROUP_ID=<your-group-id>
-MINIMAX_VOICE_ID=<your-voice-id>
-MINIMAX_TTS_MODEL=speech-2.6-turbo
+ASR_PROVIDER=minimax
 MINIMAX_HOST=https://api.minimaxi.com
+MINIMAX_API_KEY=<your-key>
+MINIMAX_GROUP_ID=
+MINIMAX_TTS_MODEL=speech-2.8-turbo
+MINIMAX_VOICE_ID=Chinese (Mandarin)_Warm_Girl
+MINIMAX_VOICE_ID_EN=Sweet_Girl
+MINIMAX_EMOTION=calm
+MINIMAX_SPEED=0.95
+MINIMAX_ASR_MODEL=asr-1.0
+FILLER_DEADLINE_MS=1700
 ```
 
-TTS 客户端按 SSE 解析 `data.audio`（hex PCM），支持 `stream_options.exclude_aggregated_audio`，首块即转发。ASR 仍是本地 Whisper；MiniMax 若提供 ASR 接口，按 `app/providers/base.py` 的 `ASRProvider` 新增实现即可。
+- TTS：`/v1/t2a_v2`，SSE hex PCM；实测首块 **212–374ms**（2.6/2.8 turbo/hd 都可）。
+- ASR：`/v1/speech_to_text`，`asr-1.0`；实测 400–720ms，中英混说可用；`verbose_json` 有分段/说话人，`stream=true` 有 SSE 增量。
+- 音色：系统音色 327 个（含 `lovely_girl`/`cute_boy`/`clever_boy` 童声）；`timbre_weights` 最多混 4 个；`emotion`、`speed`、`pitch` 可逐请求调。
+- **音色克隆**：本账号 `voice_clone` 返回 `2038 voice clone user forbidden`，需要 MiniMax 账号开通/实名或企业权限；系统音色不受影响。
+- 详细参数、推荐音色和实测矩阵见 [docs/MINIMAX.md](docs/MINIMAX.md)。
 
 ---
 
@@ -93,8 +115,20 @@ TTS 客户端按 SSE 解析 `data.audio`（hex PCM），支持 `stream_options.e
 
 批量实测（`tools/eval_queries.py`，本地 SAPI + Whisper）：**119 回合，2s 达标率 100%，p50 547.5ms，p90 985ms，p95 1150ms，最大 1267ms，填充音 0%**；6 本绘本各抽 5 条 Query 共 30/30 全部达标。
 
-- 目标 2000ms，当前本地余量约 700–1000ms；
-- 填充音在 **1400ms** 仍未出真音频时兜底，确保任何抖动下首音 <2s；
+MiniMax 云端（TTS + ASR）实测：
+
+| 场景 | 首音 |
+| --- | --- |
+| 纯文本问句（只走 TTS） | **310ms** |
+| `高亮“积木城堡”` | **1428ms** |
+| `找到花花独处的画面` | **1286ms** |
+| `Where is Xiao Man?` | **1364ms** |
+| `What is the dog carrying?` | **813ms** |
+| CN01 前 5 条 Query | p50 **767ms**，p95 **902ms**，5/5 达标 |
+| EN01 前 5 条 Query | p50 **864ms**，p95 **879ms**，5/5 达标 |
+
+- 目标 2000ms，本地 SAPI 余量约 700–1000ms；MiniMax 云端余量约 600–1200ms；
+- 填充音默认 **1700ms** 兜底（MiniMax 实测约 0.8–1.5s 出首音，通常不触发）；
 - 详细预算与调参见 [docs/LATENCY_2S.md](docs/LATENCY_2S.md)。
 
 ---
@@ -165,8 +199,9 @@ python tools/eval_queries.py --book cn01 --base http://127.0.0.1:8790 --limit 50
 
 - **英文绘本是扫描页**：文字层只有赛事水印，入库靠 RapidOCR；插图页没有文字，脚本里的“找到某个画面”只能靠页序/关键词近似，建议视频组用 `manifest` 精确覆盖场景与元素 bbox。
 - **本地 SAPI 音色**是系统音色，适合联调/兜底；正式演示切 MiniMax 或 CosyVoice。
-- **提取式 LLM 兜底**只能摘抄原文，复杂“为什么/跨语言”问题需要接 DeepSeek/官方模型；接口已就绪，填 key 即切换。
-- **MiniMax ASR** 未验证到公开接口；当前 ASR 用本地 large-v3（热词偏置），延迟 0.45–0.7s。若官方提供 ASR，按 Provider 接口接入。
+- **LLM 已接 MiniMax**（`MiniMax-M2.7-highspeed`，首 token ~0.7s），回答实时生成；提取式仅作断网兜底。也可换 DeepSeek/官方模型，填 key 即切换。
+- **MiniMax ASR** 已实测（`asr-1.0`，0.4–0.7s，中英混说可用）；专有名词偶尔会错（如 Xiao Man→Yao Man），脚本页对齐能兜住导航，但内容问答若强调人名，建议切回本地 large-v3 + 热词。
+- **MiniMax 音色克隆**：本账号 `voice_clone` 返回 `2038 voice clone user forbidden`，需要账号开通/实名或企业权限；系统 327 个音色、`timbre_weights`、情绪/语速/音高都可正常用。
 - **CLIP 视觉场景匹配**尝试过，但本机 HF 网络不可达，未启用；后续可离线装 CLIP 提升英文绘本的场景定位。
 - 赛事素材有版权限制：`data/` 与原始 PDF/音频不要提交到公开仓库；`.gitignore` 已排除。
 

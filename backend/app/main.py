@@ -12,7 +12,7 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 from .book.ingest import ingest_materials_zip, ingest_pdf, list_books
 from .book.index import BookIndex
@@ -147,6 +147,16 @@ async def on_shutdown() -> None:
         await state.tts.close()
         await state.llm.close()
         state.store.close()
+
+
+# ── 最小测试网页 ───────────────────────────────────────────────────
+@app.get("/test", response_class=HTMLResponse)
+@app.get("/demo", response_class=HTMLResponse)
+async def demo_page():
+    path = Path(__file__).resolve().parent.parent / "web" / "index.html"
+    if not path.is_file():
+        return HTMLResponse("<h1>web/index.html not found</h1>", status_code=404)
+    return HTMLResponse(path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
 
 
 # ── 健康 / 状态 ──────────────────────────────────────────────────────
@@ -432,6 +442,8 @@ async def voice_ws(ws: WebSocket, session_id: str):
     turn_task: Optional[asyncio.Task] = None
     partial_task: Optional[asyncio.Task] = None
     turn_active = False
+    bin_count = 0
+    bin_bytes = 0
 
     async def send_event(event: dict) -> None:
         if event.get("type") == "audio" and event.get("pcm"):
@@ -469,7 +481,12 @@ async def voice_ws(ws: WebSocket, session_id: str):
             return
         data = bytes(buffer)
         buffer = bytearray()
+        if len(data) < 3200:
+            log.info("ws %s end_turn skipped: %d bytes < 100ms", session_id, len(data))
+            turn_active = False
+            return
         speech_end = speech_end_override or now_ms()
+        log.info("ws %s end_turn bytes=%d speech_end=%.0f", session_id, len(data), speech_end)
         await ws.send_json({"type": "speech_end", "t": speech_end, "bytes": len(data)})
         try:
             async for event in st.runner.run_voice(
@@ -492,9 +509,14 @@ async def voice_ws(ws: WebSocket, session_id: str):
                 break
             if message.get("bytes") is not None:
                 chunk = message["bytes"]
+                bin_count += 1
+                bin_bytes += len(chunk)
+                if bin_count % 50 == 1:
+                    log.info("ws %s binary #%d bytes=%d total=%d turn_active=%s speaking=%s", session_id, bin_count, len(chunk), bin_bytes, turn_active, speaking)
                 if not turn_active:
                     buffer.extend(chunk)
-                    events = vad.push(chunk)
+                    # client 模式：客户端 VAD 是权威，服务端不再自行判停/截断 buffer
+                    events = [] if vad_mode == "client" else vad.push(chunk)
                     for ev in events:
                         if ev.kind == "speech_start" and not speaking:
                             speaking = True
@@ -528,13 +550,19 @@ async def voice_ws(ws: WebSocket, session_id: str):
                 await ws.send_json({"type": "ready", "book_id": book_id, "sample_rate": sample_rate, "warm": st.warm, "warmup": warmup, "vad": vad_mode})
             elif kind == "vad":
                 event = msg.get("event")
+                log.info("ws %s vad event=%s speaking=%s turn_active=%s buffer=%d", session_id, event, speaking, turn_active, len(buffer))
                 if event == "speech_start" and not speaking and not turn_active:
                     speaking = True
                     await ws.send_json({"type": "speech_start", "t": now_ms()})
                     if st.settings.asr_partial_ms > 0:
                         partial_task = asyncio.create_task(partial_loop())
-                elif event == "speech_end" and speaking and not turn_active:
-                    await end_turn(msg.get("t") or now_ms())
+                elif event == "speech_end" and not turn_active:
+                    # 客户端 VAD 模式下客户端是权威：只要 buffer 里有足够音频就应答，
+                    # 不依赖 speaking 标志（防止 barge-in/回声把状态清掉后丢回合）。
+                    if speaking or len(buffer) >= 3200:
+                        await end_turn(msg.get("t") or now_ms())
+                    else:
+                        log.info("ws %s speech_end ignored: buffer=%d too short", session_id, len(buffer))
             elif kind == "text":
                 text = str(msg.get("text") or "").strip()
                 if text and book and not turn_active:
