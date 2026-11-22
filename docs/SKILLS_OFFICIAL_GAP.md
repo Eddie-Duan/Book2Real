@@ -73,6 +73,23 @@
 
 测试：`pytest skills` = **29 passed**（新增 6 条 grouper 规则测试）。
 
+## 5.2 第三轮：镜头语言与声音契约（2026-11-22 晚）
+
+| 问题 | 原来 | 现在 |
+|---|---|---|
+| 镜头是不是固定的 | 所有 prompt 都写"镜头平稳"，10 秒里只有主体微动 | `camera_language.py`：每镜下发 景别/机位/运镜/速度/主体动作；场首推近、场末拉远、相邻不重复 |
+| 有没有旁白与对白 | skills 产线**完全没有声音**（concat 塞 `anullsrc` 静音轨） | `build_audio_plan.py`：cn01 出 **31 行**声音计划（旁白 14 / 对白 17），含音色、语速、音高、情绪、起止秒 |
+| 音色要不要写进 prompt/skill | 只有 `tts.py` 里写死的两个音色（晓晓 / Aria） | 角色声音卡：按角色 id 轮流分配 3 个中文音色；旁白与角色分开 |
+
+参考：[MM-StoryAgent](https://arxiv.org/abs/2503.05242)（多通道音频 + 角色一致性）、
+[Stable Cinemetrics](https://arxiv.org/abs/2509.26555)（摄影机控制分类）、
+[ebook2audiobook](https://github.com/DrewThomasson/ebook2audiobook)（分角色音色/克隆）。
+
+测试：`pytest skills` = **36 passed**（新增 7 条镜头/声音规则测试）。
+
+**新出现的风险**：Q43 说"同一册一次生成、不能二次编辑"。单独补一条旁白音轨算不算
+二次编辑？这条要跟组委会确认——视觉上没改，但音轨是后加的。
+
 ## 6. 还没解决的（要人拍板或要真跑）
 
 1. **Q43**：要么找组委会确认"同模型多次调用后拼接算不算二次编辑"，要么这条产线只作能力储备，交付仍走 `book2real/storyfilm.py` 单趟渲染；

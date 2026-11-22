@@ -49,3 +49,37 @@
 - 角色无交集 → `DESIGNED_TRANSITION`，桥接帧 `black`（跨场）或 `occlude`（同场换景）
 
 真值仍由 `picturebook-scene-director` 的接缝判定兜底；本 skill 只定"哪几页是一场"。
+
+## 摄影机语言（camera_language.py）
+
+受 Stable Cinemetrics（arXiv 2509.26555，把电影控制拆成 Setup/Event/Lighting/Camera 四类，
+共 76 个控制节点）启发，每镜下发结构化字段而不是一句"镜头平稳"：
+
+| 字段 | 取值 |
+|---|---|
+| shot_size | ELS 大远景 / LS 全景 / MS 中景 / CU 近景 |
+| angle | eye 平视 / low 仰拍 / high 俯拍 |
+| move | static / push_in / pull_out / pan_left / pan_right / tilt_up / tilt_down / follow |
+| speed | slow / medium / fast |
+| subject | 人物自然动作 或 环境微动 |
+
+规则：场首镜 = LS + push_in（建立镜头），场末镜 = CU + pull_out（交出去），
+场中镜在 pan/tilt/follow 里轮换，**相邻两镜不重复运镜**。
+
+## 声音计划（build_audio_plan.py）
+
+参考 MM-StoryAgent（arXiv 2503.05242：storybook 视频的音频是旁白 + 角色对白 + 音乐 + 音效
+**多通道**，且角色要有稳定的声音形象），本 skill 只产出契约，不做合成：
+
+```json
+{ "scene_id": "sc_01", "start_sec": 4.2, "end_sec": 6.1,
+  "speaker": "花花", "kind": "dialogue", "text": "我们一起搭城堡！",
+  "voice": "zh-CN-YunjianNeural", "rate": "+4%", "pitch": "+8Hz", "mood": "excited" }
+```
+
+- 引号内 = 对白，引号外 = 旁白；
+- 说话人判定顺序：引号前 12 字里的角色名 > 本页唯一角色 > 本页出现最多的角色；
+- 音色按角色 id 排序轮流分配（哈希取模会撞，实测四个角色全落到同一个音色）；
+- 旁白 zh-CN-XiaoxiaoNeural / en-US-AriaNeural，语速 -8%；角色语速 +4%、音高 +8Hz。
+
+**尚未做的**：音乐与音效通道（MM-StoryAgent 有独立轨），以及真正的 TTS 合成与混音。

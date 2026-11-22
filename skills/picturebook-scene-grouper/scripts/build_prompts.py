@@ -21,6 +21,9 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from camera_language import enrich as enrich_camera  # noqa: E402
+
 DEFAULT_STYLE_DNA = (
     "儿童绘本插画风格；严格保持原书的画风、笔触、配色与光线；"
     "构图与主体比例沿用参考图；镜头平稳，适合 5–10 秒短片。"
@@ -84,6 +87,12 @@ def main() -> int:
             "negative": a.negative,
         })
 
+    scene_chars = {}
+    for p_ in book.get("pages") or []:
+        sid = p_.get("scene_hint")
+        if sid:
+            scene_chars.setdefault(sid, []).append(p_.get("id"))
+
     out = {
         "book_id": book.get("book_id") or Path(a.book).name,
         "lang": (book.get("language") or "zh").lower(),
@@ -93,6 +102,7 @@ def main() -> int:
         "segments": rows,
         "problems": problems,
     }
+    out = enrich_camera(out)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
