@@ -57,3 +57,6 @@ skills/**/.tmp_tests/
 skills/**/tmp*/
 skills/**/*.mp4
 skills/**/config.yaml
+skills/**/book_out/
+skills/**/pages/
+skills/**/runs/
