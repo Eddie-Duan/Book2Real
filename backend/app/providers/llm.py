@@ -11,6 +11,7 @@ from typing import AsyncIterator, Optional
 import httpx
 
 from ..config import Settings
+from ..skill4 import style_fallback_text
 from ..utils import detect_lang, normalize_for_tokens, normalize_text, truncate
 from .base import LLMProvider
 
@@ -67,6 +68,8 @@ class ExtractiveLLM(LLMProvider):
         passages = ctx.get("passages") or []
         lang = ctx.get("lang") or detect_lang(query)
         answer = compose_extractive(query, passages, lang, current_page_text=str(ctx.get("current_page_text") or ""))
+        if ctx.get("style"):
+            answer = style_fallback_text(answer, answer_lang=lang, mode="qa")
         yield answer
 
     def status(self) -> dict:

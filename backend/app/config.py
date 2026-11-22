@@ -154,6 +154,9 @@ class Settings:
     session_history_turns: int = field(default_factory=lambda: _i("SESSION_HISTORY_TURNS", 8))
     moderation_enabled: bool = field(default_factory=lambda: _b("MODERATION_ENABLED", True))
 
+    # Skill 4：点击回答默认复用预存卡片（零延迟）；打开后走同一套文风 prompt
+    style_touch_llm: bool = field(default_factory=lambda: _b("STYLE_TOUCH_LLM", False))
+
     @property
     def books_dir(self) -> Path:
         return self.data_dir / "books"

@@ -23,6 +23,7 @@ from .filler import FillerBank
 from .latency import TurnTimeline
 from .segmenter import ClauseSplitter
 from .vad import trim_speech
+from ..skill4 import build_style_card, style_fallback_text, style_prompt, style_touch_text
 
 log = logging.getLogger(__name__)
 
@@ -45,8 +46,16 @@ def build_messages(
     intent: dict,
     history: list[dict],
     current_page: Optional[int],
+    style_card: Optional[dict] = None,
 ) -> list[dict]:
     passages = intent.get("passages") or []
+    mode = "touch" if intent.get("intent") == "touch" else "qa"
+    book_lang = str(book.get("lang") or "zh")
+    lang = intent.get("lang") or detect_lang(query)
+    answer_lang = book_lang if mode == "touch" else lang
+    card = style_card or build_style_card(book)
+    style_block = style_prompt(card, answer_lang=answer_lang, mode=mode)
+
     ctx_lines = []
     if current_page:
         page = next((p for p in book.get("pages", []) if int(p.get("no") or 0) == int(current_page)), None)
@@ -58,18 +67,45 @@ def build_messages(
         text = truncate(str(item.get("text") or "").replace("\n", " "), 280)
         if text:
             ctx_lines.append(f"[第{page}页] {text}")
+    element = next(
+        (e.get("element") for e in (intent.get("evidence") or [])
+         if isinstance(e, dict) and isinstance(e.get("element"), dict)),
+        None,
+    )
+    if element:
+        name = str(element.get("name") or "").strip()
+        info = str(element.get("info") or "").strip()
+        if name or info:
+            ctx_lines.append(f"[点击元素] {name}：{truncate(info, 220)}")
     context = "\n".join(ctx_lines) if ctx_lines else "（没有检索到直接相关的段落）"
-    lang = intent.get("lang") or detect_lang(query)
+
+    language_rule = (
+        f"使用绘本语言（{book_lang}）回答，即使孩子用另一种语言提问。"
+        if mode == "touch"
+        else "用孩子提问的语言回答（中文问中文答，英文问英文答）。"
+    )
+    mode_rule = (
+        "这是孩子点击画面物体后的回答：先用一句话说它是什么、在做什么，再补一个本页画面细节；不要百科式介绍，不要列事实清单。"
+        if mode == "touch"
+        else "为什么类问题优先用故事里的因果；若原文没明说，可根据画面动作做一步合理推断，不要只说“绘本没讲”。词语解释要用孩子能懂的话。"
+    )
+    length_rule = (
+        "只答 1 句，中文不超过 30 个字，英文不超过 20 个单词。"
+        if mode == "touch"
+        else "只答 1-2 句，中文不超过 45 个字，英文不超过 30 个单词。"
+    )
     system = (
-        "你是一位温柔、有耐心的儿童绘本伴读老师，面向 5-8 岁孩子。\n"
-        f"当前绘本：《{book.get('title', '')}》，书页语言：{book.get('lang', 'zh')}。\n"
+        "你是一位温柔、有耐心的儿童绘本伴读老师，正在用这本书自己的声音和孩子说话。\n"
+        f"当前绘本：《{book.get('title', '')}》，书页语言：{book_lang}。\n"
         f"当前页码：{current_page or '未知'}。\n"
-        "回答要以下面提供的绘本原文为依据；原文没明说的细节，可以结合故事情节合理推断，但不要编造与故事无关的内容。\n"
+        "回答要以下面的绘本原文和本页画面信息为依据；不要新增原文没有的人物、地点、数字或与故事无关的内容。\n"
+        f"{style_block}\n"
         "规则：\n"
-        "1. 用孩子提问的语言回答（中文问中文答，英文问英文答）。\n"
-        "2. 只答 1-2 句，中文不超过 45 个字，英文不超过 30 个单词。\n"
+        f"1. {language_rule}\n"
+        f"2. {length_rule}\n"
         "3. 直接回答，不要重复问题，不要开场白，不要 markdown、列表、emoji。\n"
-        "4. 为什么类问题优先用故事里的因果；若原文没明说，可根据画面动作合理推断（如积木越搭越高所以倒了），不要只说“绘本没讲”。词语解释要用孩子能懂的话。\n"
+        f"4. {mode_rule}\n"
+        "5. 不要使用“根据资料／作为一个 AI／绘本里说／书上说／总之／希望对你有帮助”这类套话。\n"
         f"绘本原文：\n{context}"
     )
     if intent.get("intent") == "chitchat":
@@ -229,8 +265,14 @@ class VoiceTurnRunner:
         async def answer_task() -> None:
             try:
                 timeline.mark("llm_start", now_ms())
-                if intent.get("answer"):
+                style_card = build_style_card(book.book)
+                use_llm_for_touch = (
+                    intent.get("intent") == "touch" and self.settings.style_touch_llm
+                )
+                if intent.get("answer") and not use_llm_for_touch:
                     text = intent["answer"]
+                    if intent.get("intent") == "touch":
+                        text = style_touch_text(text, book.book.get("lang", "zh"))
                     await emit({"type": "answer_delta", "text": text})
                     for clause in splitter.feed(text):
                         if state["answer_first_clause"] is None:
@@ -239,7 +281,10 @@ class VoiceTurnRunner:
                         await clause_queue.put(clause)
                     state["answer"] = text
                 else:
-                    messages = build_messages(query, book.book, intent, history, current_page)
+                    messages = build_messages(
+                        query, book.book, intent, history, current_page,
+                        style_card=style_card,
+                    )
                     page_obj = book.page(current_page) if current_page else None
                     context = {
                         "query": query,
@@ -247,6 +292,7 @@ class VoiceTurnRunner:
                         "lang": lang,
                         "intent": intent.get("intent"),
                         "current_page_text": (page_obj or {}).get("story_text", ""),
+                        "style": True,
                     }
                     produced = ""
                     try:
@@ -276,12 +322,19 @@ class VoiceTurnRunner:
                         from ..providers.llm import compose_extractive
 
                         page_obj = book.page(current_page) if current_page else None
-                        produced = compose_extractive(
+                        fallback = intent.get("answer") or compose_extractive(
                             query,
                             intent.get("passages", []),
                             lang,
                             current_page_text=(page_obj or {}).get("story_text", ""),
                         )
+                        if intent.get("intent") == "touch":
+                            fallback = style_touch_text(fallback, book.book.get("lang", "zh"))
+                        else:
+                            fallback = style_fallback_text(
+                                fallback, answer_lang=lang, mode="qa",
+                            )
+                        produced = fallback
                         await emit({"type": "answer_delta", "text": produced})
                         for clause in splitter.feed(produced):
                             await clause_queue.put(clause)
