@@ -1,0 +1,112 @@
+{
+  "manifest_version": "2.0.0",
+  "pipeline_status": "COMPLETED_QA_PASSED",
+  "multi_page_mode": false,
+  "human_review_required": false,
+  "asset_info": {
+    "batch_id": "batch_20261121_01",
+    "page_id": "page_001",
+    "source_file": "input/raw_page.png",
+    "normalized_file": "work/page_001_00_normalized.png",
+    "locked_resolution": { "width": 1536, "height": 1152 },
+    "locked_aspect_ratio": "4:3",
+    "is_spread": false,
+    "color_space": "sRGB_8bit",
+    "detected_language": "en"
+  },
+  "stage_artifacts": {
+    "stage_0_normalized": "work/page_001_00_normalized.png",
+    "stage_1_ocr_overlay": "work/page_001_01_ocr_overlay.png",
+    "stage_3_text_mask": "work/page_001_03_text_mask.png",
+    "stage_3_clean_base": "work/page_001_03_clean_base.png",
+    "stage_4_style_dna": "work/page_001_04_style_dna.json",
+    "stage_5_edit_mask": "work/page_001_05_edit_mask.png",
+    "stage_5_protected": "work/page_001_05_protected.png",
+    "stage_5_completed_raw": "work/page_001_05_completed_raw.png",
+    "stage_6_clean_keyframe": "deliverables/page_001_clean_keyframe.png",
+    "stage_6_qa_report": "deliverables/page_001_qa_report.json",
+    "stage_7_seedance_prompt": "deliverables/page_001_seedance_prompt.txt"
+  },
+  "text_blocks": [
+    {
+      "block_id": "tb_001",
+      "layer_type": "body_text",
+      "language": "en",
+      "text_verbatim": "Barnaby waited beside the old wooden signpost, watching three bluebirds swoop down toward the clover patch.",
+      "bbox_norm": [680, 120, 840, 520],
+      "style_notes": "Dark brown serif typography over light cream meadow grass",
+      "confidence": 0.99,
+      "needs_review": false,
+      "action": "REMOVE_AND_INPAINT",
+      "inpaint_engine": "LAMA",
+      "occlusion_on_core_subject_pct": 0.0
+    },
+    {
+      "block_id": "tb_002",
+      "layer_type": "diegetic_text",
+      "language": "en",
+      "text_verbatim": "SUNNY HILL 2 MI",
+      "bbox_norm": [410, 610, 465, 735],
+      "style_notes": "Painted lettering on the wooden signpost inside the illustration",
+      "confidence": 0.96,
+      "needs_review": false,
+      "action": "REMOVE_AND_INPAINT",
+      "inpaint_engine": "FLUX_FILL",
+      "occlusion_on_core_subject_pct": 0.0
+    },
+    {
+      "block_id": "tb_003",
+      "layer_type": "page_number",
+      "language": "en",
+      "text_verbatim": "12",
+      "bbox_norm": [940, 935, 972, 968],
+      "style_notes": "Bottom-right page number",
+      "confidence": 0.99,
+      "needs_review": false,
+      "action": "REMOVE_AND_INPAINT",
+      "inpaint_engine": "LAMA",
+      "occlusion_on_core_subject_pct": 0.0
+    }
+  ],
+  "style_dna": {
+    "medium": "Gouache and soft colored pencil on warm cream textured paper",
+    "line_work": "Warm sepia (#4A3728) colored pencil outlines, variable width 2.0px-3.0px, organic hand-drawn grain",
+    "color_palette_hex": ["#87B5C9", "#A8C686", "#E8DFC5", "#8C5A3C", "#4A3728"],
+    "lighting": "Soft diffused morning sunlight from upper left, gentle warm shadows",
+    "paper_texture_laplacian_var": 41.2
+  },
+  "completion_items": [
+    {
+      "item_id": "comp_001",
+      "traceability": {
+        "source_block_id": "tb_001",
+        "source_text_span": "three bluebirds swoop down toward the clover patch",
+        "gap_reason": "Original illustration shows Barnaby the rabbit and the clover patch in the lower right, but the upper-left sky and mid-ground air are empty with no bluebirds drawn."
+      },
+      "visual_spec": "Three small hand-painted bluebirds (#5B8FB9) mid-flight swooping gracefully downward from the upper-left sky safe zone toward the lower-right clover patch.",
+      "placement_strategy": "INPAINT_SAFE_ZONE",
+      "target_bbox_norm": [140, 180, 390, 490],
+      "character_anchor_ref": null,
+      "status": "APPROVED_AND_GENERATED"
+    }
+  ],
+  "qa_metrics": {
+    "resolution_delta_px": [0, 0],
+    "ocr_residual_count": 0,
+    "art_text_edge_density_diff_pct": 6.4,
+    "non_edited_ssim": 0.9999,
+    "max_pixel_diff_p999": 1,
+    "pixels_over_5_pct": 0.0,
+    "protected_zone_intrusion_px": 0,
+    "style_histogram_bhattacharyya": 0.12,
+    "laplacian_var_ratio": 0.96,
+    "qa_verdict": "PASS"
+  },
+  "seedance_output": {
+    "frame_resolution": "1536x1152",
+    "aspect_ratio": "4:3",
+    "version_compatibility_note": "提交前按平台当前可选版本核对分辨率上限与时长（5s/10s）；不要把版本号写进提示词。",
+    "prompt_en": "[Camera]: Ultra-slow, steady push-in toward the meadow path, maintaining original 4:3 picture book framing without cropping. [Subject Motion]: Barnaby the rabbit blinks gently, ears twitching slightly as he looks upward toward the sky. [Environment & Added Elements]: Three small bluebirds glide smoothly downward in an arc toward the clover patch while soft morning breeze ripples the grass blades. [Style Lock]: Strictly preserve the hand-painted gouache and warm sepia colored-pencil texture of the first frame, keeping warm cream paper grain static and lighting soft and cohesive. [Negative Constraints]: NO text, NO subtitles, NO captions, NO page numbers, NO sign lettering, NO watermarks; no facial or limb distortion, no flickering artifacts, no sudden zoom or aspect ratio jump.",
+    "prompt_zh": "【镜头运动】极缓慢、稳定的推镜，沿草甸小路推进，保持原 4:3 绘本构图不裁切。【主体微动作】兔子巴纳比轻轻眨眼，耳朵微颤，抬头望向天空。【环境与新增元素动态】三只小鸟沿弧线缓缓滑向三叶草地，晨风轻拂草叶。【画风锁定】严格保持首帧的水粉与暖褐色铅笔质感，纸纹静止，光影柔和连贯。【负向约束】无文字、无字幕、无页码、无标牌字、无水印；面部与肢体不变形，无闪烁伪影，无突然缩放或比例跳变。"
+  }
+}

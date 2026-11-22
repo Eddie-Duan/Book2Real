@@ -1,0 +1,17 @@
+# 3.13 兼容依赖曲线（当本机 python 为 3.13 时使用本文件；requirements.txt 的钉版曲线面向 3.12）
+# 说明：numpy==1.26.4 / opencv-python-headless==4.10.0.84 / scipy==1.14.1 / torch==2.4.1 均无 cp313 wheel，
+# 在 3.13 上会安装失败，故此处改用下限区间约束；安装后请将实际解析到的版本回填，以恢复完全可复现。
+numpy>=2.1,<3
+opencv-python-headless>=4.11,<5
+Pillow>=11,<13
+PyYAML>=6.0.2,<7
+requests>=2.32,<3
+scikit-image>=0.25,<1
+imagehash>=4.3.1,<5
+scipy>=1.15,<2
+pytest>=8.3,<9
+# 重依赖（可选 GPU 加速，缺失时 scripts/common.py 自动降级至轻量频域/直方图兜底）
+torch>=2.6,<3
+torchvision>=0.21,<1
+transformers>=4.46,<5
+easyocr>=1.7.2

@@ -1,0 +1,95 @@
+{
+  "overall_verdict": "PASS",
+  "total_seams": 4,
+  "failed": 0,
+  "skipped": 0,
+  "seams": [
+    {
+      "seam_id": "seam_page_001_page_002_merged",
+      "decision": "CONTINUOUS",
+      "verdict": "PASS",
+      "metrics": {
+        "ssim_to_keyframe": 1.0,
+        "phash_dist": 0
+      },
+      "failure_code": null,
+      "repair_action": null
+    },
+    {
+      "seam_id": "seam_seg_001_seg_002",
+      "decision": "HARD_CUT",
+      "verdict": "PASS",
+      "metrics": {
+        "ssim": 0.9843,
+        "phash_dist": 4,
+        "luminance_jump": 0.0192,
+        "flow_angle_deg": 83.03,
+        "speed_ratio": 5.44,
+        "screen_dir_dot": 29.3333,
+        "shape_iou": 0.738,
+        "_v_out": [
+          -6.67,
+          0.0
+        ],
+        "_v_in": [
+          -4.4,
+          36.0
+        ]
+      },
+      "failure_code": null,
+      "repair_action": null
+    },
+    {
+      "seam_id": "seam_seg_002_seg_003",
+      "decision": "DESIGNED_TRANSITION",
+      "verdict": "PASS",
+      "metrics": {
+        "ssim": 1.0,
+        "phash_dist": 0,
+        "luminance_jump": 0.0,
+        "flow_angle_deg": 90.0,
+        "speed_ratio": 0.0,
+        "screen_dir_dot": -0.0,
+        "shape_iou": 0.9191,
+        "_v_out": [
+          -4.4,
+          36.0
+        ],
+        "_v_in": [
+          0.0,
+          0.0
+        ],
+        "ssim_to_T": 1.0,
+        "warning": "VELOCITY_MISMATCH_AT_T"
+      },
+      "failure_code": null,
+      "repair_action": null
+    },
+    {
+      "seam_id": "seam_seg_003_seg_004",
+      "decision": "DESIGNED_TRANSITION",
+      "verdict": "PASS",
+      "metrics": {
+        "ssim": 1.0,
+        "phash_dist": 0,
+        "luminance_jump": 0.0,
+        "flow_angle_deg": 90.0,
+        "speed_ratio": 1.0,
+        "screen_dir_dot": 0.0,
+        "shape_iou": 0.0,
+        "_v_out": [
+          0.0,
+          0.0
+        ],
+        "_v_in": [
+          0.0,
+          0.0
+        ],
+        "ssim_to_T": 1.0,
+        "warning": "VELOCITY_MISMATCH_AT_T"
+      },
+      "failure_code": null,
+      "repair_action": null
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+Pillow==10.4.0
+PyYAML==6.0.2
+requests==2.32.3
+scikit-image==0.24.0
+imagehash==4.3.1
+scipy==1.14.1
+pytest==8.3.3
+# 重依赖（可选 GPU 加速，缺失时 scripts/common.py 自动降级至轻量频域/直方图兜底）
+torch==2.4.1
+torchvision==0.19.1
+transformers==4.45.2
+easyocr==1.7.2

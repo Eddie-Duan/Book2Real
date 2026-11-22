@@ -1,0 +1,76 @@
+ark:
+  base_url: "https://ark.cn-beijing.volces.com/api/v3"
+  # 默认用 Seedance 2.5 flash：更便宜、5s 片约 50 秒出片，适合绘本整本跑。
+  # 需要更高质量时换成 doubao-seedance-2-5-260628（pro，约 3–4 倍价）。
+  # 老账号仍可用 doubao-seedance-1-0-pro-250528，但 1.x 不支持下面的 2.5 行为。
+  model: "doubao-seedance-2-5-flash-261115"
+  supports_last_frame: true
+  # 【2.5 必读】带 first_frame / first_frame+last_frame 的任务不允许下发 ratio：
+  #   服务端返回 InvalidParameter.TaskTypeConstraint:
+  #   "For first-frame or first-last-frame generation, the output ratio follows the first-frame image"
+  # 开启此项后 generate.py 不再拼接 --ratio，并从请求体里移除 ratio 字段。
+  ratio_follows_first_frame: true
+  # 2.5 默认 generate_audio=true（会自动生成环境音）。绘本片要自己配音/配乐，默认关掉。
+  generate_audio: false
+  allowed_durations: [5, 10]
+  allowed_ratios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"]
+  max_prompt_length: 1000
+  request_timeout_sec: 30
+  poll_initial_interval_sec: 3.0
+  poll_max_interval_sec: 20.0
+  poll_total_timeout_sec: 600
+
+pricing:
+  currency: "RMB"
+  budget_guard_limit: 20.0
+  # 单条生成单价表（按分辨率与时长，单位：RMB/条，可按实际账户折扣修改）
+  unit_cost:
+    "480p_5s": 0.40
+    "480p_10s": 0.80
+    "720p_5s": 0.90
+    "720p_10s": 1.80
+    "1080p_5s": 1.60
+    "1080p_10s": 3.20
+
+relay:
+  default_mode: "auto" # auto | on | off
+  dino_threshold_5s: 0.20
+  dino_threshold_10s: 0.35
+  dino_threshold_level_b: 0.55
+  level_b_transition: "fade" # fade | slideleft
+  level_b_transition_sec: 0.4
+
+thresholds:
+  # 上游输入门禁
+  upstream_min_ssim: 0.9990
+  upstream_max_intrusion_px: 0
+  # 视频首尾帧与接缝门禁
+  first_frame_min_ssim: 0.92
+  first_frame_max_phash_dist: 6
+  last_frame_min_ssim: 0.88
+
+  seam_min_ssim: 0.88
+  # 接缝 pHash 门禁：SSIM 对"角色局部错位、背景不变"极不敏感，必须叠加感知哈希距离
+  seam_max_phash_dist: 6
+  # 时间漂移门禁 (0/25/50/75/100% 采样帧对比首帧)
+  temporal_min_dino_cos: 0.78
+  temporal_max_hist_bhattacharyya: 0.28
+  # 跨页全片离群检测
+  cross_page_max_brightness_zscore: 2.5
+  # 文字与水印
+  ocr_max_allowed_chars: 0
+  watermark_corner_edge_density_max: 0.18
+  # 角落"覆盖型角标"并集判据：变更面积占比够大 且 新增边缘密度不低即判为角标
+  # 环境动效大的项目（角落持续树叶/雨丝摆动）可调高这两项以降低误判
+  watermark_corner_changed_frac_min: 0.35
+  watermark_corner_changed_edge_min: 0.10
+
+repair:
+  max_retries_per_page: 3
+  base_seed: 42000
+  seed_step: 7919
+
+runtime:
+  prefer_gpu: true
+  target_fps: 24
+  audio_sample_rate: 48000

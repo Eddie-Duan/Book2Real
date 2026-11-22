@@ -1,0 +1,313 @@
+{
+  "plan_version": "1.0.0",
+  "degraded_mode": true,
+  "master_ratio": "4:3",
+  "page_turn_transition_enabled": false,
+  "cost_estimate_cny": 6.4,
+  "pages": [
+    {
+      "page_id": "page_001",
+      "scene_id": "sc_forest",
+      "time_tag": "afternoon",
+      "character_ids": [
+        "bear"
+      ],
+      "ratio": "4:3"
+    },
+    {
+      "page_id": "page_002",
+      "scene_id": "sc_forest",
+      "time_tag": "afternoon",
+      "character_ids": [
+        "bear"
+      ],
+      "ratio": "4:3"
+    },
+    {
+      "page_id": "page_003",
+      "scene_id": "sc_forest",
+      "time_tag": "afternoon",
+      "character_ids": [
+        "bear"
+      ],
+      "ratio": "4:3"
+    },
+    {
+      "page_id": "page_004",
+      "scene_id": "sc_night",
+      "time_tag": "night",
+      "character_ids": [],
+      "ratio": "4:3"
+    },
+    {
+      "page_id": "page_005",
+      "scene_id": "sc_bedroom",
+      "time_tag": "morning",
+      "character_ids": [
+        "bear"
+      ],
+      "ratio": "4:3"
+    }
+  ],
+  "segments": [
+    {
+      "segment_id": "seg_001",
+      "pages": [
+        "page_001",
+        "page_002"
+      ],
+      "segment_kind": "MERGED_PAGES",
+      "scene_id": "sc_forest",
+      "first_frame": {
+        "source": "page_001/clean_keyframe.png",
+        "kind": "keyframe"
+      },
+      "last_frame": {
+        "source": "page_002/clean_keyframe.png",
+        "kind": "keyframe"
+      },
+      "duration_sec": 5,
+      "ratio": "4:3",
+      "prompt_file": "prompts/seg_001_prompt.txt",
+      "trim_window_sec": null,
+      "transition_out": {
+        "type": "HARD_CUT",
+        "subtype": "HIDDEN_CUT_CONTINUOUS",
+        "realization": "IN_CLIP"
+      },
+      "fallback_if_no_last_frame": {
+        "last_frame": null,
+        "duration_sec": 5,
+        "transition_out": {
+          "type": "HARD_CUT",
+          "subtype": "CUT_ON_ACTION",
+          "realization": "IN_CLIP"
+        }
+      },
+      "risk_flags": [],
+      "confidence": 0.9
+    },
+    {
+      "segment_id": "seg_002",
+      "pages": [
+        "page_003"
+      ],
+      "segment_kind": "SINGLE_PAGE",
+      "scene_id": "sc_forest",
+      "first_frame": {
+        "source": "page_003/clean_keyframe.png",
+        "kind": "keyframe"
+      },
+      "last_frame": {
+        "source": "bridge/T_002_foreground_occlude.png",
+        "kind": "bridge_frame",
+        "bridge_kind": "foreground_occlude"
+      },
+      "duration_sec": 5,
+      "ratio": "4:3",
+      "prompt_file": "prompts/seg_002_prompt.txt",
+      "trim_window_sec": null,
+      "transition_out": {
+        "type": "DESIGNED_TRANSITION",
+        "subtype": "FOREGROUND_WIPE",
+        "realization": "SHARED_T"
+      },
+      "fallback_if_no_last_frame": null,
+      "risk_flags": [],
+      "confidence": 0.88
+    },
+    {
+      "segment_id": "seg_003",
+      "pages": [
+        "page_004"
+      ],
+      "segment_kind": "SINGLE_PAGE",
+      "scene_id": "sc_night",
+      "first_frame": {
+        "source": "bridge/T_002_foreground_occlude.png",
+        "kind": "bridge_frame",
+        "bridge_kind": "foreground_occlude"
+      },
+      "last_frame": {
+        "source": "bridge/T_003_black.png",
+        "kind": "bridge_frame",
+        "bridge_kind": "black"
+      },
+      "duration_sec": 5,
+      "ratio": "4:3",
+      "prompt_file": "prompts/seg_003_prompt.txt",
+      "trim_window_sec": null,
+      "transition_out": {
+        "type": "DESIGNED_TRANSITION",
+        "subtype": "FADE_THROUGH_BLACK",
+        "realization": "SHARED_T"
+      },
+      "fallback_if_no_last_frame": {
+        "last_frame": null,
+        "duration_sec": 5,
+        "transition_out": {
+          "type": "DESIGNED_TRANSITION",
+          "subtype": "CROSS_DISSOLVE",
+          "realization": "POST"
+        }
+      },
+      "risk_flags": [],
+      "confidence": 0.88
+    },
+    {
+      "segment_id": "seg_004",
+      "pages": [
+        "page_005"
+      ],
+      "segment_kind": "SINGLE_PAGE",
+      "scene_id": "sc_bedroom",
+      "first_frame": {
+        "source": "bridge/T_003_black.png",
+        "kind": "bridge_frame",
+        "bridge_kind": "black"
+      },
+      "last_frame": {
+        "source": "page_005/clean_keyframe.png",
+        "kind": "keyframe"
+      },
+      "duration_sec": 5,
+      "ratio": "4:3",
+      "prompt_file": "prompts/seg_004_prompt.txt",
+      "trim_window_sec": null,
+      "transition_out": {
+        "type": "END_OF_BOOK",
+        "subtype": "NATURAL_HOLD",
+        "realization": "NONE"
+      },
+      "fallback_if_no_last_frame": {
+        "last_frame": null,
+        "duration_sec": 5,
+        "transition_out": {
+          "type": "DESIGNED_TRANSITION",
+          "subtype": "CROSS_DISSOLVE",
+          "realization": "POST"
+        }
+      },
+      "risk_flags": [],
+      "confidence": 0.88
+    }
+  ],
+  "seams": [
+    {
+      "seam_id": "seam_page_001_page_002_merged",
+      "from_segment": "seg_001 (page_001)",
+      "to_segment": "seg_001 (page_002)",
+      "semantic_continuous": true,
+      "visual_interpolable": true,
+      "ratio_match": true,
+      "decision": "CONTINUOUS",
+      "subtype": "DUAL_ANCHOR_5S",
+      "metrics": {
+        "feature_distance": 0.0,
+        "ssim": 0.9688,
+        "color_bhattacharyya": 0.0008,
+        "subject_shift_pct": 0.0,
+        "scale_area_ratio": 1.0,
+        "flow_consistency": 1.0,
+        "shape_iou": 0.6925,
+        "_flow_dx": -6.67,
+        "_flow_dy": 0.0
+      },
+      "rationale": "语义连续且物理插值可行 -> 5s 双锚定同镜头。",
+      "confidence": 0.9,
+      "needs_human_review": false
+    },
+    {
+      "seam_id": "seam_seg_001_seg_002",
+      "from_segment": "seg_001",
+      "to_segment": "seg_002",
+      "semantic_continuous": true,
+      "visual_interpolable": true,
+      "ratio_match": true,
+      "decision": "HARD_CUT",
+      "subtype": "HIDDEN_CUT_CONTINUOUS",
+      "metrics": {
+        "feature_distance": 0.0024,
+        "ssim": 0.9843,
+        "color_bhattacharyya": 0.0701,
+        "subject_shift_pct": 0.0026,
+        "scale_area_ratio": 1.0136,
+        "flow_consistency": 1.0,
+        "shape_iou": 0.738,
+        "_flow_dx": 0.0,
+        "_flow_dy": -1.67
+      },
+      "rationale": "同一镜头超过单次 5s/10s 上限，在动作峰值处拆段；接缝为隐藏切点（动作切），不得改称双锚定同镜头。",
+      "confidence": 0.9,
+      "needs_human_review": false
+    },
+    {
+      "seam_id": "seam_seg_002_seg_003",
+      "from_segment": "seg_002",
+      "to_segment": "seg_003",
+      "semantic_continuous": false,
+      "visual_interpolable": false,
+      "ratio_match": true,
+      "decision": "DESIGNED_TRANSITION",
+      "subtype": "FOREGROUND_WIPE",
+      "metrics": {
+        "feature_distance": 0.7315,
+        "ssim": 0.3236,
+        "color_bhattacharyya": 1.0,
+        "subject_shift_pct": 0.017,
+        "scale_area_ratio": 0.8378,
+        "flow_consistency": 1.0,
+        "shape_iou": 0.0093,
+        "_flow_dx": 6.8,
+        "_flow_dy": 16.4
+      },
+      "rationale": "双轴跳变（场景切换 sc_forest -> sc_night）-> 共享桥接帧 foreground_occlude 实现 FOREGROUND_WIPE，禁用书页翻页。",
+      "confidence": 0.84,
+      "needs_human_review": false
+    },
+    {
+      "seam_id": "seam_seg_003_seg_004",
+      "from_segment": "seg_003",
+      "to_segment": "seg_004",
+      "semantic_continuous": false,
+      "visual_interpolable": false,
+      "ratio_match": true,
+      "decision": "DESIGNED_TRANSITION",
+      "subtype": "FADE_THROUGH_BLACK",
+      "metrics": {
+        "feature_distance": 0.8671,
+        "ssim": 0.2396,
+        "color_bhattacharyya": 1.0,
+        "subject_shift_pct": 0.1767,
+        "scale_area_ratio": 0.5775,
+        "flow_consistency": 1.0,
+        "shape_iou": 0.0196,
+        "_flow_dx": 8.0,
+        "_flow_dy": 5.14
+      },
+      "rationale": "双轴跳变（场景切换 sc_night -> sc_bedroom; 时间跳跃关键词）-> 共享桥接帧 black 实现 FADE_THROUGH_BLACK，禁用书页翻页。",
+      "confidence": 0.84,
+      "needs_human_review": false
+    }
+  ],
+  "concat_plan": [
+    {
+      "after_segment": "seg_001",
+      "cut": "hard",
+      "xfade_sec": 0.0,
+      "pad_to_master_ratio": false
+    },
+    {
+      "after_segment": "seg_002",
+      "cut": "hard",
+      "xfade_sec": 0.0,
+      "pad_to_master_ratio": false
+    },
+    {
+      "after_segment": "seg_003",
+      "cut": "hard",
+      "xfade_sec": 0.0,
+      "pad_to_master_ratio": false
+    }
+  ]
+}

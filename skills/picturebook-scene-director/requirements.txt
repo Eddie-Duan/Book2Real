@@ -1,0 +1,6 @@
+# 必需
+numpy>=1.24
+Pillow>=10.0
+
+# 可选：只用于直接解码 .mp4（没有它则用 ffmpeg 或帧目录）
+# opencv-python-headless>=4.9
