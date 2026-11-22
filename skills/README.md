@@ -30,6 +30,7 @@
 | S3–S4 | `seedance-relay-producer` | `scene_plan.json`（`--plan`） | `seg_###/clip.mp4` / `qc.json` / `final_movie.mp4` | 调 Ark Seedance、逐段门禁、拼成一条 |
 | S5 | `living-picturebook` | `scene_plan.json` + 成片 | `page_timeline.json` / 编排与验收 | 把"页"翻译成时间码 |
 | 旁路 | `ai-video-prompt-architect` | 交互层提示词需求 | 提示词参考 | 只服务交互层，不参与视频链路 |
+| S0 | `picturebook-scene-grouper` | `books/<id>/reader/book.json` | `scene_plan.json` / `prompts.json` | **按文本**把页聚成场景（官方 Q33），再出每场景提示词契约 |
 
 `living-picturebook` 同时是总装层：`scripts/run_pipeline.py` 把八步串成一条命令。
 
@@ -83,6 +84,26 @@ RapidOCR 在清字后的图上复读，`non_edited_ssim` 只算掩膜外，`prot
 实测（cn01，720p，dry-run）：12 页 PASS 12、关键帧统一 1920×1080、总时长 120 s、
 preflight 12 就绪 0 阻断、预估 21.6 元（preflight 熔断 20 元 → 需 `--yes` 或下调）。
 详见 `docs/SKILLS_OFFICIAL_GAP.md`。
+
+## 3.2 场景层（按文本，不按像素）
+
+`picturebook-scene-director` 的合并判据是像素级相似（色彩 ≤0.15、光流 ≥0.90），真实绘
+本几乎不满足 —— 实测 cn01 12 页 → 12 段，合并率 0。场景这一层改由
+`picturebook-scene-grouper` 按**文字**来划：
+
+```bash
+python skills/picturebook-scene-grouper/scripts/group_scenes.py \
+  --book books/cn01 --out .tmp/scene_plan_cn01.json --pages-dir .tmp/skill_pages
+python skills/picturebook-scene-grouper/scripts/build_prompts.py \
+  --book books/cn01 --scene-plan .tmp/scene_plan_cn01.json \
+  --pages-dir .tmp/skill_pages --out .tmp/prompts_cn01.json
+python skills/living-picturebook/scripts/build_qc_report.py \
+  --book books/cn01 --scene-plan .tmp/scene_plan_cn01.json \
+  --pages-dir .tmp/skill_pages --prompts .tmp/prompts_cn01.json --out .tmp/qc_report_cn01.json
+```
+
+实测：cn01 12 页 → **3 场 / 100 s / 文字覆盖 100%**；en01 28 页 → **7 场 / 140 s / 100%**。
+`qc_report.json` 六项全 PASS（成片未生成时该项 SKIP）。
 
 ## 4. 测试
 
