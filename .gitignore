@@ -47,3 +47,16 @@ pip-cache/
 .piptmp/
 .tmp/
 
+
+# ---- skills/ (picturebook skill pack) ----
+skills/**/__pycache__/
+skills/**/.venv/
+skills/**/.pytest_cache/
+skills/**/_tmp_tests/
+skills/**/.tmp_tests/
+skills/**/tmp*/
+skills/**/*.mp4
+skills/**/config.yaml
+skills/**/book_out/
+skills/**/pages/
+skills/**/runs/
