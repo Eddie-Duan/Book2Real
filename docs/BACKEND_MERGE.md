@@ -9,6 +9,15 @@
 > TTS/ASR 接入、`/test` 实时语音页、客户端 VAD、打断回声修复、实时 MiniMax LLM、
 > 麦克风增益与降噪修正）。同步时保留了本仓库的融合层 `app/frontend.py`、
 > `app/compat.py` 以及 `app/main.py` / `app/config.py` / `.env.example` 的本地改动。
+>
+> **2026-11-22 同步到 `4ef57b4`**（5 个提交：闲聊 LLM 缓存预热、情绪感知检索、barge_in ack
+> 修复、整本书问答检索快路径 + AudioWorklet 采集重写、语音测试页交接文档）。
+> 这次合并方式：上游 `54fbc62..4ef57b4` 逐文件三方合并（`git merge-file`），
+> 16 个文件直接取上游、4 个文件自动合并（`.env.example` / `app/config.py` / `app/main.py` /
+> `app/providers/llm.py`）、`app/pipeline/turn.py` 人工解冲突，保留了 skill4 的文风钩子。
+> 解冲突时发现并修掉一个真实问题：**文风卡的样句会把别的页原文带进提示词**，
+> 现在指定页码时只用该页建卡（`test_explicit_page_replaces_open_page_in_answer_context` 覆盖）。
+> `cd backend && python -m pytest -q` = **36 passed**。
 
 ## 1 目录与职责
 

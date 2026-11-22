@@ -153,6 +153,8 @@ class Settings:
     store_audio: bool = field(default_factory=lambda: _b("STORE_AUDIO", False))
     session_history_turns: int = field(default_factory=lambda: _i("SESSION_HISTORY_TURNS", 8))
     moderation_enabled: bool = field(default_factory=lambda: _b("MODERATION_ENABLED", True))
+    fast_answer: bool = field(default_factory=lambda: _b("FAST_ANSWER", False))
+    chitchat_cache: bool = field(default_factory=lambda: _b("CHITCHAT_CACHE", True))
 
     # Skill 4：点击回答默认复用预存卡片（零延迟）；打开后走同一套文风 prompt
     style_touch_llm: bool = field(default_factory=lambda: _b("STYLE_TOUCH_LLM", False))

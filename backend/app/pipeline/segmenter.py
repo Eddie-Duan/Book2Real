@@ -20,11 +20,11 @@ def _units(text: str) -> int:
 class ClauseSplitter:
     """增量切句器。
 
-    - 首块：>=4 个中文字（或 >=8 个英文字母）且遇到标点即发；最多 18 个单位硬切。
+    - 首块：到首个合适的标点即发，无标点时在自然边界提前切分。
     - 后续：按标点切，单块尽量 <= max_chars，避免 TTS 长句等待。
     """
 
-    def __init__(self, max_chars: int = 48, first_max_units: int = 18, first_min_units: int = 4) -> None:
+    def __init__(self, max_chars: int = 48, first_max_units: int = 10, first_min_units: int = 3) -> None:
         self.max_chars = max(16, max_chars)
         self.first_max_units = first_max_units
         self.first_min_units = first_min_units
@@ -57,19 +57,30 @@ class ClauseSplitter:
         if not text:
             return None
         first = not self.emitted_first
-        # 首块更激进：>=3 中文字遇逗号即发，或 >=8 字无标点硬切，让 TTS 尽早开口
-        min_units = 3 if first else 6
-        max_units = 8 if first else max(10, self.max_chars)
+        min_units = self.first_min_units if first else 6
+        max_units = self.first_max_units if first else self.max_chars
         scan = min(len(text), self.max_chars * 2)
         cut = -1
         for i, ch in enumerate(text[:scan]):
             if ch in _PUNCT and _units(text[:i]) >= min_units:
                 cut = i + 1
-                if ch in _SENT_END:
+                if first or ch in _SENT_END:
                     break
                 if _units(text[:cut]) >= max_units:
                     break
-        if cut < 0 and _units(text) >= max_units:
+        if first:
+            # Use an early boundary even if several tokens arrived together.
+            # An ASCII word at the end of a delta may still be incomplete.
+            for i, ch in enumerate(text[:self.max_chars], 1):
+                if 0 < cut <= i:
+                    break
+                next_ch = text[i:i + 1]
+                if ch.isascii() and ch.isalnum() and (not next_ch or (next_ch.isascii() and next_ch.isalnum())):
+                    continue
+                if _units(text[:i]) >= max_units:
+                    cut = i
+                    break
+        elif cut < 0 and _units(text) >= max_units:
             # 没有标点：英文优先在空格切，中文按最大长度切
             cut = min(len(text), self.max_chars)
             if re.search(r"[A-Za-z]", text[:cut]):

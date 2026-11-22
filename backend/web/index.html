@@ -1,542 +1,110 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>纸书智伴 · 语音后端 2s 测试台</title>
-<style>
-  :root { color-scheme: dark; }
-  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif; background: #0b1220; color: #e6edf3; }
-  .wrap { max-width: 820px; margin: 0 auto; padding: 20px 16px 48px; }
-  h1 { font-size: 20px; margin: 0 0 6px; }
-  .sub { color: #9fb0c3; font-size: 13px; margin-bottom: 16px; }
-  .card { background: #111a2c; border: 1px solid #22304a; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
-  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  label { font-size: 13px; color: #9fb0c3; }
-  select, input[type="number"], input[type="text"] { background: #0b1220; color: #e6edf3; border: 1px solid #2b3b58; border-radius: 8px; padding: 6px 8px; font-size: 14px; }
-  button { border: 0; border-radius: 10px; padding: 10px 16px; font-size: 15px; cursor: pointer; background: #2f6feb; color: white; }
-  button.secondary { background: #26334d; }
-  button.danger { background: #8b3a3a; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .big { font-size: 40px; font-weight: 700; line-height: 1.1; }
-  .ok { color: #4ade80; } .warn { color: #fbbf24; } .bad { color: #f87171; }
-  .kv { font-size: 13px; color: #9fb0c3; margin-top: 6px; }
-  .bubble { padding: 10px 12px; border-radius: 12px; margin: 8px 0; max-width: 90%; white-space: pre-wrap; }
-  .user { background: #1d3557; margin-left: auto; }
-  .assistant { background: #1f2a44; }
-  .meta { font-size: 12px; color: #8ea0b8; margin-top: 4px; }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #64748b; margin-right: 6px; }
-  .dot.live { background: #4ade80; } .dot.rec { background: #f87171; } .dot.busy { background: #fbbf24; }
-  #log { max-height: 360px; overflow: auto; font-size: 13px; }
-  #meter { width: 100%; height: 8px; background: #1c2740; border-radius: 6px; overflow: hidden; }
-  #meterFill { height: 100%; width: 0%; background: #4ade80; }
-  .hint { font-size: 12px; color: #8ea0b8; margin-top: 8px; }
-  a { color: #7fb1ff; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>纸书智伴 · 实时对话</title>
+  <link rel="stylesheet" href="/test/assets/chat.css">
+  <script src="/test/assets/chat.js" defer></script>
 </head>
 <body>
-<div class="wrap">
-  <h1>语音后端 2s 测试台</h1>
-  <div class="sub">麦克风 → ASR → 检索/回答 → TTS 流式播放；只测后端，不做视频/前端业务。</div>
-
-  <div class="card">
-    <div class="row">
-      <label>绘本</label><select id="book"></select>
-      <label>页码</label><input id="page" type="number" min="1" value="1" style="width:70px" />
-      <label>模式</label>
-      <select id="mode">
-        <option value="auto">自动 VAD（免提，说完自动回答）</option>
-        <option value="push" selected>按住说话（推荐，松开即回答）</option>
-      </select>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label>麦克风增益 <b id="gainVal">8</b>x</label>
-      <input id="gain" type="range" min="1" max="20" step="1" value="8" style="width:140px" />
-      <label>VAD 灵敏度 <b id="sensVal">3</b></label>
-      <input id="sens" type="range" min="1" max="10" step="1" value="3" style="width:110px" />
-      <button id="selftestBtn" class="secondary">用测试音频当我说</button>
-      <label><input type="checkbox" id="procToggle" /> 开启浏览器降噪/回声消除</label>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button id="connectBtn">连接并开始</button>
-      <button id="stopBtn" class="secondary" disabled>停止</button>
-      <button id="textBtn" class="secondary">文字问一句</button>
-      <span id="status"><span class="dot"></span>未连接</span>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button id="holdBtn" class="secondary" disabled style="flex:1; min-height:56px">按住说话 / 松开回答</button>
-    </div>
-    <div id="meter" style="margin-top:10px"><div id="meterFill"></div></div>
-    <div id="micInfo" class="kv">麦克风：未开始</div>
-    <div class="hint">请用 http://127.0.0.1:8790/test 打开（麦克风需要安全上下文）。首次连接会预热/加载模型，请先点一次“文字问一句”或等 ready。</div>
-  </div>
-
-  <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <div>
-        <div class="kv">说完 → 第一块音频</div>
-        <div id="firstAudio" class="big">—</div>
-        <div id="budget" class="kv">目标 ≤ 2000 ms</div>
+  <main class="app">
+    <aside class="sidebar" aria-label="绘本与语音设置">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">页</span>
+        <div><strong>纸书智伴</strong><span>绘本共读</span></div>
       </div>
-      <div style="text-align:right">
-        <div class="kv">ASR <b id="asrMs">—</b> ms · TTS首块 <b id="ttsMs">—</b> ms</div>
-        <div class="kv">填充音 <b id="filler">—</b> · 音频段 <b id="segs">0</b></div>
+
+      <section class="reading" aria-label="当前绘本">
+        <figure class="preview">
+          <span id="previewEmpty">绘本预览</span>
+          <img id="preview" alt="" hidden>
+        </figure>
+        <div class="book-fields">
+          <label>绘本<select id="book" disabled><option>加载中…</option></select></label>
+          <label>页码<input id="page" type="number" min="1" value="1" inputmode="numeric" disabled></label>
+        </div>
+      </section>
+
+      <section class="voice" aria-label="语音设置">
+        <label>说话方式
+          <select id="mode">
+            <option value="push">按住说话</option>
+            <option value="auto">自动听取</option>
+          </select>
+        </label>
+        <label>麦克风
+          <select id="device"><option value="">系统默认</option></select>
+        </label>
+        <div class="mic-row">
+          <div class="meter" aria-hidden="true"><div id="meterFill"></div></div>
+          <button class="link-button" id="micBtn" type="button" disabled>启用</button>
+        </div>
+        <p id="micInfo" class="secondary-text" role="status">麦克风尚未开启</p>
+      </section>
+
+      <details class="diagnostics">
+        <summary>语音诊断</summary>
+        <div class="detail-body">
+          <label class="toggle"><input id="echo" type="checkbox"> 回声消除</label>
+          <label class="toggle"><input id="noise" type="checkbox"> 降噪</label>
+          <label>麦克风增益 <output id="gainValue" for="gain">8×</output>
+            <input id="gain" type="range" min="1" max="20" value="8">
+          </label>
+          <label>自动听取灵敏度 <output id="sensitivityValue" for="sensitivity">3</output>
+            <input id="sensitivity" type="range" min="1" max="10" value="3">
+          </label>
+          <dl class="measurements">
+            <div><dt>输入电平</dt><dd id="inputLevel">—</dd></div>
+            <div><dt>最近录音</dt><dd id="duration">—</dd></div>
+            <div><dt>识别首字</dt><dd id="asrFirst">—</dd></div>
+            <div><dt>识别定稿</dt><dd id="asrMs">—</dd></div>
+            <div><dt>回复首音</dt><dd id="serverLatency">—</dd></div>
+          </dl>
+          <button id="selftestBtn" class="minor" type="button" disabled>用测试音频提问</button>
+          <ol id="log" class="event-log" aria-label="连接与语音事件"></ol>
+        </div>
+      </details>
+    </aside>
+
+    <section class="conversation" aria-labelledby="chatTitle">
+      <header class="chat-header">
+        <div>
+          <h1 id="chatTitle">实时对话</h1>
+          <div id="status" class="status" role="status">未连接</div>
+        </div>
+        <div class="session-buttons">
+          <button type="button" id="interruptBtn" class="minor" hidden>打断回复</button>
+          <button type="button" id="connectBtn" class="minor session-btn" disabled>连接</button>
+        </div>
+      </header>
+      <div id="thread" class="thread" tabindex="0" aria-label="对话记录">
+        <div id="welcome" class="welcome">
+          <div class="book-mark" aria-hidden="true"><i></i><i></i></div>
+          <h2>这页讲了什么？</h2>
+          <p>选好绘本和页码，开口聊聊画面里的故事。</p>
+          <div class="suggestions">
+            <button type="button" class="minor suggestion" disabled>这一页发生了什么？</button>
+            <button type="button" class="minor suggestion" disabled>他们在做什么？</button>
+          </div>
+        </div>
+        <div id="messages" class="messages"></div>
       </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="kv" style="margin-bottom:6px">对话</div>
-    <div id="chat"></div>
-  </div>
-
-  <div class="card">
-    <div class="kv" style="margin-bottom:6px">事件日志</div>
-    <div id="log"></div>
-  </div>
-</div>
-
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-  const state = {
-    ws: null,
-    connected: false,
-    ready: false,
-    mic: null,
-    ctx: null,
-    node: null,
-    source: null,
-    stream: null,
-    playCtx: null,
-    playTime: 0,
-    playRate: 24000,
-    speechEnd: 0,
-    speechEndSent: 0,
-    firstAudioAt: 0,
-    segs: 0,
-    activeSources: [],
-    mode: 'auto',
-    holdActive: false,
-    turnBusy: false,
-    lastAsrMs: 0,
-    lastTtsMs: 0,
-    lastFiller: false,
-    pendingUserBubble: null,
-    pendingAssistantBubble: null,
-    vad: { noise: 0.004, speechMs: 0, silenceMs: 0, started: false, frames: 0 },
-    micFrames: 0,
-    micBytes: 0,
-    micRms: 0,
-    gain: 8,
-    sens: 3,
-  };
-
-  function log(msg, cls='') {
-    const el = document.createElement('div');
-    el.textContent = new Date().toLocaleTimeString() + '  ' + msg;
-    if (cls) el.className = cls;
-    $('log').prepend(el);
-    while ($('log').children.length > 80) $('log').lastChild.remove();
-  }
-  function setStatus(text, cls='') {
-    $('status').innerHTML = `<span class="dot ${cls}"></span>${text}`;
-  }
-  function addBubble(role, text, meta='') {
-    const el = document.createElement('div');
-    el.className = 'bubble ' + role;
-    el.textContent = text;
-    if (meta) {
-      const m = document.createElement('div');
-      m.className = 'meta';
-      m.textContent = meta;
-      el.appendChild(m);
-    }
-    $('chat').appendChild(el);
-    $('chat').scrollTop = $('chat').scrollHeight;
-    return el;
-  }
-  function showLatency(ms) {
-    const el = $('firstAudio');
-    if (ms == null) { el.textContent = '—'; el.className = 'big'; return; }
-    el.textContent = Math.round(ms) + ' ms';
-    el.className = 'big ' + (ms <= 2000 ? 'ok' : ms <= 2600 ? 'warn' : 'bad');
-    $('budget').textContent = ms <= 2000 ? '✅ 2s 内' : '⚠️ 超过 2s';
-  }
-
-  async function loadBooks() {
-    try {
-      const r = await fetch('/api/books');
-      const data = await r.json();
-      $('book').innerHTML = '';
-      for (const b of (data.books || [])) {
-        const opt = document.createElement('option');
-        opt.value = b.id;
-        opt.textContent = `${b.id} · ${b.title || b.id}`;
-        $('book').appendChild(opt);
-      }
-      if (!$('book').options.length) $('book').innerHTML = '<option value="cn01">cn01</option>';
-    } catch (e) { log('load books failed: ' + e); }
-  }
-
-  function ensurePlayCtx(rate) {
-    if (!state.playCtx) state.playCtx = new (window.AudioContext || window.webkitAudioContext)();
-    state.playRate = rate || state.playRate;
-    if (state.playCtx.state === 'suspended') state.playCtx.resume();
-    if (state.playTime < state.playCtx.currentTime + 0.02) state.playTime = state.playCtx.currentTime + 0.02;
-  }
-  function stopPlayback() {
-    for (const s of state.activeSources) { try { s.stop(); } catch {} }
-    state.activeSources = [];
-    state.playTime = state.playCtx ? state.playCtx.currentTime : 0;
-  }
-  function playPcm(pcmBytes, rate) {
-    ensurePlayCtx(rate);
-    const n = pcmBytes.length / 2;
-    if (!n) return;
-    const buf = state.playCtx.createBuffer(1, n, rate);
-    const ch = buf.getChannelData(0);
-    const view = new DataView(pcmBytes.buffer, pcmBytes.byteOffset, pcmBytes.byteLength);
-    for (let i = 0; i < n; i++) ch[i] = view.getInt16(i * 2, true) / 32768;
-    const src = state.playCtx.createBufferSource();
-    src.buffer = buf;
-    src.connect(state.playCtx.destination);
-    const at = Math.max(state.playTime, state.playCtx.currentTime + 0.01);
-    src.start(at);
-    state.playTime = at + buf.duration;
-    state.activeSources.push(src);
-    src.onended = () => {
-      const i = state.activeSources.indexOf(src);
-      if (i >= 0) state.activeSources.splice(i, 1);
-    };
-  }
-
-  function bargeIn() {
-    stopPlayback();
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({type:'barge_in'}));
-  }
-
-  function clientVad(rms, frameMs) {
-    if (state.mode !== 'auto' || state.turnBusy) return;
-    const v = state.vad;
-    v.frames++;
-    if (v.frames < 8) v.noise = v.noise * 0.7 + Math.min(rms, 0.01) * 0.3;
-    const sensFactor = 4.5 - state.sens * 0.35; // 灵敏度越高阈值越低
-    const floor = 0.012 / state.sens;
-    const threshold = Math.max(floor, Math.min(0.05, v.noise * sensFactor));
-    const isSpeech = rms >= threshold;
-    if (!v.started) {
-      if (isSpeech) {
-        v.speechMs += frameMs;
-        if (v.speechMs >= 120) {
-          v.started = true; v.silenceMs = 0;
-          if (!state.turnBusy) { bargeIn(); state.firstAudioAt = 0; state.segs = 0; showLatency(null); }
-          state.ws.send(JSON.stringify({type:'vad', event:'speech_start'}));
-          setStatus('正在听…', 'rec');
-          log('client speech_start rms=' + rms.toFixed(4));
-        }
-      } else {
-        v.speechMs = 0;
-        v.noise = v.noise * 0.95 + Math.min(rms, 0.01) * 0.05;
-      }
-    } else {
-      if (isSpeech) { v.silenceMs = 0; }
-      else {
-        v.silenceMs += frameMs;
-        if (v.silenceMs >= 500) {
-          v.started = false; v.speechMs = 0; v.silenceMs = 0;
-          const t = Date.now();
-          state.speechEnd = performance.now();
-          state.ws.send(JSON.stringify({type:'vad', event:'speech_end', t}));
-          setStatus('思考中…', 'busy');
-          log('client speech_end');
-        }
-      }
-    }
-  }
-
-  async function startMic() {
-    state.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: $('procToggle').checked, noiseSuppression: $('procToggle').checked, autoGainControl: true }
-    });
-    state.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (state.ctx.state === 'suspended') await state.ctx.resume();
-    state.source = state.ctx.createMediaStreamSource(state.stream);
-    const bufSize = 4096;
-    state.node = state.ctx.createScriptProcessor(bufSize, 1, 1);
-    state.node.onaudioprocess = (ev) => {
-      if (!state.ws || state.ws.readyState !== WebSocket.OPEN || !state.ready) return;
-      const raw = ev.inputBuffer.getChannelData(0);
-      const input = new Float32Array(raw.length);
-      for (let i = 0; i < raw.length; i++) input[i] = Math.max(-1, Math.min(1, raw[i] * state.gain));
-      let sum = 0;
-      for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
-      const rms = Math.sqrt(sum / input.length);
-      state.micRms = rms;
-      $('meterFill').style.width = Math.min(100, rms * 800) + '%';
-      const target = 16000;
-      const ratio = state.ctx.sampleRate / target;
-      const outLen = Math.floor(input.length / ratio);
-      const pcm = new Int16Array(outLen);
-      for (let i = 0; i < outLen; i++) {
-        const idx = Math.floor(i * ratio);
-        const v = Math.max(-1, Math.min(1, input[idx]));
-        pcm[i] = v < 0 ? v * 32768 : v * 32767;
-      }
-      // 只在“正在说话”时上传音频，避免把静音前缀送进 ASR
-      const speakingNow = state.mode === 'push' ? state.holdActive : state.vad.started;
-      if (speakingNow) { state.ws.send(pcm.buffer); state.micBytes += pcm.byteLength; }
-      state.micFrames++;
-      if (state.micFrames % 10 === 0) {
-        log('mic rms=' + rms.toFixed(4) + ' frames=' + state.micFrames + ' bytes=' + state.micBytes);
-        $('micInfo').textContent = '麦克风：rms=' + rms.toFixed(4) + ' · frames=' + state.micFrames + ' · bytes=' + state.micBytes;
-      }
-      clientVad(rms, input.length / state.ctx.sampleRate * 1000);
-    };
-    state.source.connect(state.node);
-    state.node.connect(state.ctx.destination);
-    log('mic started @' + state.ctx.sampleRate + 'Hz → 16k PCM');
-    $('micInfo').textContent = '麦克风：已开始 @' + state.ctx.sampleRate + 'Hz，等待说话…';
-  }
-
-  function sendStart() {
-    const book = $('book').value || 'cn01';
-    const page = parseInt($('page').value || '1', 10);
-    state.mode = $('mode').value;
-    state.vad = { noise: 0.004, speechMs: 0, silenceMs: 0, started: false, frames: 0 };
-    state.ws.send(JSON.stringify({
-      type: 'start',
-      book_id: book,
-      page,
-      sample_rate: 16000,
-      vad: 'client',
-      warmup: false
-    }));
-  }
-
-  async function connect() {
-    if (state.connected) return;
-    $('connectBtn').disabled = true;
-    setStatus('连接中…', 'busy');
-    try {
-      await loadBooks();
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const sid = 'web-' + Math.random().toString(36).slice(2, 8);
-      state.ws = new WebSocket(`${proto}://${location.host}/ws/voice/${sid}`);
-      state.ws.binaryType = 'arraybuffer';
-      state.ws.onopen = async () => {
-        state.connected = true;
-        sendStart();
-        await startMic();
-        $('stopBtn').disabled = false;
-        $('holdBtn').disabled = state.mode !== 'push';
-        setStatus('已连接', 'live');
-      };
-      state.ws.onmessage = (ev) => {
-        if (ev.data instanceof ArrayBuffer) {
-          const now = performance.now();
-          if (!state.firstAudioAt && state.speechEnd) {
-            state.firstAudioAt = now;
-            const ms = now - state.speechEnd;
-            showLatency(ms);
-            log('first audio +' + Math.round(ms) + 'ms', ms <= 2000 ? 'ok' : 'bad');
-          }
-          playPcm(new Uint8Array(ev.data), state.playRate);
-          return;
-        }
-        const msg = JSON.parse(ev.data);
-        handleMessage(msg);
-      };
-      state.ws.onclose = () => {
-        state.connected = false; state.ready = false;
-        setStatus('已断开');
-        $('connectBtn').disabled = false; $('stopBtn').disabled = true; $('holdBtn').disabled = true;
-      };
-      state.ws.onerror = () => log('ws error', 'bad');
-    } catch (e) {
-      log('connect failed: ' + e);
-      setStatus('连接失败');
-      $('connectBtn').disabled = false;
-    }
-  }
-
-  function handleMessage(msg) {
-    const t = msg.type;
-    if (t === 'ready') {
-      state.ready = true;
-      setStatus(msg.warm ? '就绪（已预热）' : '就绪（预热中）', 'live');
-      log('ready book=' + msg.book_id + ' warm=' + msg.warm);
-      return;
-    }
-    if (t === 'speech_start') {
-      // 客户端 VAD/按住说话已经在本地 barge-in 过；这里只重置显示，
-      // 不能再发 barge_in，否则会把服务端正在录的 buffer 清掉。
-      state.firstAudioAt = 0; state.segs = 0; showLatency(null);
-      setStatus('正在听…', 'rec');
-      return;
-    }
-    if (t === 'speech_end') {
-      state.speechEnd = performance.now();
-      state.speechEndSent = msg.t;
-      state.turnBusy = true;
-      setStatus('思考中…', 'busy');
-      log('speech_end bytes=' + msg.bytes);
-      return;
-    }
-    if (t === 'asr_final') {
-      state.lastAsrMs = msg.ms || 0;
-      $('asrMs').textContent = Math.round(state.lastAsrMs);
-      addBubble('user', msg.text || '(空)', `ASR ${Math.round(state.lastAsrMs)}ms`);
-      log('asr_final: ' + msg.text);
-      state.pendingAssistantBubble = addBubble('assistant', '', '回答中…');
-      return;
-    }
-    if (t === 'answer_delta') {
-      if (state.pendingAssistantBubble) {
-        const meta = state.pendingAssistantBubble.querySelector('.meta');
-        const textNode = state.pendingAssistantBubble.firstChild;
-        if (textNode && textNode.nodeType === Node.TEXT_NODE) textNode.textContent += msg.text;
-        else state.pendingAssistantBubble.insertBefore(document.createTextNode(msg.text), meta);
-      }
-      return;
-    }
-    if (t === 'audio_start') {
-      state.playRate = msg.sample_rate || 24000;
-      state.segs++;
-      $('segs').textContent = state.segs;
-      if (msg.filler) { state.lastFiller = true; $('filler').textContent = '是'; }
-      return;
-    }
-    if (t === 'filler_used') {
-      state.lastFiller = true;
-      $('filler').textContent = '是';
-      log('filler used');
-      return;
-    }
-    if (t === 'answer') {
-      const m = msg.metrics || {};
-      const first = m.first_audio_after_speech_ms;
-      if (first != null) showLatency(first);
-      $('ttsMs').textContent = (msg.timings && msg.timings.tts_start != null) ? Math.round(msg.timings.tts_start - (msg.timings.asr_final || 0)) : '—';
-      $('filler').textContent = m.used_filler ? '是' : '否';
-      if (state.pendingAssistantBubble) {
-        const meta = state.pendingAssistantBubble.querySelector('.meta');
-        const action = msg.action ? ' · action=' + (msg.action.type || '') : '';
-        if (meta) meta.textContent = `首音 ${first != null ? Math.round(first) : '—'}ms · ASR ${Math.round(state.lastAsrMs)}ms${action}`;
-        state.pendingAssistantBubble = null;
-      } else {
-        addBubble('assistant', msg.text || '', `首音 ${first != null ? Math.round(first) : '—'}ms`);
-      }
-      log('answer: ' + (msg.text || '').slice(0, 60));
-      return;
-    }
-    if (t === 'done') {
-      state.turnBusy = false;
-      setStatus(state.mode === 'push' ? '就绪（按住说话）' : '就绪（自动 VAD）', 'live');
-      $('holdBtn').disabled = state.mode !== 'push';
-      return;
-    }
-    if (t === 'error') { log('error: ' + msg.message, 'bad'); setStatus('错误', 'busy'); return; }
-    if (t === 'tts_error') { log('tts_error: ' + msg.message, 'warn'); return; }
-    if (t === 'barge_in_ack') { log('barge_in ack'); return; }
-  }
-
-  function disconnect() {
-    try { if (state.node) state.node.disconnect(); } catch {}
-    try { if (state.source) state.source.disconnect(); } catch {}
-    try { if (state.stream) state.stream.getTracks().forEach(t => t.stop()); } catch {}
-    try { if (state.ctx) state.ctx.close(); } catch {}
-    try { if (state.ws) state.ws.close(); } catch {}
-    stopPlayback();
-    state.connected = false; state.ready = false;
-    $('connectBtn').disabled = false; $('stopBtn').disabled = true; $('holdBtn').disabled = true;
-    setStatus('已停止');
-  }
-
-  function sendText() {
-    const text = prompt('输入一句测试问题（例如：他们在搭什么？）');
-    if (!text) return;
-    if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { log('先点“连接并开始”'); return; }
-    if (!state.ready) { log('等待 ready'); return; }
-    bargeIn();
-    state.speechEnd = performance.now();
-    state.firstAudioAt = 0;
-    state.segs = 0;
-    showLatency(null);
-    state.ws.send(JSON.stringify({type:'text', text, t: Date.now()}));
-  }
-
-  function holdDown() {
-    if (!state.ready || state.mode !== 'push') return;
-    state.holdActive = true;
-    bargeIn();
-    state.speechEnd = 0; state.firstAudioAt = 0; state.segs = 0; showLatency(null);
-    state.ws.send(JSON.stringify({type:'vad', event:'speech_start'}));
-    $('holdBtn').textContent = '正在录音…松开回答';
-    setStatus('正在听…', 'rec');
-  }
-  function holdUp() {
-    if (!state.holdActive) return;
-    state.holdActive = false;
-    $('holdBtn').textContent = '按住说话 / 松开回答';
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-      state.ws.send(JSON.stringify({type:'vad', event:'speech_end', t: Date.now()}));
-    }
-  }
-
-  $('procToggle').onchange = async () => {
-    if (!state.connected) return;
-    try { if (state.node) state.node.disconnect(); if (state.source) state.source.disconnect(); if (state.stream) state.stream.getTracks().forEach(t=>t.stop()); if (state.ctx) state.ctx.close(); } catch {}
-    await startMic();
-  };
-  $('gain').oninput = () => { state.gain = parseFloat($('gain').value); $('gainVal').textContent = state.gain; };
-  $('sens').oninput = () => { state.sens = parseFloat($('sens').value); $('sensVal').textContent = state.sens; };
-  $('selftestBtn').onclick = async () => {
-    if (!state.ws || state.ws.readyState !== WebSocket.OPEN || !state.ready) { log('先点“连接并开始”'); return; }
-    const book = $('book').value || 'cn01';
-    try {
-      const r = await fetch(`/api/books/${book}/queries/06.wav`);
-      if (!r.ok) { log('selftest: 无测试音频'); return; }
-      const buf = await r.arrayBuffer();
-      const dv = new DataView(buf);
-      // 解析 wav，取 16k mono PCM16
-      let off = 12, rate = 16000, dataOff = 44, dataLen = buf.byteLength - 44;
-      while (off + 8 < buf.byteLength) {
-        const id = String.fromCharCode(dv.getUint8(off), dv.getUint8(off+1), dv.getUint8(off+2), dv.getUint8(off+3));
-        const sz = dv.getUint32(off+4, true);
-        if (id === 'fmt ') rate = dv.getUint32(off+12, true);
-        if (id === 'data') { dataOff = off+8; dataLen = sz; break; }
-        off += 8 + sz;
-      }
-      const pcm = new Uint8Array(buf, dataOff, dataLen);
-      bargeIn();
-      state.firstAudioAt = 0; state.segs = 0; showLatency(null);
-      state.ws.send(JSON.stringify({type:'vad', event:'speech_start'}));
-      const step = 640;
-      for (let i = 0; i < pcm.length; i += step) {
-        state.ws.send(pcm.slice(i, i+step));
-        await new Promise(res => setTimeout(res, 20));
-      }
-      state.speechEnd = performance.now();
-      state.ws.send(JSON.stringify({type:'vad', event:'speech_end', t: Date.now()}));
-      log('selftest: 已注入测试音频');
-    } catch (e) { log('selftest failed: ' + e); }
-  };
-  $('connectBtn').onclick = connect;
-  $('stopBtn').onclick = disconnect;
-  $('textBtn').onclick = sendText;
-  $('mode').onchange = () => {
-    $('holdBtn').disabled = $('mode').value !== 'push' || !state.connected;
-    if (state.connected) sendStart();
-  };
-  $('holdBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); holdDown(); });
-  $('holdBtn').addEventListener('pointerup', holdUp);
-  $('holdBtn').addEventListener('pointerleave', holdUp);
-  window.addEventListener('keydown', (e) => { if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); holdDown(); } });
-  window.addEventListener('keyup', (e) => { if (e.code === 'Space') holdUp(); });
-
-  loadBooks();
-})();
-</script>
+      <div class="composer">
+        <p id="notice" class="notice" role="status" hidden></p>
+        <p id="asrPreview" class="asr-preview" hidden></p>
+        <div class="talk-row">
+          <button id="holdBtn" class="talk" type="button" disabled aria-describedby="voiceHint">按住说话</button>
+          <span id="autoLabel" class="auto-label" hidden>等待语音</span>
+          <span id="voiceHint" class="voice-hint">连接后可使用麦克风</span>
+          <span class="latency" id="latency" hidden></span>
+        </div>
+        <form id="composerForm">
+          <input id="question" type="text" aria-label="输入问题" placeholder="输入想问的问题…" maxlength="500" autocomplete="off">
+          <button id="sendBtn" type="submit" disabled>发送 <span aria-hidden="true">↗</span></button>
+        </form>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
