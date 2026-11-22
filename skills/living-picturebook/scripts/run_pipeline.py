@@ -28,6 +28,13 @@ import os
 import subprocess
 import sys
 import time
+
+# Windows 控制台默认 GBK，子进程输出里的 ¥ / 表情会直接抛 UnicodeEncodeError
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -88,6 +95,7 @@ class Ctx:
     poll_timeout_sec: int
     scene_scripts: Path
     relay_root: Path
+    target_seconds: int = 0
 
 
 def run(ctx: Ctx, label: str, argv: list[str], cwd: Path) -> None:
@@ -123,6 +131,16 @@ def step_plan(ctx: Ctx) -> None:
         "--pages-dir", ctx.pages_dir,
         "--out-dir", ctx.out_dir,
     ], cwd=ctx.scene_scripts)
+
+
+def step_duration(ctx: Ctx) -> None:
+    if not ctx.target_seconds:
+        return
+    run(ctx, "S3c 时长对齐（ensure_duration）", [
+        sys.executable, Path(__file__).with_name("ensure_duration.py"),
+        "--plan", str(ctx.out_dir / "scene_plan.json"),
+        "--target", str(ctx.target_seconds),
+    ], cwd=Path(__file__).parent)
 
 
 def step_bridge(ctx: Ctx) -> None:
@@ -282,6 +300,7 @@ class Step:
 
 STEPS = [
     Step("plan", "S3 分镜", step_plan, False),
+    Step("duration", "S3c 时长对齐", step_duration, False),
     Step("bridge", "S3b 桥接帧", step_bridge, False),
     Step("preflight", "S4a 生成前检查", step_preflight, False),
     Step("generate", "S4b 提交生成", step_generate, True),
@@ -299,6 +318,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--plan", type=Path, default=None, help="scene_plan.json（默认 <out-dir>/scene_plan.json）")
     ap.add_argument("--relay-out", type=Path, default=None, help="relay 工作目录（默认 <out-dir>/relay）")
     ap.add_argument("--resolution", choices=["480p", "720p", "1080p"], default="1080p")
+    ap.add_argument("--target-seconds", type=int, default=0,
+                    help="把总时长对齐到官方区间（如 120）；0=不改，保持 plan 原值")
     ap.add_argument("--dry-run", action="store_true", help="只跑到生成 payload，不调 API、不花钱")
     ap.add_argument("--yes", action="store_true", help="超过预算守卫时确认执行")
     ap.add_argument("--keep-going", action="store_true", help="某步失败也继续（默认失败即停）")
@@ -336,6 +357,7 @@ def main(argv: list[str] | None = None) -> int:
         poll_timeout_sec=max(60, args.poll_timeout_min * 60),
         scene_scripts=find_scene_scripts(args.scene_scripts),
         relay_root=find_relay_root(args.relay_root),
+        target_seconds=args.target_seconds,
     )
 
     keys = [s.key for s in STEPS]

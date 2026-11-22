@@ -30,6 +30,7 @@ import run_pipeline as rp  # noqa: E402
 
 EXPECTED_STEPS = [
     ("plan", False),
+    ("duration", False),
     ("bridge", False),
     ("preflight", False),
     ("generate", True),

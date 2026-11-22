@@ -56,6 +56,34 @@ python skills/living-picturebook/scripts/book_timeline.py \
 模型默认 `doubao-seedance-2-5-flash-261115`（见 `skills/seedance-relay-producer/config.example.yaml`）。
 注意 **2.5 带首帧时不允许下发 `ratio`**，配置项 `ratio_follows_first_frame: true` 已默认打开。
 
+## 3.1 从本仓库的书接进来（官方口径对齐）
+
+`run_pipeline.py` 只认 `page_###/` 四件套，不认 `books/<id>`。三个补充脚本：
+
+```bash
+# 1) 阅读包 -> skills 输入（清字 + 三项真实 QC，不花钱）
+python skills/living-picturebook/scripts/prepare_from_book.py \
+  --book books/cn01 --out .tmp/skill_pages
+
+# 2) 总时长对齐到官方 100–200 s（plan_scenes 默认每页 5 s，12 页只有 60 s）
+python skills/living-picturebook/scripts/run_pipeline.py \
+  --pages-dir .tmp/skill_pages --out-dir .tmp/skill_out \
+  --resolution 720p --target-seconds 120 --dry-run
+
+# 3) 对着官方条目判「能不能交」
+python skills/living-picturebook/scripts/check_official.py \
+  --plan .tmp/skill_out/scene_plan.json --pages-dir .tmp/skill_pages \
+  --book books/cn01 --out .tmp/skill_out/official_check.json
+```
+
+`prepare_from_book.py` 的三项指标是真算的，不是常量：`ocr_residual_count` 用本机
+RapidOCR 在清字后的图上复读，`non_edited_ssim` 只算掩膜外，`protected_zone_intrusion_px`
+是掩膜外被改动的像素数（像素锁下应为 0）。
+
+实测（cn01，720p，dry-run）：12 页 PASS 12、关键帧统一 1920×1080、总时长 120 s、
+preflight 12 就绪 0 阻断、预估 21.6 元（preflight 熔断 20 元 → 需 `--yes` 或下调）。
+详见 `docs/SKILLS_OFFICIAL_GAP.md`。
+
 ## 4. 测试
 
 全部是纯标准库脚本，几秒跑完，不需要 API Key：
