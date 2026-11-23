@@ -121,7 +121,7 @@ class Settings:
     llm_provider: str = field(default_factory=lambda: (_s("LLM_PROVIDER") or ("openai" if _first("LLM_API_KEY", "DEEPSEEK_API_KEY") else "extractive")).lower())
     llm_base_url: str = field(default_factory=lambda: (_first("LLM_BASE_URL", "LLM_API_BASE_URL") or "https://api.deepseek.com/v1").rstrip("/"))
     llm_api_key: str = field(default_factory=lambda: _first("LLM_API_KEY", "DEEPSEEK_API_KEY"))
-    llm_model: str = field(default_factory=lambda: _first("LLM_MODEL", "LLM_API_MODEL") or "deepseek-v4.1-flash")
+    llm_model: str = field(default_factory=lambda: _first("LLM_MODEL", "LLM_API_MODEL") or "deepseek-chat")
     llm_timeout_s: float = field(default_factory=lambda: _f("LLM_TIMEOUT_S", 20.0))
     llm_max_tokens: int = field(default_factory=lambda: _i("LLM_MAX_TOKENS", 120))
     llm_temperature: float = field(default_factory=lambda: _f("LLM_TEMPERATURE", 0.3))
