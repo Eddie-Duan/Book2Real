@@ -157,6 +157,62 @@ def non_edited_ssim(orig: np.ndarray, out: np.ndarray, mask: np.ndarray) -> floa
     return float(ssim(a, b, data_range=255))
 
 
+def faint_text_hits(img: np.ndarray, *, min_len: int = 4,
+                    min_score: float = 0.6) -> list[dict]:
+    """Read text that the raw-page OCR misses: watermarks and 10–20% alpha
+    overlays only become readable after the local background is subtracted.
+
+    Returns ``[{"box": [x0,y0,x1,y1], "text": str, "score": float}]`` in the
+    pixel coordinates of ``img``.
+    """
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+        import cv2
+    except Exception:
+        return []
+    global _OCR
+    try:
+        _OCR
+    except NameError:
+        _OCR = RapidOCR()
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    bg = cv2.GaussianBlur(gray, (0, 0), 15)
+    resid = np.clip(bg.astype(np.int16) - gray.astype(np.int16), 0, 60).astype(np.uint8)
+    enh = cv2.normalize(resid, None, 0, 255, cv2.NORM_MINMAX)
+    res, _ = _OCR(enh)
+    out: list[dict] = []
+    for item in res or []:
+        pts, text, score = item[0], str(item[1] or ""), float(item[2])
+        text = text.strip()
+        if len(text) < min_len or score < min_score:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        out.append({"box": [float(min(xs)), float(min(ys)),
+                            float(max(xs)), float(max(ys))],
+                    "text": text, "score": score})
+    return out
+
+
+def merge_boxes(a: list, b: list, *, iou_max: float = 0.2) -> list[list[float]]:
+    """Union of two box lists, dropping b-boxes that merely re-cover an a-box."""
+
+    def iou(p, q) -> float:
+        ix0, iy0 = max(p[0], q[0]), max(p[1], q[1])
+        ix1, iy1 = min(p[2], q[2]), min(p[3], q[3])
+        if ix1 <= ix0 or iy1 <= iy0:
+            return 0.0
+        inter = (ix1 - ix0) * (iy1 - iy0)
+        union = (p[2] - p[0]) * (p[3] - p[1]) + (q[2] - q[0]) * (q[3] - q[1]) - inter
+        return inter / union if union > 0 else 0.0
+
+    out = list(a)
+    for q in b:
+        if all(iou(p, q) < iou_max for p in a):
+            out.append(q)
+    return out
+
+
 def ocr_residual_count(img: np.ndarray, boxes: list, sx: float, sy: float) -> tuple[int, list]:
     """在清字后的关键帧上跑本地 OCR，统计仍能读出文字、且与原文字框重叠的条数。"""
     try:
@@ -235,6 +291,8 @@ def main() -> int:
     ap.add_argument("--aspect", default="16:9", help="关键帧统一宽高比（默认 16:9；none=不补边）")
     ap.add_argument("--prefer-art", action="store_true",
                     help="直接用 storybook 已清字的 art（不走本地修补，指标会按 art 计）")
+    ap.add_argument("--pages", default="",
+                    help="只处理这些页（逗号分隔，如 p04,p09）；默认全部")
     a = ap.parse_args()
 
     book_dir, out_dir = Path(a.book), Path(a.out)
@@ -244,6 +302,11 @@ def main() -> int:
     pages = book.get("pages") or []
     if not pages:
         raise SystemExit("[prepare] book.json 里没有 pages")
+    if a.pages:
+        wanted = {s.strip() for s in str(a.pages).split(",") if s.strip()}
+        pages = [p for p in pages if (p.get("id") or "") in wanted]
+        if not pages:
+            raise SystemExit(f"[prepare] --pages {a.pages} 没有匹配到任何页")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -274,6 +337,10 @@ def main() -> int:
 
         boxes = page.get("text_boxes") or [(l.get("box") or []) for l in (page.get("ocr_lines") or [])]
         boxes = [[float(v) for v in b] for b in boxes if isinstance(b, (list, tuple)) and len(b) == 4]
+        # Watermarks / faint overlays are invisible to the raw OCR pass; read them
+        # on the background-subtracted image and mask them too.
+        faint = faint_text_hits(orig)
+        boxes = merge_boxes(boxes, [h["box"] for h in faint])
 
         blocks_json = pdir / "text_boxes.json"
         blocks_json.write_text(
@@ -312,7 +379,7 @@ def main() -> int:
                     break
             mask_png.unlink(missing_ok=True)
 
-        # 指标
+        # 指标（放在所有清理轮之后，避免用中间结果打分）
         res_count = 0
         if boxes:
             g = np.asarray(Image.fromarray(out).convert("L"))
@@ -325,7 +392,6 @@ def main() -> int:
         kf = finalize(out)
         kf.save(pdir / "clean_keyframe.png", format="PNG")
         mask_png.unlink(missing_ok=True)
-
         ocr_left, ocr_hits = (0, []) if not boxes else ocr_residual_count(out, boxes, 1.0, 1.0)
         if ocr_left > 0 and not a.prefer_art:
             # 还有能读出来的字：再来一轮更粗的掩膜
@@ -344,11 +410,28 @@ def main() -> int:
                     break
             mask_png.unlink(missing_ok=True)
 
+        # 指标：用最终结果重算，不用中间轮次的
+        res_count = 0
+        if boxes:
+            g = np.asarray(Image.fromarray(out).convert("L"))
+            for b in boxes:
+                if ink_residual(b, g, RESIDUAL_INK_THRESHOLD) > RESIDUAL_INK_THRESHOLD:
+                    res_count += 1
+        ssim_val = non_edited_ssim(orig, out, mask_used) if not a.prefer_art else 1.0
+        intrusion = int(np.count_nonzero((out != orig).any(axis=2) & (mask_used == 0))) if not a.prefer_art else 0
+
+        # 水印/淡字用「清完后还能不能读出来」验收：修补后的插画纹理会让
+        # 墨迹启发式必然误判，读字才是真信号。
+        faint_left = faint_text_hits(out)
+
         problems = []
         # 有 OCR 时以「还能不能读出字」为准；没有 OCR 才退回墨迹启发式
         effective_residual = ocr_left if ocr_left >= 0 else res_count
         if effective_residual > 0:
             problems.append(f"{effective_residual} 处仍能读出文字（OCR 残留）")
+        if faint_left:
+            sample = " / ".join(h["text"][:14] for h in faint_left[:3])
+            problems.append(f"清字后仍有可读水印/淡字 {len(faint_left)} 处：{sample}")
         if ssim_val < SSIM_MIN:
             problems.append(f"非编辑区 SSIM {ssim_val:.3f} < {SSIM_MIN}")
         if intrusion > PROTECTED_INTRUSION_MAX:
@@ -367,6 +450,8 @@ def main() -> int:
                 "keyframe_size": list(kf.size),
                 "source_size": [w0, h0],
                 "text_box_count": len(boxes),
+                "faint_text_boxes": len(faint),
+                "faint_text_after_clean": len(faint_left),
                 "ink_residual_boxes": res_count,
                 "ocr_backend": "rapidocr" if ocr_left >= 0 else "heuristic",
                 "ocr_hits": ocr_hits,

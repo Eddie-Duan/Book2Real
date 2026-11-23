@@ -71,6 +71,29 @@ def load_text_by_page(book: dict) -> dict:
     return {p.get("id"): (p.get("text") or "").strip() for p in (book.get("pages") or [])}
 
 
+def _character_anchors(book_dir: Path, pages: list[str]) -> list[str]:
+    """Identities that must survive the shot, taken from the reader's cast file."""
+    p = Path(book_dir) / "reader" / "characters" / "characters.json"
+    if not p.is_file():
+        return []
+    try:
+        chars = json.loads(p.read_text(encoding="utf-8")).get("characters") or []
+    except Exception:
+        return []
+    out: list[str] = []
+    for c in chars:
+        cps = set(c.get("pages") or [])
+        if cps and not (cps & set(pages)):
+            continue
+        name = str(c.get("name") or "").strip()
+        if not name:
+            continue
+        role = str(c.get("role") or "").strip()
+        desc = str(c.get("desc") or "").strip().rstrip("。.")[:44]
+        out.append(f"{name}（{role}）{desc}".strip())
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="scene_plan -> prompts.json")
     ap.add_argument("--book", required=True)
@@ -111,6 +134,10 @@ def main() -> int:
         parts = [a.style_dna, f"本场景画面：{body}",
                  "画面本身不要出现任何文字；保持角色一致。"]
         parts.extend(_shot_bounds(seg, tr))
+        anchors = _character_anchors(Path(a.book), pages)
+        if anchors:
+            parts.append("角色锚点：" + "；".join(anchors)
+                         + "。整段保持同一发型、服饰、比例与配色，不得换人或改龄。")
         prompt = "\n".join(parts)[:PROMPT_CHAR_LIMIT]
         prev_tr = tr
         shots = seg.get("shot_plan") or []
