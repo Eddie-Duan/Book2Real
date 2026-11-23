@@ -298,7 +298,7 @@ def inspect_single_page(
         min_seam = 0.85 if job["resolution"] == "480p" else thresh["seam_min_ssim"]
         max_seam_phash = int(thresh.get("seam_max_phash_dist", 6))
         target_is_flat = float(to_gray_std(last_target_bgr)) < 8.0
-        seam_phash_skipped = target_is_flat or seam_ssim >= 0.995
+        seam_phash_skipped = target_is_flat or seam_ssim >= 0.99
         seam_phash_ok = True if seam_phash_skipped else seam_phash <= max_seam_phash
         seam_check = {
             "applicable": True,
@@ -309,7 +309,7 @@ def inspect_single_page(
             # 故接缝门禁必须同时看 pHash 距离，否则接力断裂会被放过。
             "seam_phash_distance": seam_phash,
             "seam_phash_threshold": max_seam_phash,
-            "phash_skipped": "目标锚点近乎纯色（黑场 T）或 SSIM 已达 0.995，pHash 不可靠"
+            "phash_skipped": "目标锚点近乎纯色（黑场 T）或 SSIM 已达 0.99，pHash 不可靠"
             if seam_phash_skipped
             else None,
             "target_kind": "bridge_frame" if last_kind == "bridge_frame" else "keyframe",

@@ -116,16 +116,40 @@ def fallback_mask(boxes: list, w: int, h: int) -> np.ndarray:
     return m
 
 
-def inpaint_clean(orig: np.ndarray, mask: np.ndarray, radius: int = 3) -> np.ndarray:
-    """Telea 修补 + 掩膜外像素锁定。"""
+def faint_band_mask(orig: np.ndarray, *, lo: int = 5, hi: int = 45,
+                    edge_max: float = 70.0) -> np.ndarray:
+    """Mask for translucent overlays (watermarks) that OCR only partly boxes.
+
+    Faint strokes are 5–45 levels darker than the local background but sit far
+    below the contrast of drawn lines, so strong edges are excluded and the
+    illustration's own line art survives the inpaint.
+    """
     import cv2
 
     gray = cv2.cvtColor(orig, cv2.COLOR_RGB2GRAY)
-    filled = cv2.inpaint(gray, mask, radius, cv2.INPAINT_TELEA)
-    filled_rgb = np.dstack([filled, filled, filled])
-    html = mask > 0
+    bg = cv2.GaussianBlur(gray, (0, 0), 15)
+    delta = bg.astype(np.int16) - gray.astype(np.int16)
+    edge = cv2.magnitude(cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3),
+                         cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3))
+    m = ((delta >= lo) & (delta <= hi) & (edge < edge_max)).astype(np.uint8) * 255
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    m = cv2.dilate(m, np.ones((3, 3), np.uint8), iterations=1)
+    return m
+
+
+def inpaint_clean(orig: np.ndarray, mask: np.ndarray, radius: int = 3) -> np.ndarray:
+    """Colour inpainting (Navier-Stokes) + pixels outside the mask locked.
+
+    The old version inpainted a grayscale copy, which is why every cleaned
+    watermark turned into a grey smudge.
+    """
+    import cv2
+
+    bgr = cv2.cvtColor(orig, cv2.COLOR_RGB2BGR)
+    filled = cv2.inpaint(bgr, mask, radius, cv2.INPAINT_NS)
     out = orig.copy()
-    out[html] = filled_rgb[html]
+    sel = mask > 0
+    out[sel] = cv2.cvtColor(filled, cv2.COLOR_BGR2RGB)[sel]
     return out
 
 
@@ -361,6 +385,8 @@ def main() -> int:
             mask_used = np.zeros((h0, w0), dtype=np.uint8)
             attempts = []
         else:
+            # 半透明水印 OCR 只能框到片段：再叠一层低对比度带掩膜
+            band = faint_band_mask(orig)
             # 依次加粗掩膜/修补半径，直到没有残字；记录用了几次
             attempts = []
             out = None
@@ -370,7 +396,12 @@ def main() -> int:
                     m = np.asarray(Image.open(mask_png).convert("L")) if mask_png.is_file() else fallback_mask(boxes, w0, h0)
                 else:
                     m = np.zeros((h0, w0), dtype=np.uint8)
+                m = np.maximum(m, band)
                 cand = inpaint_clean(orig, m, radius=radius)
+                # 第二遍：把第一遍之后仍然存在的淡痕再补一次
+                band2 = faint_band_mask(cand)
+                cand = inpaint_clean(cand, band2, radius=radius + 1)
+                m = np.maximum(m, band2)
                 g_cand = np.asarray(Image.fromarray(cand).convert("L"))
                 left = sum(1 for b in boxes if ink_residual(b, g_cand, RESIDUAL_INK_THRESHOLD) > RESIDUAL_INK_THRESHOLD)
                 attempts.append({"dilate": dilate, "radius": radius, "residual": left})
@@ -398,7 +429,11 @@ def main() -> int:
             for dilate, radius in ((26, 8), (34, 10)):
                 make_mask(img_path, blocks_json, mask_png, dilate=dilate)
                 m = np.asarray(Image.open(mask_png).convert("L")) if mask_png.is_file() else fallback_mask(boxes, w0, h0)
+                m = np.maximum(m, faint_band_mask(orig))
                 cand = inpaint_clean(orig, m, radius=radius)
+                band2 = faint_band_mask(cand)
+                cand = inpaint_clean(cand, band2, radius=radius + 1)
+                m = np.maximum(m, band2)
                 kfc = finalize(cand)
                 left, hits = ocr_residual_count(cand, boxes, 1.0, 1.0)
                 attempts.append({"dilate": dilate, "radius": radius, "ocr_residual": left})
