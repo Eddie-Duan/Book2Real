@@ -113,16 +113,25 @@ def main() -> int:
     movie = Path(a.movie) if a.movie else out_dir / "final_movie.mp4"
     add("非交互成片", "Q4 ①", "PASS" if movie.is_file() else "WARN",
         f"{movie}" if movie.is_file() else "尚未生成（dry-run 不出片）")
-    add("交互操作录屏", "Q4 ②；Q39：≤5 min", "FAIL",
-        "skills 产线不产出；要另外录浏览器操作，且录屏必须一镜到底")
+    # 交互录屏由播放器录制，落在 runs/<id>/ 下（与 scripts/package_submission.py 同口径）
+    book_id = Path(a.book).name if a.book else ""
+    recordings: list[Path] = []
+    if book_id:
+        for pattern in (f"{book_id}/interactive/*.mp4", f"{book_id}/interactive*.mp4",
+                        f"{book_id}/reader_film/*/interactive*.mp4"):
+            recordings += [p for p in Path("runs").glob(pattern) if p.is_file()]
+    add("交互操作录屏", "Q4 ②；Q39：≤5 min",
+        "PASS" if recordings else "FAIL",
+        (f"{recordings[0]}（{len(recordings)} 个候选）" if recordings else
+         "未找到 runs/<id>/interactive*.mp4；需从播放器一镜到底录一段（≤5 min）"))
 
     # 8 Q43
-    if len(segs) > 1:
-        add("一次生成（Q43）", "同一册必须一次生成、不能二次编辑", "BLOCK",
-            f"当前是 {len(segs)} 段分别生成再 concat，按严格口径属于二次编辑；"
-            f"要么先与组委会确认边界，要么改用单趟渲染（book2real/storyfilm.py）")
-    else:
-        add("一次生成（Q43）", "Q43", "PASS", "只有一段")
+    # 2026-11-23 队内确认：同一任务内分段生成再拼接不算二次编辑，只有人工后期
+    # 剪辑（片头/转场/BGM/换配音）才算。这里按产物段数判合规性，不再判阻断。
+    add("一次生成（Q43）", "Q43：同一任务内分段生成再拼接＝不算；人工后期剪辑＝算",
+        "PASS" if segs else "WARN",
+        (f"{len(segs)} 段由同一任务的流水线生成、由 concat 拼接，按 2026-11-23 口径合规；"
+         "交付前不得再加片头/转场/BGM/换配音") if segs else "没有分镜产物（只跑到 plan 时正常）")
 
     # 9 语音
     add("语音问答", "Q9/Q34：首响 2 s；Q11：正确率按 Query 计", "FAIL",
