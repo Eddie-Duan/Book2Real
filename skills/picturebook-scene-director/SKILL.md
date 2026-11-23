@@ -33,6 +33,8 @@ description: |
 6. **固定锚点，单段返修隔离。** 每段的 `first_frame`/`last_frame` 只能是静态资产（`clean_keyframe.png` 或桥接帧 `T`）。**严禁把上一段生成视频的尾帧回灌成下一段首帧**——那会把一次失败级联成整片。
 7. **不覆盖上游原稿。** `seedance_prompt.txt` 只读；增量指令写到独立的 `prompts/seg_###_prompt.txt`，≤ 1000 字符，锁定词置顶，超长先删形容词。
 8. **存疑即熔断。** 置信度 < 0.70、元数据缺失且代理信号互相矛盾、或上游 `qa_report` 非 PASS 时，标 `needs_human_review: true` / `BLOCKED`，不自动推进。
+9. **镜头锁死、禁 zoom。** 每段 prompt 先剥离上游运镜词，再由脚本强制追加 `[Camera Lock]`（禁推近/拉远/摇移/构图变化，元素屏上尺寸与位置恒定）；生成后 QC 报 `ZOOM_DRIFT` 即返修，不能靠 prompt 自觉。
+10. **每页屏上 ≥1s，转场必须可验收。** `short_page_segments` 必须为空（`page_screen_sec < 1.0` 不许放行）；`transition_summary.hard_cut_ratio` 过高、或 `concat_audit.json` 报全硬切时视为分镜失效，必须补 SHARED_T 桥接或 POST 叠化；转场类型与接缝必须逐条过 `qa_seams.py`。
 
 ---
 
@@ -88,9 +90,9 @@ python scripts/qa_seams.py --plan ./director_out/scene_plan.json \
 
 ## 5. 输出契约（完整字段见 `references/scene-plan-schema.md`）
 
-`scene_plan.json` 顶层：`plan_version` / `degraded_mode` / `master_ratio` / `page_turn_transition_enabled: false` / `pages[]` / `segments[]` / `seams[]` / `concat_plan[]` / `cost_estimate_cny`。
+`scene_plan.json` 顶层：`plan_version` / `degraded_mode` / `master_ratio` / `page_turn_transition_enabled: false` / `pages[]` / `segments[]` / `seams[]` / `concat_plan[]` / `cost_estimate_cny`，以及验收汇总 `min_page_screen_sec` / `short_page_segments[]` / `transition_summary{shared_t_bridge, post_xfade, hard_cut_in_clip, min_page_screen_sec, hard_cut_ratio}`。
 
-每个 `segment` 至少包含：`segment_id`、`pages[]`、`segment_kind`（`SINGLE_PAGE` / `MERGED_PAGES` / `SPLIT_PART` / `BRIDGE_CLIP`）、`first_frame` / `last_frame`（`{source, kind: keyframe|bridge_frame}`）、`duration_sec`（只允许 5 或 10）、`ratio`、`prompt_file`、`transition_out`（`type` + `subtype` + `realization`）、`fallback_if_no_last_frame`、`risk_flags`、`confidence`。
+每个 `segment` 至少包含：`segment_id`、`pages[]`、`segment_kind`（`SINGLE_PAGE` / `MERGED_PAGES` / `SPLIT_PART` / `BRIDGE_CLIP`）、`first_frame` / `last_frame`（`{source, kind: keyframe|bridge_frame}`）、`duration_sec`（只允许 5 或 10）、`page_screen_sec`（该段每页平均屏上秒数，<1.0 进 `short_page_segments`）、`ratio`、`prompt_file`、`transition_out`（`type` + `subtype` + `realization`）、`fallback_if_no_last_frame`、`risk_flags`、`confidence`。
 
 `realization` 只有五种：`IN_CLIP`（两段独立、接缝 0s 硬切）、`SHARED_T`（两段共享一张 T）、`POST`（后期 xfade）、`BRIDGE_CLIP`（独立桥接段）、`NONE`（片尾）。
 
@@ -146,7 +148,7 @@ python scripts/qa_seams.py --plan ./director_out/scene_plan.json \
 > 2）下一步有一条**确定的命令**可跑；
 > 3）失败时知道**回退到哪一步**。
 >
-> 本节的 Handoff 就是这三样的书面化。机器可读的那一半在 `living-picturebook/scripts/run_pipeline.py`（阶段化串联，失败即停）。
+> 本节的 Handoff 就是这三样的书面化。整链编排与门禁在总装 skill `picturebook-pipeline`（顺序、交接契约、花钱闸门、失败回退）。
 
 ### 10.1 出口条件
 
@@ -158,15 +160,14 @@ python scripts/qa_seams.py --plan ./director_out/scene_plan.json \
 ### 10.2 下一棒
 
 ```bash
-python seedance-relay-producer/scripts/preflight.py \
+python "$SKILLS/seedance-relay-producer/scripts/preflight.py" \
   --plan book_out/scene_plan.json --pages-dir pages \
   --out-dir book_out/relay --resolution 1080p
-
-# 或整条链
-python living-picturebook/scripts/run_pipeline.py --pages-dir pages --out-dir book_out --from preflight
 ```
 
-下游 skill：`seedance-relay-producer`（按计划生成）。它通过 `inputs/plan_adapter.py` 把“段”翻译成“伪页”，**下游一行代码都不用改**。
+（`$SKILLS` 指 skill 安装根目录，Windows 为 `C:/Users/<用户名>/.agents/skills`。）
+
+下游 skill：`seedance-relay-producer`（按计划生成）。它通过 `inputs/plan_adapter.py` 把“段”翻译成“伪页”，**下游一行代码都不用改**。整链（S1→S2→S3）走 `picturebook-pipeline`，本 skill 只负责 S2。
 
 ### 10.3 三条不许破的约定
 

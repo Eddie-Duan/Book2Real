@@ -38,6 +38,49 @@ def compute_phash_distance(img_a: np.ndarray, img_b: np.ndarray) -> int:
     return int(imagehash.phash(pil_a) - imagehash.phash(pil_b))
 
 
+def compute_zoom_ratio(ref_bgr: np.ndarray, other_bgr: np.ndarray) -> Optional[float]:
+    """用 ORB 特征 + 局部仿射估计 other 相对 ref 的整体尺度比（>1 = 被放大/推近）。
+
+    DINO/SSIM 对整体缩放几乎不敏感（缩放后的画面仍会被判高度一致），
+    所以"每页都从远到近推近"必须单独用几何尺度量。特征不够（纯色 T、小图）返回 None。
+    """
+    ref_gray = cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2GRAY)
+    other_gray = cv2.cvtColor(other_bgr, cv2.COLOR_BGR2GRAY)
+    orb = cv2.ORB_create(nfeatures=1500)
+    kp_ref, des_ref = orb.detectAndCompute(ref_gray, None)
+    kp_other, des_other = orb.detectAndCompute(other_gray, None)
+    if des_ref is None or des_other is None or len(kp_ref) < 12 or len(kp_other) < 12:
+        return None
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
+    knn = matcher.knnMatch(des_ref, des_other, k=2)
+    good = [m for m, n in (pair for pair in knn if len(pair) == 2) if m.distance < 0.75 * n.distance]
+    if len(good) < 15:
+        return None
+    # 只用画面外圈的特征点估尺度：角色/主体在中间动来动去会把局部位移误判成缩放，
+    # 背景外圈只有真正的推近/拉远才会统一缩放。
+    h, w = ref_gray.shape[:2]
+    cx, cy = w / 2.0, h / 2.0
+    ring = [
+        m
+        for m in good
+        if abs(kp_ref[m.queryIdx].pt[0] - cx) > 0.30 * w
+        or abs(kp_ref[m.queryIdx].pt[1] - cy) > 0.30 * h
+    ]
+    if len(ring) < 15:
+        ring = good
+    src = np.float32([kp_ref[m.queryIdx].pt for m in ring]).reshape(-1, 1, 2)
+    dst = np.float32([kp_other[m.trainIdx].pt for m in ring]).reshape(-1, 1, 2)
+    matrix, inliers = cv2.estimateAffinePartial2D(
+        src, dst, method=cv2.RANSAC, ransacReprojThreshold=3.0
+    )
+    if matrix is None or inliers is None or int(inliers.sum()) < 10:
+        return None
+    scale = float(np.sqrt(matrix[0, 0] ** 2 + matrix[1, 0] ** 2))
+    if not np.isfinite(scale) or scale <= 0:
+        return None
+    return scale
+
+
 def to_gray_std(img_bgr: np.ndarray) -> float:
     """灰度标准差，用来判断"这张参照帧是不是近乎纯色"。"""
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
@@ -264,6 +307,60 @@ def inspect_single_page(
     first_frame = sampled[0][2]
     last_frame = sampled[-1][2]
 
+    # 2.1 尺度漂移（zoom）检查：Seedance 常把静帧做成缓慢推近，DINO/SSIM 看不出来，
+    #     必须用特征点几何量尺度比。首帧本身是桥接 T（黑/模糊）时不可量，跳过。
+    zoom_check: Dict[str, Any] = {"applicable": False, "passed": True}
+    if not anchor_is_bridge:
+        zoom_samples = []
+        for frac, fidx, fimg in sampled[1:]:
+            ratio = compute_zoom_ratio(first_frame, fimg)
+            if ratio is not None:
+                zoom_samples.append({"fraction": frac, "frame": fidx, "scale": round(ratio, 4)})
+        max_dev = max((abs(r["scale"] - 1.0) for r in zoom_samples), default=0.0)
+        zoom_threshold = float(thresh.get("zoom_max_scale_deviation", 0.04))
+        # 单帧估计会被主体位移带偏；至少 2 帧同时超过阈值才判 zoom，避免误杀正常动作。
+        violations = sum(1 for r in zoom_samples if abs(r["scale"] - 1.0) > zoom_threshold)
+        zoom_check = {
+            "applicable": bool(zoom_samples),
+            "samples": zoom_samples,
+            "max_scale": round(max((r["scale"] for r in zoom_samples), default=1.0), 4),
+            "max_deviation": round(max_dev, 4),
+            "threshold": zoom_threshold,
+            "violations": violations,
+            "passed": violations < 2,
+        }
+        if zoom_samples and not zoom_check["passed"]:
+            defects.append(
+                {
+                    "code": "ZOOM_DRIFT",
+                    "detail": (
+                        f"画面尺度漂移 {max_dev:.1%}，{violations} 帧超阈值（>{zoom_threshold:.0%}）："
+                        "镜头应锁死、元素屏上尺寸恒定，禁止推近/拉远"
+                    ),
+                    "frame": zoom_samples[-1]["frame"],
+                }
+            )
+
+    # 2.2 每页屏上时长：合并段用 5s 装两页时每页只剩 2.5s；<1s 就是"刷一下"。
+    seg_pages = list((pf.get("segment") or {}).get("pages") or [])
+    min_page_sec = float(thresh.get("min_page_screen_sec", 1.0))
+    seconds_per_page = actual_dur / max(1, len(seg_pages)) if seg_pages else actual_dur
+    page_duration_check = {
+        "segment_pages": seg_pages,
+        "actual_duration_sec": round(actual_dur, 3),
+        "seconds_per_page": round(seconds_per_page, 3),
+        "threshold_sec": min_page_sec,
+        "passed": seconds_per_page >= min_page_sec,
+    }
+    if seg_pages and seconds_per_page < min_page_sec:
+        defects.append(
+            {
+                "code": "PAGE_TOO_SHORT",
+                "detail": f"本段覆盖 {len(seg_pages)} 页，每页仅 {seconds_per_page:.2f}s < {min_page_sec}s",
+                "frame": -1,
+            }
+        )
+
     # 3. 首帧保真门禁
     f0_ssim = compute_ssim_pair(kf_bgr, first_frame)
     f0_phash = compute_phash_distance(kf_bgr, first_frame)
@@ -370,6 +467,19 @@ def inspect_single_page(
         if not hal["passed"]:
             hallucination_hits.append({"fraction": frac, "frame": fidx, **hal})
 
+    # 5.1 固定 5 帧抽样会漏掉"半秒内一闪而过"或"正在淡没"的残字，再补抽 5 帧只查文字。
+    try:
+        extra_text_frames = extract_video_frames(video_path, [0.10, 0.20, 0.40, 0.60, 0.90])
+    except RuntimeError:
+        extra_text_frames = []
+    for frac, fidx, fimg in extra_text_frames:
+        if any(hit["frame"] == fidx for hit in ocr_hits):
+            continue
+        boxes, used_deg = text_detector.detect_text_boxes(fimg, kf_bgr)
+        ocr_degraded = ocr_degraded or used_deg
+        if boxes:
+            ocr_hits.append({"fraction": frac, "frame": fidx, "boxes": boxes})
+
     consistency_applicable = not (anchor_unusable or tail_is_bridge)
     consistency_skip_reason = None
     if anchor_unusable:
@@ -452,6 +562,8 @@ def inspect_single_page(
             "first_frame": first_frame_check,
             "seam": seam_check,
             "temporal_consistency": temporal_check,
+            "zoom_check": zoom_check,
+            "page_duration": page_duration_check,
             "text_zero_check": {"passed": len(ocr_hits) == 0, "hits": ocr_hits},
             "watermark_check": {"passed": len(watermark_hits) == 0, "hits": watermark_hits},
             "hallucination_check": {
@@ -531,6 +643,8 @@ def decide_repair_or_escalate(
     elif "TEMPORAL_DRIFT" in defect_codes and plan["duration_sec"] == 10 and relay_level != "A":
         plan["duration_sec"] = 5
         repair_notes.append("TEMPORAL_DRIFT -> 非长接力页时长由 10s 降至 5s 抑制累积漂移")
+    elif "ZOOM_DRIFT" in defect_codes:
+        repair_notes.append("ZOOM_DRIFT -> 保持静态构图，重组 prompt_override 中的 Camera Lock 后换 seed 重生成")
     else:
         repair_notes.append(f"缺陷 {sorted(defect_codes)} -> 递增 seed 重新生成")
 

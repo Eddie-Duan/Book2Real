@@ -102,7 +102,7 @@ python scripts/report.py --out-dir out
 | 接力级别 | 现场判定 A/B/C | 计划指定（有尾帧即 A） |
 | 时长 | 由 DINOv2 距离推 5/10 | 计划指定 |
 | 转场 | relay 选（xfade / 硬切） | `concat_plan` 指定 |
-| 段内页时间码 | 等于段起点 | 需要 `book_timeline.py` 估/量 |
+| 段内页时间码 | 等于段起点 | 本链不产出，需要时另行生成 |
 | 失败重跑 | 单页重跑 | 整本重跑（不可二次编辑） |
 
 ## 8. 回归

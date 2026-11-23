@@ -16,6 +16,7 @@ description: |
 4. **便宜先行 (Cheap-First)**：标准执行顺序为 `preflight --dry-run`（零成本预检与估价） → `--resolution 480p` 低分样片验证接力与动态 → `--resolution 1080p` 全量正式渲染。
 5. **未知键 Fail-Closed**：所有上游 JSON 解析必须经过 `inputs/adapter.py` 映射；遇到未映射字段或缺失必填契约键立即报错阻断，严禁猜测。
 6. **合规底线**：`watermark=false` 仅用于抑制平台推广角标；严禁去除法定 AI 生成标识或第三方版权水印；成片合并阶段统一保留合规 AI 生成声明元数据与片尾声明。
+7. **请求与产物双重锁**：请求 prompt 已带镜头锁时不得重复追加；缺失时按 `STABILITY_LOCK_CLAUSE`（禁 zoom、元素尺寸恒定）与 `CLEAN_FRAME_LOCK_CLAUSE`（无字、无水印、无淡出字形）写 `prompt_override` 并留 diff。QC 的 `ZOOM_DRIFT`、`PAGE_TOO_SHORT`、`TEXT_DETECTED`、`WATERMARK_DETECTED` 任一命中都不得 PASS；`concat_audit.json` 的转场计数与 `hard_cut_ratio` 必须随成片一起验收。
 
 ## 2. 首尾帧双锚定原理与接力降级链
 ### 为什么强制「首尾帧双锚定」而禁止「尾帧像素回灌」？
@@ -94,7 +95,7 @@ description: |
 > 2）下一步有一条**确定的命令**可跑；
 > 3）失败时知道**回退到哪一步**。
 >
-> 本节的 Handoff 就是这三样的书面化。机器可读的那一半在 `living-picturebook/scripts/run_pipeline.py`（阶段化串联，失败即停）。
+> 本节的 Handoff 就是这三样的书面化。整链编排与门禁在总装 skill `picturebook-pipeline`（顺序、交接契约、花钱闸门、失败回退）。
 
 ### 5.1 出口条件（冻结前必须全绿）
 
@@ -103,14 +104,11 @@ description: |
 - `pipeline_state.json` 里没有 `POLLING` 的段；`final_movie.mp4` 已生成。
 - `cost.csv` 与实际提交段数一致（对账用）。
 
-### 5.2 下一棒
+### 5.2 交付终点
 
-```bash
-python living-picturebook/scripts/book_timeline.py \
-  --plan book_out/scene_plan.json --clips-dir book_out/relay --out-dir book_out
-```
+本 skill 的出口就是整链终点：`final_movie.mp4`、`qc_report.md`、`qc_report.json`、`cost.csv`。页↔时间码表不在本链范围内，需要时另行生成。
 
-产出 `page_timeline.json` + `page_timeline.md`（`mode: measured`），这是交给交互层的**唯一**契约：读者暂停时用它把秒数换成页号。
+整链（S1→S2→S3）由总装 skill `picturebook-pipeline` 编排；本 skill 只负责 S3。
 
 ### 5.3 与上游的约定
 

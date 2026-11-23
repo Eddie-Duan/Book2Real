@@ -21,6 +21,7 @@ description: 把绘本单页（或多页）扫描图转换成「零文字、按�
 7. **交付图零文字**：正文、艺术字标题、页码、水印、出版标识、画中字全部清除。画中字（招牌、信件、书名）去字后按原材质补非可读笔触（木纹、涂漆、压痕），不留纯色空块。
 8. **存疑即熔断**：置信度不足或触及阻断条件 → `NEEDS_HUMAN_REVIEW` + 诊断报告，禁止猜测推进。
 9. **补全可溯源**：每个新增元素必须对应一段 `source_text_span`；原文没写的不许加。
+10. **关键帧禁运镜 + 文字人工复核**：`seedance_prompt.txt` 不得含推近/拉远/摇移/环绕/ken burns 等运镜词（含中英文），下游会强制剥离并追加镜头锁；`qa_check.py` 的 `text_removed`/`text_residual_edges` 只是辅助，交付前必须用 `read_image` 逐页复核普通字、艺术字、页码、水印、半透明淡字，`qa_report.json` 的 `ocr_residual_count` 必须为 0。
 
 ## 2. 流水线
 
@@ -113,7 +114,7 @@ Stage 7 首帧封装 + 运动提示词
 1. 尺寸偏差 = 0 px；
 2. 非编辑区 SSIM ≥ 0.9995，且 99.9% 像素最大通道差 ≤ 2；
 3. 保护区入侵 = 0 px²；
-4. OCR 复检无有效文本框。
+4. OCR 复检无有效文本框（`ocr_residual_count == 0`），且 `qa_check.py` 的 `text_removed` ≥ 60%、`text_residual_edges` ≤ 3%；艺术字、页码、水印、淡字必须再逐页 `read_image` 复核。
 
 ## 5. 交付物
 
@@ -171,7 +172,7 @@ python scripts/qa_check.py --original work/p_00_normalized.png \
 > 2）下一步有一条**确定的命令**可跑；
 > 3）失败时知道**回退到哪一步**。
 >
-> 本节的 Handoff 就是这三样的书面化。机器可读的那一半在 `living-picturebook/scripts/run_pipeline.py`（阶段化串联，失败即停）。
+> 本节的 Handoff 就是这三样的书面化。整链编排与门禁在总装 skill `picturebook-pipeline`（顺序、交接契约、花钱闸门、失败回退）。
 
 ### 9.1 出口条件（不满足不许交接）
 
@@ -184,13 +185,12 @@ python scripts/qa_check.py --original work/p_00_normalized.png \
 
 ```bash
 # 单跑导演（推荐先看判定结果再花钱）
-python _build/picturebook-scene-director/scripts/plan_scenes.py --pages-dir pages --out-dir book_out
-
-# 或直接走整条链（dry-run 免费）
-python living-picturebook/scripts/run_pipeline.py --pages-dir pages --out-dir book_out --dry-run
+python "$SKILLS/picturebook-scene-director/scripts/plan_scenes.py" --pages-dir pages --out-dir book_out
 ```
 
-下游 skill：`picturebook-scene-director`（分镜）。**不要**跳过它直接调 relay——没有 scene_plan，就没有段、锚点和接缝，relay 只能按页各生成各的，拼起来是幻灯片。
+（`$SKILLS` 指 skill 安装根目录，Windows 为 `C:/Users/<用户名>/.agents/skills`。）
+
+下游 skill：`picturebook-scene-director`（分镜）。**不要**跳过它直接调 relay——没有 scene_plan，就没有段、锚点和接缝，relay 只能按页各生成各的，拼起来是幻灯片。整链（S1→S2→S3）走 `picturebook-pipeline`，本 skill 只负责 S1。
 
 ### 9.3 不归本 skill 管的部分
 
