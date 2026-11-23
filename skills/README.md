@@ -15,7 +15,6 @@
 | 画面来源 | 原图分层 + 程序化运镜 + I2V 预留 | Seedance 图生视频（首帧/首尾帧双锚定） |
 | 拼接 | 不拼（单趟编码） | `concat.py` 拼成一条（可选 xfade） |
 | 可重生成粒度 | 整本 | 单段 |
-<<<<<<< HEAD
 | 成本 | 本地算力 | 按条计费（flash 实测 **1.8 元 / 10s @720p** → 120s ≈ 21.6 元/本） |
 | 交付物 | 成片 + `timeline.json` | 成片 `final_movie.mp4` + `final_movie.json`（规格自检）+ `page_timeline.json`（页级契约） |
 
@@ -29,7 +28,6 @@
 | --- | --- | --- | --- | --- |
 | S1 | `picturebook-to-seedance` | 单页扫描图 + 文字块坐标 | `clean_keyframe.png` / `page_manifest.json` / `qa_report.json` / `seedance_prompt.txt` | 把文字从画面里"拿走"，同时保证其它像素不变 |
 | S2 | `picturebook-scene-director` | `pages/` 目录 | `scene_plan.json` / `bridge/T_*.png` / `prompts/seg_###_prompt.txt` | 决定切段、合并、接缝类型、锚点 |
-<<<<<<< HEAD
 | S3 | `seedance-relay-producer` | `scene_plan.json`（`--plan`） | `seg_###/clip.mp4` / `qc.json` / `final_movie.mp4` / `concat_audit.json` | 调 Ark Seedance、逐段门禁（zoom/时长/文字/水印/接缝）、拼成一条 |
 | **总装** | `picturebook-pipeline` | `pages/` | 全程门禁 + `final_movie.mp4` | **唯一编排入口**：只管顺序、交接契约、花钱闸门与失败回退，三棒逻辑一行不复制 |
 | 工具库 | `living-picturebook` | `scene_plan.json` + 成片 | `narration.mp3` / `page_timeline.json` / 五段式段提示词 | 旁白合成与铺轨、页↔时间码、提示词增强（角色锚点）；不再当入口 |
