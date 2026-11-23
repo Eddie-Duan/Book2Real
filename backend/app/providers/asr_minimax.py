@@ -1,4 +1,4 @@
-"""MiniMax Speech-to-Text（asr-1.0）客户端。
+"""MiniMax Speech-to-Text（asr-1.0）文件上传及 SSE 识别输出。
 
 官方：POST {host}/v1/speech_to_text
   multipart: model=asr-1.0, file=音频文件
@@ -7,8 +7,10 @@
 """
 from __future__ import annotations
 
+import json
 import logging
-from typing import Optional
+import time
+from typing import AsyncIterator, Optional
 
 import httpx
 
@@ -33,6 +35,7 @@ class MiniMaxASR(ASRProvider):
         self.model = settings.minimax_asr_model
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=5.0, read=120.0, write=60.0, pool=5.0),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20, keepalive_expiry=45.0),
             headers={"Authorization": f"Bearer {settings.minimax_api_key}"},
         )
         self.requests = 0
@@ -43,6 +46,36 @@ class MiniMaxASR(ASRProvider):
     def endpoint(self) -> str:
         return self.settings.minimax_host.rstrip("/") + "/v1/speech_to_text"
 
+    def _request(self, audio: bytes, rate: int, language: Optional[str], *, stream: bool = False) -> dict:
+        if not (audio.startswith(b"RIFF") and audio[8:12] == b"WAVE"):
+            audio = wav_bytes(audio, rate)
+        data = {"model": self.model, "response_format": "json"}
+        if stream:
+            data["stream"] = "true"
+        return {
+            "data": data,
+            "files": {"file": ("audio.wav", audio, "audio/wav")},
+            "headers": {"language": language} if language else {},
+        }
+
+    @staticmethod
+    def _check_event(obj: dict) -> None:
+        error = obj.get("error")
+        base = obj.get("base_resp") or {}
+        if error or obj.get("type") == "error":
+            detail = error.get("type") if isinstance(error, dict) else error
+            raise RuntimeError(f"MiniMax ASR error: {detail or 'unknown'}")
+        if base.get("status_code") not in (None, 0):
+            raise RuntimeError(f"MiniMax ASR error {base['status_code']}: {base.get('status_msg', '')}")
+
+    def _result(
+        self, obj: dict, lang: Optional[str], fallback_ms: float, partial: bool = False,
+    ) -> ASRResult:
+        self._check_event(obj)
+        text = str(obj.get("text") or (obj.get("data") or {}).get("text") or "").strip()
+        duration = obj.get("duration")
+        return ASRResult(text, lang or detect_lang(text), fallback_ms if duration is None else float(duration) * 1000, partial)
+
     async def transcribe(
         self,
         audio: bytes,
@@ -51,29 +84,59 @@ class MiniMaxASR(ASRProvider):
         partial: bool = False,
         initial_prompt: Optional[str] = None,
     ) -> ASRResult:
-        # MiniMax 要求容器格式，不接受裸 PCM
-        if not (audio.startswith(b"RIFF") and audio[8:12] == b"WAVE"):
-            audio = wav_bytes(audio, sample_rate)
         lang = language or self.settings.minimax_asr_language or None
-        headers = {}
-        if lang:
-            headers["language"] = lang
-        data = {"model": self.model, "response_format": "json"}
-        files = {"file": ("audio.wav", audio, "audio/wav")}
-        import time
-
         t0 = time.perf_counter()
+        self.requests += 1
         try:
-            resp = await self._client.post(self.endpoint, data=data, files=files, headers=headers)
-            self.requests += 1
+            resp = await self._client.post(self.endpoint, **self._request(audio, sample_rate, lang))
+            resp.raise_for_status()
             self.last_infer_ms = (time.perf_counter() - t0) * 1000
-            if resp.status_code != 200:
-                body = resp.text[:500]
-                raise RuntimeError(f"minimax asr {resp.status_code}: {body}")
-            obj = resp.json()
-            text = str(obj.get("text") or (obj.get("data") or {}).get("text") or "").strip()
-            duration = float(obj.get("duration") or pcm_duration_ms(audio, sample_rate) / 1000.0)
-            return ASRResult(text, lang or detect_lang(text), duration * 1000.0, partial)
+            return self._result(resp.json(), lang, pcm_duration_ms(audio, sample_rate), partial)
+        except Exception:
+            self.failures += 1
+            raise
+
+    async def transcribe_stream(
+        self,
+        audio: bytes,
+        sample_rate: int = 16000,
+        language: Optional[str] = None,
+        initial_prompt: Optional[str] = None,
+    ) -> AsyncIterator[ASRResult]:
+        lang = language or self.settings.minimax_asr_language or None
+        duration = pcm_duration_ms(audio, sample_rate)
+        t0 = time.perf_counter()
+        self.requests += 1
+        try:
+            async with self._client.stream("POST", self.endpoint, **self._request(audio, sample_rate, lang, stream=True)) as resp:
+                resp.raise_for_status()
+                content_type = resp.headers.get("content-type", "").lower()
+                if "application/json" in content_type:
+                    await resp.aread()
+                    result = self._result(resp.json(), lang, duration)
+                else:
+                    chunks: list[str] = []
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        payload = line[5:].strip()
+                        if not payload:
+                            continue
+                        obj = json.loads(payload)
+                        self._check_event(obj)
+                        delta = obj.get("delta")
+                        if delta:
+                            chunks.append(delta)
+                        text = "".join(chunks)
+                        if obj.get("finish") is True:
+                            result = self._result({**obj, "text": text}, lang, duration)
+                            break
+                        if delta:
+                            yield ASRResult(text, lang or detect_lang(text), duration, partial=True)
+                    else:
+                        raise RuntimeError("MiniMax ASR ended without a final transcription")
+            self.last_infer_ms = (time.perf_counter() - t0) * 1000
+            yield result
         except Exception:
             self.failures += 1
             raise

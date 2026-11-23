@@ -12,6 +12,7 @@ import logging
 import numpy as np
 import re
 import time
+from contextlib import aclosing
 from typing import AsyncIterator, Optional
 
 from ..config import Settings
@@ -53,7 +54,21 @@ def build_messages(
     book_lang = str(book.get("lang") or "zh")
     lang = intent.get("lang") or detect_lang(query)
     answer_lang = book_lang if mode == "touch" else lang
-    card = style_card or build_style_card(book)
+    if style_card is not None:
+        card = style_card
+    elif current_page:
+        # 指定了页码时，文风卡只用这一页的原文，避免把别的页的句子带进提示词
+        only = next(
+            (pg for pg in (book.get("pages") or [])
+             if int(pg.get("no") or 0) == int(current_page)),
+            None,
+        )
+        card = build_style_card(
+            {"title": book.get("title"), "lang": book.get("lang"),
+             "pages": [only] if only else []}
+        )
+    else:
+        card = build_style_card(book)
     style_block = style_prompt(card, answer_lang=answer_lang, mode=mode)
 
     ctx_lines = []
@@ -101,6 +116,7 @@ def build_messages(
         "回答要以下面的绘本原文和本页画面信息为依据；不要新增原文没有的人物、地点、数字或与故事无关的内容。\n"
         f"{style_block}\n"
         "规则：\n"
+        "0. 严禁输出思考过程、分析或 <think> 标签，第一个字就是最终回答。\n"
         f"1. {language_rule}\n"
         f"2. {length_rule}\n"
         "3. 直接回答，不要重复问题，不要开场白，不要 markdown、列表、emoji。\n"
@@ -108,6 +124,9 @@ def build_messages(
         "5. 不要使用“根据资料／作为一个 AI／绘本里说／书上说／总之／希望对你有帮助”这类套话。\n"
         f"绘本原文：\n{context}"
     )
+    if intent.get("target_page") is not None:
+        system += f"\n问题指定了第 {intent['target_page']} 页。只使用这页提供的文字和标注，缺少依据的细节请如实说明。"
+        history = []
     if intent.get("intent") == "chitchat":
         system = (
             "你是儿童绘本伴读助手“纸书智伴”。孩子现在问的是与绘本内容无关的话（打招呼、测试麦克风/声音、闲聊）。"
@@ -133,6 +152,7 @@ class VoiceTurnRunner:
         llm: LLMProvider,
         filler: FillerBank,
         store: Store,
+        chitchat_cache=None,
     ) -> None:
         self.settings = settings
         self.asr = asr
@@ -140,6 +160,7 @@ class VoiceTurnRunner:
         self.llm = llm
         self.filler = filler
         self.store = store
+        self.chitchat_cache = chitchat_cache
 
     async def run_voice(
         self,
@@ -165,8 +186,47 @@ class VoiceTurnRunner:
                 arr = np.frombuffer(pcm, dtype="<i2").astype(np.float32) * scale
                 pcm = np.clip(arr, -32768, 32767).astype("<i2").tobytes()
         t_asr = time.perf_counter()
+        first_asr_text_ms = None
+        result = None
+        prewarm = None
+        prewarm_query = None
+        prewarm_count = 0
         try:
-            result = await self.asr.transcribe(pcm, sample_rate, language=language, partial=False, initial_prompt=book.asr_initial_prompt())
+            events = self.asr.transcribe_stream(
+                pcm, sample_rate, language=language, initial_prompt=book.asr_initial_prompt(),
+            )
+            async with aclosing(events):
+                async for update in events:
+                    if not update.partial:
+                        result = update
+                        break
+                    if update.text:
+                        elapsed = round((time.perf_counter() - t_asr) * 1000, 1)
+                        if first_asr_text_ms is None:
+                            first_asr_text_ms = elapsed
+                        yield {"type": "asr_partial", "text": update.text, "lang": update.lang, "ms": elapsed}
+                        # 投机预生成：ASR 部分文本已足够长时，提前发起 LLM 请求，
+                        # 与 ASR 收尾重叠，省掉 200-500ms 首 token 等待。
+                        text = update.text.strip()
+                        if (
+                            prewarm_count < 2
+                            and len(text) >= 5
+                            and text != prewarm_query
+                            and hasattr(self.llm, "prewarm")
+                        ):
+                            intent_p = route_intent(text, book, current_page=current_page, current_element=current_element)
+                            if intent_p.get("intent") in ("qa", "definition", "chitchat"):
+                                if prewarm is not None and prewarm.task is not None:
+                                    prewarm.task.cancel()
+                                lang_p = update.lang or intent_p.get("lang") or "zh"
+                                intent_p["lang"] = lang_p
+                                history_p = self.store.recent_context(session_id, self.settings.session_history_turns)
+                                msgs_p = build_messages(text, book.book, intent_p, history_p, intent_p.get("target_page", current_page))
+                                prewarm = self.llm.prewarm(msgs_p)
+                                prewarm_query = text
+                                prewarm_count += 1
+            if result is None:
+                raise RuntimeError("ASR returned no final transcription")
             asr_ms = (time.perf_counter() - t_asr) * 1000
         except Exception as exc:  # noqa: BLE001
             log.exception("ASR failed")
@@ -175,7 +235,7 @@ class VoiceTurnRunner:
         if not result.text.strip():
             dur_ms = pcm_duration_ms(pcm, sample_rate)
             hint = (
-                "只录到很短的声音，可能被浏览器降噪截断了。请改用“按住说话”、关闭降噪，或提高增益/靠近麦克风。"
+                "刚才只录到很短的声音。请按住说话，说完再松开。"
                 if dur_ms < 500
                 else "我没有听清，可以再说一遍吗？"
             )
@@ -184,6 +244,7 @@ class VoiceTurnRunner:
                 "text": "",
                 "lang": language or "zh",
                 "ms": round(asr_ms, 1),
+                "first_text_ms": first_asr_text_ms,
                 "trim": [round(trim_start, 1), round(trim_end, 1)],
             }
             yield {"type": "answer", "text": hint, "lang": language or "zh"}
@@ -193,9 +254,18 @@ class VoiceTurnRunner:
             "text": result.text,
             "lang": result.lang,
             "ms": round(asr_ms, 1),
+            "first_text_ms": first_asr_text_ms,
             "trim": [round(trim_start, 1), round(trim_end, 1)],
         }
-        async for event in self.run_text(
+        if prewarm is not None:
+            from ..utils import normalize_text as _norm
+            if _norm(prewarm_query or "") != _norm(result.text):
+                if prewarm.task is not None:
+                    prewarm.task.cancel()
+                prewarm = None
+            else:
+                log.info("prewarm reused: %r (tokens=%d)", prewarm_query, len(prewarm.tokens))
+        events = self.run_text(
             session_id,
             book,
             result.text,
@@ -206,8 +276,11 @@ class VoiceTurnRunner:
             asr_ms=asr_ms,
             warmup=warmup,
             video_index=video_index,
-        ):
-            yield event
+            prewarm=prewarm,
+        )
+        async with aclosing(events):
+            async for event in events:
+                yield event
 
     async def run_text(
         self,
@@ -222,11 +295,13 @@ class VoiceTurnRunner:
         asr_ms: float = 0.0,
         warmup: bool = False,
         video_index=None,
+        prewarm=None,
     ) -> AsyncIterator[dict]:
         speech_end = speech_end_ms or now_ms()
         timeline = TurnTimeline(speech_end_ms=speech_end)
         timeline.mark("asr_final", now_ms())
         intent = route_intent(query, book, current_page=current_page, current_element=current_element)
+        answer_page = intent.get("target_page", current_page)
         lang = language or intent.get("lang") or book.book.get("lang", "zh")
         intent["lang"] = lang
         self._attach_video_action(intent, video_index)
@@ -269,7 +344,18 @@ class VoiceTurnRunner:
                 use_llm_for_touch = (
                     intent.get("intent") == "touch" and self.settings.style_touch_llm
                 )
-                if intent.get("answer") and not use_llm_for_touch:
+                cached = None
+                if intent.get("intent") == "chitchat" and self.chitchat_cache is not None:
+                    cached = self.chitchat_cache.lookup(query)
+                if cached:
+                    # 预热缓存命中：LLM 真答案 + 预合成音频，直接整段入 TTS 队列旁路
+                    state["llm_first_token"] = now_ms()
+                    timeline.mark("llm_first_token", state["llm_first_token"])
+                    await emit({"type": "answer_delta", "text": cached["text"]})
+                    state["answer"] = cached["text"]
+                    state["cached_audio"] = cached
+                    await clause_queue.put(None)
+                elif intent.get("answer") and not use_llm_for_touch:
                     text = intent["answer"]
                     if intent.get("intent") == "touch":
                         text = style_touch_text(text, book.book.get("lang", "zh"))
@@ -280,12 +366,34 @@ class VoiceTurnRunner:
                             timeline.mark("answer_first_clause", state["answer_first_clause"])
                         await clause_queue.put(clause)
                     state["answer"] = text
+                elif self.settings.fast_answer and intent.get("intent") in ("qa", "definition") and intent.get("passages"):
+                    # 快路径：MiniMax LLM 强制 thinking（正文首字 1.4-3s），儿童绘本问答
+                    # 直接用检索原文组织回答（0ms），保证语音秒回；chitchat 仍走 LLM。
+                    from ..providers.llm import compose_extractive
+
+                    page_obj = book.page(answer_page) if answer_page else None
+                    quick = compose_extractive(
+                        query, intent.get("passages", []), lang,
+                        current_page_text=(page_obj or {}).get("story_text", ""),
+                    )
+                    state["llm_first_token"] = now_ms()
+                    timeline.mark("llm_first_token", state["llm_first_token"])
+                    await emit({"type": "answer_delta", "text": quick})
+                    for clause in splitter.feed(quick):
+                        if state["answer_first_clause"] is None:
+                            state["answer_first_clause"] = now_ms()
+                            timeline.mark("answer_first_clause", state["answer_first_clause"])
+                        await clause_queue.put(clause)
+                    state["answer"] = quick
+                    state["fast_path"] = True
                 else:
                     messages = build_messages(
-                        query, book.book, intent, history, current_page,
-                        style_card=style_card,
+                        query, book.book, intent, history, answer_page,
+                        # 指定了页码时让 build_messages 用「这一页」建文风卡，
+                        # 避免整本书的样句（别的页原文）混进提示词
+                        style_card=None if answer_page else style_card,
                     )
-                    page_obj = book.page(current_page) if current_page else None
+                    page_obj = book.page(answer_page) if answer_page else None
                     context = {
                         "query": query,
                         "passages": intent.get("passages", []),
@@ -294,6 +402,8 @@ class VoiceTurnRunner:
                         "current_page_text": (page_obj or {}).get("story_text", ""),
                         "style": True,
                     }
+                    if prewarm is not None:
+                        context["_prewarm"] = prewarm
                     produced = ""
                     try:
                         async for delta in self.llm.stream(messages, context=context):
@@ -321,7 +431,7 @@ class VoiceTurnRunner:
                     if not produced.strip():
                         from ..providers.llm import compose_extractive
 
-                        page_obj = book.page(current_page) if current_page else None
+                        page_obj = book.page(answer_page) if answer_page else None
                         fallback = intent.get("answer") or compose_extractive(
                             query,
                             intent.get("passages", []),
@@ -363,6 +473,27 @@ class VoiceTurnRunner:
                 while True:
                     clause = await clause_queue.get()
                     if clause is None:
+                        # 缓存命中：直接播预合成音频（0ms 合成）
+                        cached = state.get("cached_audio")
+                        if cached and not state["cancelled"]:
+                            seq = state["audio_seq"]
+                            state["audio_seq"] += 1
+                            rate = cached["rate"]
+                            self.tts.sample_rate = rate
+                            if state["tts_first_chunk"] is None:
+                                state["tts_first_chunk"] = now_ms()
+                                timeline.mark("tts_start", state["tts_first_chunk"])
+                            await emit({"type": "audio_start", "seq": seq, "sample_rate": rate, "format": "pcm16", "text": cached["text"]})
+                            if not state["first_audio"]:
+                                state["first_audio"] = True
+                                timeline.mark("first_audio", now_ms())
+                            step = max(2, int(rate * 0.1) * 2)
+                            pcm = cached["pcm"]
+                            for i in range(0, len(pcm), step):
+                                piece = pcm[i : i + step]
+                                if piece:
+                                    await emit({"type": "audio", "seq": seq, "pcm": piece})
+                            await emit({"type": "audio_end", "seq": seq})
                         break
                     if state["cancelled"]:
                         continue
@@ -464,6 +595,7 @@ class VoiceTurnRunner:
                 "tts_error": state["tts_error"],
                 "asr_ms": round(asr_ms, 1),
                 "first_audio_after_speech_ms": round(timeline.since_speech_end("first_audio"), 1) if state["first_audio"] else None,
+                "first_reply_audio_after_speech_ms": round(timeline.since_speech_end("tts_start"), 1) if state["tts_first_chunk"] else None,
             }
         )
         self.store.record_turn(
@@ -500,6 +632,7 @@ class VoiceTurnRunner:
             "timings": metrics,
             "metrics": {
                 "first_audio_after_speech_ms": metrics.get("first_audio_after_speech_ms"),
+                "first_reply_audio_after_speech_ms": metrics["first_reply_audio_after_speech_ms"],
                 "asr_ms": metrics.get("asr_ms"),
                 "used_filler": state["used_filler"],
                 "budget_ms": self.settings.latency_budget_ms,

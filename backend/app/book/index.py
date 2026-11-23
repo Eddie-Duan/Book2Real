@@ -13,6 +13,29 @@ from .aliases import expand_query
 
 CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 WORD_RE = re.compile(r"[a-z0-9]+")
+PAGE_NUMBER_RE = re.compile(
+    r"第\s*(\d+|[零〇一二两三四五六七八九十百千]+)\s*[页頁]|\bpage\s+(\d+)\b|\b(first|second|third)\s+page\b",
+    re.I,
+)
+COVER_RE = re.compile(r"封面|\b(?:front\s+)?cover\b", re.I)
+CURRENT_PAGE_RE = re.compile(r"这一页|这页|本页|当前页|这[幅张个]画面|\b(?:this|current) page\b", re.I)
+PAGE_CONTENT_RE = re.compile(
+    r"什么|怎么|为何|谁|怎样|多少|几个|讲[的了到]?啥|有啥|画[的了]?啥|介绍|描述|"
+    r"\b(?:what|who|why|how|describe|tell me about)\b", re.I,
+)
+PAGE_VISUAL_RE = re.compile(
+    r"画面|插[画图]|图上|图[里中]|画像|[画绘]了|画的是什么|看到|显示|长什么样|"
+    r"\b(?:picture|illustration|look like|see|shown)\b", re.I,
+)
+PAGE_LOCATION_RE = re.compile(
+    r"第几页|哪(?:一)?[页頁]|where (?:is|are) (?:the )?(?:page|cover)|what page|which page", re.I,
+)
+SCENE_LOCATION_RE = re.compile(
+    r"找到|找找|找一下|帮我找|查找画面|在哪里|在哪儿|第几页|哪(?:一)?[页頁]|"
+    r"\b(?:show me|find|where is|where's|where are|look for)\b", re.I,
+)
+CN_DIGITS = "零一二三四五六七八九"
+CN_UNITS = {"十": 10, "百": 100, "千": 1000}
 EN_STOP = {
     "a", "an", "the", "is", "are", "was", "were", "am", "be", "been", "being",
     "who", "what", "which", "where", "when", "why", "how", "this", "that", "these", "those",
@@ -267,6 +290,78 @@ class BookIndex:
         return text[:limit]
 
 
+def _referenced_page(query: str) -> Optional[int]:
+    match = PAGE_NUMBER_RE.search(query)
+    if not match:
+        return None
+    chinese_or_digits, english_digits, ordinal = match.groups()
+    if ordinal:
+        return {"first": 1, "second": 2, "third": 3}[ordinal.lower()]
+    value = chinese_or_digits or english_digits
+    if value.isdecimal():
+        return int(value[:12])
+    total = digit = 0
+    for char in value.replace("〇", "零").replace("两", "二"):
+        if char in CN_UNITS:
+            total += (digit or 1) * CN_UNITS[char]
+            digit = 0
+        else:
+            digit = CN_DIGITS.index(char)
+    return total + digit
+
+
+def _page_question(query: str, book: BookIndex, current_page: Optional[int], lang: str) -> Optional[dict]:
+    if not PAGE_CONTENT_RE.search(query) or PAGE_LOCATION_RE.search(query):
+        return None
+    cover = bool(COVER_RE.search(query))
+    explicit_page = _referenced_page(query)
+    visual = bool(PAGE_VISUAL_RE.search(query))
+    if explicit_page is None and not (cover or CURRENT_PAGE_RE.search(query) or visual):
+        return None
+    target = explicit_page if explicit_page is not None else 1 if cover else current_page
+    result = {"intent": "qa", "lang": lang, "evidence": [], "target_page": target}
+    if target is None:
+        result["answer"] = "你想看哪一页？告诉我页码就好。" if lang == "zh" else "Which page would you like to talk about?"
+        return result
+    page = book.page(target)
+    if page is None:
+        result["answer"] = (f"这本绘本没有第 {target} 页。" if lang == "zh" else f"This book doesn't have a page {target}.")
+        return result
+
+    text = page.get("story_text", "").strip()
+    elements = book.elements_at(target)
+    names = list(dict.fromkeys(item.get("name") for item in elements if item.get("name")))[:4]
+    description = "、".join(names) if lang == "zh" else ", ".join(names)
+    if visual or (cover and not re.search(r"写|字|书名|\b(?:text|title|written)\b", query, re.I)):
+        if names:
+            result["answer"] = (f"第 {target} 页的画面标注有{description}。" if lang == "zh"
+                                else f"The illustration notes for page {target} list {description}.")
+            result["evidence"] = [{"page": target, "text": description, "kind": "element"}]
+        elif target == 1 and (cover or page.get("ocr")):
+            result["answer"] = ("第 1 页是封面。我暂时没有这张插画的描述。"
+                                if lang == "zh" else "Page 1 is the cover. I don't have a description of its illustration yet.")
+        elif text:
+            excerpt = truncate(re.split(r"(?<=[。！？.!?])", text, maxsplit=1)[0], 72)
+            result["answer"] = (f"第 {target} 页的文字写道：{excerpt} 画面细节暂时无法确认。"
+                                if lang == "zh" else f"The text on page {target} says: {excerpt} I can't verify the illustration details.")
+            result["evidence"] = [{"page": target, "text": excerpt, "kind": "page"}]
+        else:
+            result["answer"] = (f"第 {target} 页没有可参考的画面描述。" if lang == "zh"
+                                else f"I don't have an illustration description for page {target}.")
+        return result
+
+    passages = [{"page": target, "text": text, "page_text": text, "kind": "page"}] if text else []
+    passages.extend({"page": target, "text": item["name"] + " " + (item.get("info") or ""), "kind": "element"}
+                    for item in elements if item.get("name"))
+    if passages:
+        result["passages"] = passages[:6]
+        result["evidence"] = passages[:3]
+    else:
+        result["answer"] = (f"第 {target} 页暂时没有可参考的文字。" if lang == "zh"
+                            else f"I don't have any text for page {target} yet.")
+    return result
+
+
 def route_intent(
     query: str,
     book: BookIndex,
@@ -310,8 +405,13 @@ def route_intent(
             return {"intent": "find_text", "action": action, "answer": answer, "lang": lang, "evidence": hits[:3]}
         return {"intent": "find_text", "answer": ("绘本里没有找到这几个字。" if lang == "zh" else "I couldn't find that text in the book."), "lang": lang, "evidence": []}
 
-    # 找画面
-    if re.search(r"找到|画面|show me|find the scene|where is|look for", q, re.I) or q.startswith(("Where", "Find")):
+    # 页内内容问题优先于场景定位，例如“找到封面看看在说什么”。
+    page_question = _page_question(q, book, current_page, lang)
+    if page_question is not None:
+        return page_question
+
+    # 只有明确的定位表达才进入找画面。
+    if SCENE_LOCATION_RE.search(q):
         # “Where is 小满？”这类定位人物的问题：如果当前页就有这个人物，优先当前页
         loc = re.search(r"(?:where is|where's|在哪里|在哪儿)\s*([A-Za-z\u4e00-\u9fff ]+)", q, re.I)
         if loc and current_page:
@@ -391,8 +491,9 @@ def route_intent(
 
     # 闲聊/测试类问题（与绘本无关）：交给大模型实时回答，不硬检索绘本
     chitchat = re.search(
-        r"有声音|听得[见清]|听得到|在吗|你好|您好|hello|hi|测试|麦克风|话筒|喇叭|音箱|"
-        r"你是谁|你叫什么|讲个笑话|天气|几点|谢谢|thank",
+        r"有声音|听得[见清]|听得到|听得着|听见|听到|能听|会听|说话吗|讲话吗|听我|在吗|你好|您好|hello|hi|测试|麦克风|话筒|喇叭|音箱|"
+        r"你是谁|你叫什么|讲个笑话|天气|几点|谢谢|thank|can you hear|hear me|"
+        r"心情|怎么样啊|陪我|聊天|无聊|喜欢你|爱你|再见|拜拜|晚安|早安|吃了吗|几岁|多大",
         q, re.I,
     )
     if chitchat and not re.search(r"画面|查找|高亮|播放|暂停|继续", q):

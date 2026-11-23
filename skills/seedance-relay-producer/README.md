@@ -90,10 +90,13 @@ python scripts\bootstrap_env.py           # 缺什么装什么
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\concat.py --out-dir .\out
+# 要带旁白（推荐）：给一条音轨，拼接后自动铺上，并写 out/final_movie.json 做规格自检
+# .\.venv\Scripts\python.exe scripts\concat.py --out-dir .\out --audio ..\book_out\narration.mp3
 .\.venv\Scripts\python.exe scripts\report.py --out-dir .\out
 ```
 
 交付物：`out/final_movie.mp4`、`out/concat.txt`、`out/qc_report.md`、`out/qc_report.json`、`out/cost.csv`、`out/run_log.jsonl`。
+`out/final_movie.json` 记录成片规格（分辨率/帧率/时长/音轨）与 `spec_ok` 四项自检（≥720p、≥24fps、100–180s、音轨非静音）。
 
 运行离线测试套件（零 API 消耗）：
 

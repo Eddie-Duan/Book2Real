@@ -26,6 +26,9 @@ pages/page_###/ 四件套      book_out/scene_plan.json        book_out/relay/fi
 （5）文件即交接：只通过磁盘产物传递状态，不靠对话记忆；重跑从最近一个通过门禁的检查点开始。
 （6）成片一次成型：`final_movie.mp4` 交付后不做二次编辑；要改只能回对应页/段重跑再拼。
 （7）成片验收四条硬门，缺一条不算交付：① `qc.json` 的 `zoom_check` PASS（无推近/拉远，元素屏上尺寸恒定）；② `text_zero_check` 与 `watermark_check` PASS，且逐页 `read_image` 复核无普通字/艺术字/页码/水印/淡字；③ `page_duration` PASS，每页屏上时长 ≥1s；④ `concat_audit.json` 有转场记录且不是全硬切。
+（8）**这就是官方交付路径**：成片只能由本链的 Seedance 生成；`book2real/storyfilm.py` 的 2.5D 成片不得提交（见 `docs/CONSTRAINTS.md`）。
+（9）**机位严格静态**：`zoom_check` 阈值 4%；提示词里不许出现推近/拉远/横摇/俯仰/换机位，段尾固定 `[Camera Lock]`。
+（10）**成片必须带旁白**：静音轨（anullsrc −91 dB）不算交付，见 §6.1。
 
 ## 2. 目录与产物
 
@@ -133,6 +136,37 @@ python "$R/scripts/report.py" --out-dir book_out/relay
 ```
 
 门禁：`book_out/relay/final_movie.mp4` 存在且时长约等于各选中段之和；`qc_report.md`、`qc_report.json`、`cost.csv` 已生成；`concat_audit.json` 存在，不是全部 `hard_cut`（若告警，说明 S2 的 SHARED_T/POST 没生效，回 S2 查，不要直接交付"简单切换"的片子）。
+
+### 6.1 提示词增强 + 旁白 + 页时间码（工具在 living-picturebook，仍是三棒之内）
+
+**S2 之后、S3 之前**必须跑一次提示词增强，否则人物会漂、`preflight` 会报缺 `[Camera]` 等标签：
+
+```bash
+python "$SKILLS/living-picturebook/scripts/enrich_seg_prompts.py" \
+  --plan book_out/scene_plan.json --pages-dir pages --out-dir book_out --book books/cn01
+```
+
+**S3 之后**合成旁白并铺进成片（不铺就只有 −91 dB 静音轨，不算交付）：
+
+```bash
+# 1) 声音计划（旁白 + 对白，带起止秒、音色、情绪）
+python "$SKILLS/picturebook-scene-grouper/scripts/build_audio_plan.py" \
+  --book books/cn01 --scene-plan book_out/scene_plan.json --out book_out/audio_plan.json
+
+# 2) 合成旁白（MiniMax TTS，逐行缓存，重跑几乎不花钱）
+python "$SKILLS/living-picturebook/scripts/build_narration.py" \
+  --audio-plan book_out/audio_plan.json --out book_out/narration.mp3
+
+# 3) 拼接时铺轨（这一步替代 §6(4) 的裸 concat）
+python "$R/scripts/concat.py" --config "$C" --out-dir book_out/relay --audio book_out/narration.mp3
+
+# 4) 页↔时间码（交互层 Q11 视频内检索要用，不进成片）
+python "$SKILLS/living-picturebook/scripts/book_timeline.py" \
+  --plan book_out/scene_plan.json --clips-dir book_out/relay --out-dir book_out
+```
+
+门禁：`book_out/relay/final_movie.json` 的 `spec_ok` 四项全真
+（`min_720p` / `min_24fps` / `in_100_180s` / `audio_not_silent`），`page_timeline.json` 页区间连续无空洞。
 
 ## 7. 失败回退
 

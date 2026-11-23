@@ -7,8 +7,9 @@ import json
 import logging
 import os
 import time
+from contextlib import aclosing
 from pathlib import Path
-from typing import Optional
+from typing import AsyncIterator, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,7 +42,9 @@ class AppState:
         self.tts: TTSProvider = build_tts(cfg)
         self.llm: LLMProvider = build_llm(cfg)
         self.filler = FillerBank(cfg)
-        self.runner = VoiceTurnRunner(cfg, self.asr, self.tts, self.llm, self.filler, self.store)
+        from .pipeline.chitchat_cache import ChitchatCache
+        self.chitchat_cache = ChitchatCache(cfg)
+        self.runner = VoiceTurnRunner(cfg, self.asr, self.tts, self.llm, self.filler, self.store, chitchat_cache=self.chitchat_cache)
         self.books: dict[str, BookIndex] = {}
         self.videos: dict[str, VideoIndex] = {}
         self.warm = False
@@ -94,6 +97,8 @@ class AppState:
                 await self.llm.warmup()
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"llm: {exc}")
+            # 闲聊缓存后台生成，不阻塞 warm 状态（生成期间未命中走 LLM 流式）
+            asyncio.create_task(self.chitchat_cache.prepare(self.llm, self.tts))
             self.warm = True
             self.warmup_error = "; ".join(errors)
             return {"ok": not errors, "elapsed_ms": round((time.perf_counter() - t0) * 1000, 1), "errors": errors, "filler": self.filler.status()}
@@ -159,6 +164,15 @@ async def demo_page():
     return HTMLResponse(path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
 
 
+@app.get("/test/assets/{name}", include_in_schema=False)
+async def demo_asset(name: str):
+    if name not in {"chat.js", "capture-worklet.js", "chat.css"}:
+        raise HTTPException(404)
+    path = Path(__file__).resolve().parent.parent / "web" / name
+    media_type = "text/css" if name.endswith(".css") else "text/javascript"
+    return FileResponse(path, media_type=media_type, headers={"Cache-Control": "no-store"})
+
+
 # ── 健康 / 状态 ──────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
@@ -173,6 +187,7 @@ async def health():
         "tts": st.tts.status(),
         "llm": st.llm.status(),
         "filler": st.filler.status(),
+        "chitchat_cache": st.chitchat_cache.status(),
         "latency_budget_ms": st.settings.latency_budget_ms,
     }
 
@@ -441,9 +456,11 @@ async def voice_ws(ws: WebSocket, session_id: str):
     speaking = False
     turn_task: Optional[asyncio.Task] = None
     partial_task: Optional[asyncio.Task] = None
-    turn_active = False
     bin_count = 0
     bin_bytes = 0
+
+    def turn_active() -> bool:
+        return turn_task is not None and not turn_task.done()
 
     async def send_event(event: dict) -> None:
         if event.get("type") == "audio" and event.get("pcm"):
@@ -462,45 +479,74 @@ async def voice_ws(ws: WebSocket, session_id: str):
             data = bytes(buffer[-window:])
             try:
                 result = await st.asr.transcribe(data, sample_rate, language=lang or None, partial=True)
-                if result.text and not turn_active:
+                if result.text and not turn_active():
                     await ws.send_json({"type": "asr_partial", "text": result.text, "lang": result.lang})
             except Exception:
                 continue
 
-    async def end_turn(speech_end_override: Optional[float] = None) -> None:
-        nonlocal turn_active, speaking, buffer, partial_task
-        if turn_active or book is None:
-            return
-        turn_active = True
+    async def clear_capture() -> None:
+        nonlocal speaking, partial_task
         speaking = False
-        if partial_task:
-            partial_task.cancel()
+        if partial_task is not None:
+            task = partial_task
             partial_task = None
-        if not buffer:
-            turn_active = False
-            return
-        data = bytes(buffer)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def reset_session_input() -> None:
+        nonlocal buffer, turn_task
+        await clear_capture()
         buffer = bytearray()
-        if len(data) < 3200:
-            log.info("ws %s end_turn skipped: %d bytes < 100ms", session_id, len(data))
-            turn_active = False
-            return
-        speech_end = speech_end_override or now_ms()
-        log.info("ws %s end_turn bytes=%d speech_end=%.0f", session_id, len(data), speech_end)
-        await ws.send_json({"type": "speech_end", "t": speech_end, "bytes": len(data)})
+        vad.reset()
+        if turn_task is not None:
+            task = turn_task
+            turn_task = None
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def stream_turn(events: AsyncIterator[dict], start_event: Optional[dict] = None) -> None:
+        done = {"type": "done"}
         try:
-            async for event in st.runner.run_voice(
-                session_id, book, data, sample_rate, language=lang or None, current_page=page, current_element=element, speech_end_ms=speech_end, warmup=warmup, video_index=st.video(book_id) if st.video(book_id).ready else None
-            ):
-                await send_event(event)
+            async with aclosing(events):
+                if start_event is not None:
+                    await send_event(start_event)
+                async for event in events:
+                    if event.get("type") == "done":
+                        done = event
+                    else:
+                        await send_event(event)
         except asyncio.CancelledError:
             raise
+        except WebSocketDisconnect:
+            return
         except Exception as exc:  # noqa: BLE001
             log.exception("turn failed")
             await ws.send_json({"type": "error", "message": str(exc)})
-        finally:
-            turn_active = False
-            vad.reset()
+        await send_event(done)
+
+    async def end_turn(speech_end_override: Optional[float] = None) -> None:
+        nonlocal buffer, turn_task
+        if turn_active() or book is None:
+            return
+        await clear_capture()
+        data = bytes(buffer)
+        buffer = bytearray()
+        vad.reset()
+        speech_end = speech_end_override or now_ms()
+        log.info("ws %s end_turn bytes=%d speech_end=%.0f", session_id, len(data), speech_end)
+        start_event = {"type": "speech_end", "t": speech_end, "bytes": len(data)}
+        if len(data) < sample_rate * 2 // 10:
+            await send_event(start_event)
+            await send_event({"type": "turn_skipped", "reason": "audio_too_short"})
+            await send_event({"type": "done"})
+            return
+        video = st.video(book_id)
+        events = st.runner.run_voice(
+            session_id, book, data, sample_rate, language=lang or None, current_page=page,
+            current_element=element, speech_end_ms=speech_end, warmup=warmup,
+            video_index=video if video.ready else None,
+        )
+        turn_task = asyncio.create_task(stream_turn(events, start_event))
 
     try:
         while True:
@@ -512,8 +558,8 @@ async def voice_ws(ws: WebSocket, session_id: str):
                 bin_count += 1
                 bin_bytes += len(chunk)
                 if bin_count % 50 == 1:
-                    log.info("ws %s binary #%d bytes=%d total=%d turn_active=%s speaking=%s", session_id, bin_count, len(chunk), bin_bytes, turn_active, speaking)
-                if not turn_active:
+                    log.info("ws %s binary #%d bytes=%d total=%d turn_active=%s speaking=%s", session_id, bin_count, len(chunk), bin_bytes, turn_active(), speaking)
+                if not turn_active():
                     buffer.extend(chunk)
                     # client 模式：客户端 VAD 是权威，服务端不再自行判停/截断 buffer
                     events = [] if vad_mode == "client" else vad.push(chunk)
@@ -537,6 +583,7 @@ async def voice_ws(ws: WebSocket, session_id: str):
                 continue
             kind = msg.get("type")
             if kind == "start":
+                await reset_session_input()
                 book_id = str(msg.get("book_id") or book_id)
                 book = st.book(book_id)
                 sample_rate = int(msg.get("sample_rate") or 16000)
@@ -550,40 +597,32 @@ async def voice_ws(ws: WebSocket, session_id: str):
                 await ws.send_json({"type": "ready", "book_id": book_id, "sample_rate": sample_rate, "warm": st.warm, "warmup": warmup, "vad": vad_mode})
             elif kind == "vad":
                 event = msg.get("event")
-                log.info("ws %s vad event=%s speaking=%s turn_active=%s buffer=%d", session_id, event, speaking, turn_active, len(buffer))
-                if event == "speech_start" and not speaking and not turn_active:
+                log.info("ws %s vad event=%s speaking=%s turn_active=%s buffer=%d", session_id, event, speaking, turn_active(), len(buffer))
+                if event == "speech_start" and not speaking and not turn_active():
                     speaking = True
                     await ws.send_json({"type": "speech_start", "t": now_ms()})
                     if st.settings.asr_partial_ms > 0:
                         partial_task = asyncio.create_task(partial_loop())
-                elif event == "speech_end" and not turn_active:
-                    # 客户端 VAD 模式下客户端是权威：只要 buffer 里有足够音频就应答，
-                    # 不依赖 speaking 标志（防止 barge-in/回声把状态清掉后丢回合）。
-                    if speaking or len(buffer) >= 3200:
-                        await end_turn(msg.get("t") or now_ms())
-                    else:
-                        log.info("ws %s speech_end ignored: buffer=%d too short", session_id, len(buffer))
+                elif event == "speech_end" and not turn_active():
+                    await end_turn(msg.get("t") or now_ms())
             elif kind == "text":
                 text = str(msg.get("text") or "").strip()
-                if text and book and not turn_active:
-                    turn_active = True
+                if text and book and not turn_active():
+                    await clear_capture()
+                    buffer = bytearray()
+                    vad.reset()
                     speech_end = msg.get("t") or now_ms()
-                    try:
-                        async for event in st.runner.run_text(
-                            session_id, book, text, language=lang or None, current_page=page, current_element=element, speech_end_ms=speech_end, warmup=warmup, video_index=st.video(book_id) if st.video(book_id).ready else None
-                        ):
-                            await send_event(event)
-                    finally:
-                        turn_active = False
+                    video = st.video(book_id)
+                    events = st.runner.run_text(
+                        session_id, book, text, language=lang or None, current_page=page,
+                        current_element=element, speech_end_ms=speech_end, warmup=warmup,
+                        video_index=video if video.ready else None,
+                    )
+                    turn_task = asyncio.create_task(stream_turn(events))
             elif kind == "barge_in":
-                if partial_task:
-                    partial_task.cancel()
-                    partial_task = None
-                speaking = False
-                turn_active = False
-                buffer = bytearray()
-                vad.reset()
+                # 先回 ack 再清理，避免客户端等 ack 期间新回合事件被排队延迟
                 await ws.send_json({"type": "barge_in_ack"})
+                await reset_session_input()
             elif kind == "end":
                 break
     except WebSocketDisconnect:
@@ -595,10 +634,7 @@ async def voice_ws(ws: WebSocket, session_id: str):
         except Exception:
             pass
     finally:
-        if partial_task:
-            partial_task.cancel()
-        if turn_task:
-            turn_task.cancel()
+        await reset_session_input()
 
 
 # ── 会话历史 ───────────────────────────────────────────────────────

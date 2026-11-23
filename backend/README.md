@@ -26,11 +26,11 @@
 
 ## 2. 快速开始（Windows，本地联调）
 
-前提：Python 3.10（已装 `fastapi/uvicorn/httpx/faster-whisper/rapidocr_onnxruntime/opencv/PyMuPDF` 等，见 `requirements.txt`）。
+前提：Python 3.10–3.12（3.13+ 装不上 `rapidocr_onnxruntime`），依赖装在仓库根目录的 `.venv`（由 `scripts\setup_env.ps1` 创建）。
 
 ```bash
-cd paperbook-backend
-python -m pip install -r requirements.txt
+cd backend
+..\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
 # 1) 首次：把 6 本绘本入库（约 4 分钟，含英文扫描页 OCR）
 #    赛事素材不随仓库提供，请向组委会获取后填本地路径
@@ -39,24 +39,26 @@ python tools/ingest_competition.py --zip "<赛事素材zip路径>/纸书智伴�
 # 2) 配置（.env 已带本地默认值；也可以复制 .env.example）
 #    TTS_PROVIDER=sapi  ASR_PROVIDER=local  LLM_PROVIDER=extractive
 
-# 3) 启动
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8790
+# 3) 启动（venv 解释器；裸 `python` 可能是另一套无 uvicorn 的系统 Python）
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8790
 ```
 
 > 赛事 PDF/音频有版权与保密限制：`data/`、`.env`、`pip-cache/` 已加入 `.gitignore`，**不要**把原始绘本、Query 音频或 API key 提交到仓库。
 
 打开 <http://127.0.0.1:8790/docs> 查看交互式 API；<http://127.0.0.1:8790/health> 查看预热/Provider 状态。
 
-### 最小实时语音测试台
+### 实时语音聊天页
 
 打开 **<http://127.0.0.1:8790/test>**：
 
-- 连接后允许麦克风，选绘本/页码，直接说话；
-- “自动 VAD”说完自动回答（服务端约多 0.5s 判停）；“按住说话”松开即回答，延迟更接近真实说完；
-- 页面会显示“说完 → 第一块音频”的毫秒数，并流式播放 MiniMax/本地 TTS；
-- 也可点“文字问一句”只测 TTS（约 0.3s）。
+- 选好绘本和页码，点击“连接”并允许使用麦克风。也可以直接在聊天框里输入问题。
+- 默认“按住说话”。按住按钮或空格键，说完松开即可提交。也可切换到“自动听取”，说完停顿约半秒即可提交。
+- 回复会逐步显示并播放。可以点“打断回复”，也可以直接按住说话发起下一轮。自动听取会在播放结束后恢复。
+- “语音诊断”可查看麦克风电平、实际收到的录音时长和首音耗时，也可以用绘本附带的测试音频检查服务。
 
-这是纯测试页，不做视频/触控业务；源码在 `web/index.html`。
+页面源文件在 `web/`。浏览器使用麦克风需要本机回环地址或 HTTPS。
+
+配置 `ASR_PROVIDER=minimax` 时，每次说完上传一段音频。页面会逐段显示云端返回的识别文字，定稿后进入问答。回复文字按短句送入 TTS，音频生成后立即发送给页面。「识别首字」和「识别定稿」从提交识别时算起。「回复首音」从说完算起，排除填充音。[MiniMax 识别接口](https://platform.minimax.io/docs/guides/speech-to-text#streaming)
 
 
 ### 本地 TTS 选择

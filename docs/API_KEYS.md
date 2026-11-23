@@ -71,9 +71,9 @@ python -m book2real visuals --book books/cn01
 python -m book2real clip --book books/cn01 --page p03 --prompt "积木一块块搭高，镜头缓缓推近" --seconds 5
 ```
 
-> **Q43 红线**：同一册绘本的成片必须一次生成、不能二次编辑。因此正式成片固定走
-> `python -m book2real film`（逐帧单趟渲染），`clip` 生成的 Seedance 片段只作能力演示，
-> 不拼进交付视频。若组委会后续澄清"同一次任务内多段可拼"，再把 `clip` 接进成片。
+> **Q43 边界（2026-11-23 已确认）**：同一任务内分段生成再拼接**不算**二次编辑，只禁人工后期
+> 剪辑（片头/转场/BGM/换配音）。因此两条路径都可交付：正式成片走 `python -m book2real film`
+> （单趟逐帧渲染，6 本已出），需要单段可重生成时走 `skills/` 的 Seedance 产线（`concat` 拼接）。
 
 ## 三、旧实验后端（可留空）
 

@@ -29,3 +29,15 @@ def test_no_duplicate_text():
     out = split_text(text)
     joined = "".join(out)
     assert joined.count("小满") == 1
+
+
+def test_first_clause_uses_early_punctuation():
+    splitter = ClauseSplitter()
+    chunks = splitter.feed("小满和花花，正在家里用彩色积木搭一座很高的城堡。")
+    assert chunks[0] == "小满和花花，"
+
+
+def test_first_chunk_ends_at_a_word_boundary():
+    splitter = ClauseSplitter(first_max_units=3)
+    assert splitter.feed("Beautiful") == []
+    assert splitter.feed("ly arranged") == ["Beautifully"]
