@@ -18,7 +18,7 @@
 > [docs/BACKEND_MERGE.md](docs/BACKEND_MERGE.md)。
 
 ```bash
-pip install -r requirements.txt          # 另需 ffmpeg 在 PATH
+scripts\setup_env.ps1                    # 建 .venv（需 Python 3.10-3.12）；另需 ffmpeg 在 PATH
 cp .env.example .env                    # 填 DeepSeek / 火山方舟 key（见 docs/API_KEYS.md）
 
 # 1) 官方素材入库（backend：PDF 文字层 + RapidOCR + 脚本/音频）-> data/books/<id>
@@ -31,7 +31,7 @@ python scripts/sync_reader.py
 python -m book2real film --book books/cn01
 
 # 4) 启动唯一服务：阅读器 + 影院 + 问答/语音 API，同一端口 8790
-scripts\start_backend.cmd
+scripts\start_backend.cmd                # 依赖根目录 .venv（先跑 setup_env.ps1）
 #   http://127.0.0.1:8790/                互动阅读
 #   http://127.0.0.1:8790/film?book=cn01  视频内检索
 #   http://127.0.0.1:8790/docs            OpenAPI
@@ -164,9 +164,9 @@ docs/                设计与交接
 
 > 仓库名仍保留 `Book2Real`（代码包名 `book2real` 不变），产品名称以官方赛题为准：**纸书智伴**。
 
-Python ≥ 3.10，`ffmpeg` 在 PATH。依赖见 `requirements.txt`；仓库内 `vendor/` 已带
+Python 3.10–3.12（3.13+ 装不上 `rapidocr_onnxruntime`），`ffmpeg` 在 PATH。依赖见 `requirements.txt`；仓库内 `vendor/` 已带
 pypinyin、jieba、edge-tts，离线可直接跑（edge-tts 仍需网络；无网时回退浏览器/系统语音）。
 
 ```bash
-pip install -r requirements.txt
+scripts\setup_env.ps1        # 建 .venv 并装依赖；或 .venv\Scripts\python.exe -m pip install -r requirements.txt
 ```

@@ -7,9 +7,18 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-Write-Host "[1/3] python" -ForegroundColor Cyan
-$py = "python"
-try { & $py --version } catch { throw "python not found on PATH" }
+Write-Host "[1/3] python (3.10-3.12 required: rapidocr_onnxruntime has no 3.13+ build)" -ForegroundColor Cyan
+$py = $null
+foreach ($v in @("3.12", "3.11", "3.10")) {
+    $cand = & py "-$v" -c "import sys;print(sys.executable)" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $cand) { $py = $cand.Trim(); break }
+}
+if (-not $py) {
+    throw "No Python 3.10-3.12 on this machine. Install 3.12 (py -0p lists what exists); " +
+          "rapidocr_onnxruntime does not build on 3.13+, so a newer default python will fail at pip install."
+}
+$ver = & $py -c "import sys;print('%d.%d' % sys.version_info[:2])"
+Write-Host "  using $py (3.$($ver.Split('.')[1]))" -ForegroundColor Green
 
 Write-Host "[2/3] venv + deps" -ForegroundColor Cyan
 if (-not (Test-Path ".venv")) { & $py -m venv .venv }

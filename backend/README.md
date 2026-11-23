@@ -26,11 +26,11 @@
 
 ## 2. 快速开始（Windows，本地联调）
 
-前提：Python 3.10（已装 `fastapi/uvicorn/httpx/faster-whisper/rapidocr_onnxruntime/opencv/PyMuPDF` 等，见 `requirements.txt`）。
+前提：Python 3.10–3.12（3.13+ 装不上 `rapidocr_onnxruntime`），依赖装在仓库根目录的 `.venv`（由 `scripts\setup_env.ps1` 创建）。
 
 ```bash
-cd paperbook-backend
-python -m pip install -r requirements.txt
+cd backend
+..\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
 # 1) 首次：把 6 本绘本入库（约 4 分钟，含英文扫描页 OCR）
 #    赛事素材不随仓库提供，请向组委会获取后填本地路径
@@ -39,8 +39,8 @@ python tools/ingest_competition.py --zip "<赛事素材zip路径>/纸书智伴�
 # 2) 配置（.env 已带本地默认值；也可以复制 .env.example）
 #    TTS_PROVIDER=sapi  ASR_PROVIDER=local  LLM_PROVIDER=extractive
 
-# 3) 启动
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8790
+# 3) 启动（venv 解释器；裸 `python` 可能是另一套无 uvicorn 的系统 Python）
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8790
 ```
 
 > 赛事 PDF/音频有版权与保密限制：`data/`、`.env`、`pip-cache/` 已加入 `.gitignore`，**不要**把原始绘本、Query 音频或 API key 提交到仓库。
