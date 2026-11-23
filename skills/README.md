@@ -1,10 +1,10 @@
 # skills/ — 绘本动态化技能包
 
-把一本绘本 PDF 变成「一条不可二次编辑的动态片 + 一张页 ↔ 时间码表」，封装成五个可组合的 skill。
+把一本绘本 PDF 变成一条不可二次编辑的动态片，封装成三个执行 skill + 一个总装 skill。
 
 > **先读这一段：这是并行方案，不是现有交付路径。**
 > 本仓库的官方交付仍走 `book2real/storyfilm.py` 的单趟逐帧渲染（只混音轨、不拼镜头）。
-> 这五个 skill 走的是另一条路：**分镜 → 每段 5/10 秒调用 Seedance 生成 → 拼接成一条**。
+> 这四个 skill 走的是另一条路：**分镜 → 每段 5/10 秒调用 Seedance 生成 → 拼接成一条**。
 > 两者互不依赖；本目录不修改、也不替换 `book2real/`、`backend/` 的任何代码。
 
 ## 1. 两条路径的差别
@@ -15,111 +15,66 @@
 | 画面来源 | 原图分层 + 程序化运镜 + I2V 预留 | Seedance 图生视频（首帧/首尾帧双锚定） |
 | 拼接 | 不拼（单趟编码） | `concat.py` 拼成一条（可选 xfade） |
 | 可重生成粒度 | 整本 | 单段 |
-| 成本 | 本地算力 | 按条计费（720p 5s ≈ 0.9 元，1080p ≈ 1.6 元，按 `doubao-seedance-1-0-pro` 挂牌价估算；**本仓库实际在用的 `doubao-seedance-2-5-260628` 实测 1.00 元/秒 → 5s=5 元**，见账本） |
-| 交付物 | 成片 + `timeline.json` | 成片 + `page_timeline.json`（页级契约） |
+| 成本 | 本地算力 | 按条计费（720p 5s ≈ 0.9 元，1080p ≈ 1.6 元；本仓库实测 1.00 元/秒 → 5s=5 元，见账本） |
+| 交付物 | 成片 + `timeline.json` | 成片 `final_movie.mp4` |
 
-**口径提示**：`concat` 在字面上就是「拼镜头」，但**2026-11-23 已确认：同一任务内分段
-生成再拼接不算二次编辑**（只禁人工后期剪辑）。所以本路径与 `book2real/storyfilm.py`
-单趟渲染**都可以作为官方交付成片**，二选一；本路径更适合在需要"单段可重生成"时使用。
+**口径提示**：`concat` 在字面上就是「拼镜头」，但 **2026-11-23 已确认：同一任务内分段生成再拼接不算二次编辑**（只禁人工后期剪辑）。所以本路径与 `book2real/storyfilm.py` 单趟渲染**都可以作为官方交付成片**，二选一；本路径更适合在需要"单段可重生成"时使用。
 
-## 2. 五个 skill 各管什么
+## 2. 四个 skill 各管什么
 
 | 顺序 | skill | 输入 | 输出 | 不可替代的职责 |
 | --- | --- | --- | --- | --- |
 | S1 | `picturebook-to-seedance` | 单页扫描图 + 文字块坐标 | `clean_keyframe.png` / `page_manifest.json` / `qa_report.json` / `seedance_prompt.txt` | 把文字从画面里"拿走"，同时保证其它像素不变 |
 | S2 | `picturebook-scene-director` | `pages/` 目录 | `scene_plan.json` / `bridge/T_*.png` / `prompts/seg_###_prompt.txt` | 决定切段、合并、接缝类型、锚点 |
-| S3–S4 | `seedance-relay-producer` | `scene_plan.json`（`--plan`） | `seg_###/clip.mp4` / `qc.json` / `final_movie.mp4` | 调 Ark Seedance、逐段门禁、拼成一条 |
-| S5 | `living-picturebook` | `scene_plan.json` + 成片 | `page_timeline.json` / 编排与验收 | 把"页"翻译成时间码 |
-| 旁路 | `ai-video-prompt-architect` | 交互层提示词需求 | 提示词参考 | 只服务交互层，不参与视频链路 |
-| S0 | `picturebook-scene-grouper` | `books/<id>/reader/book.json` | `scene_plan.json` / `prompts.json` | **按文本**把页聚成场景（官方 Q33），再出每场景提示词契约 |
+| S3 | `seedance-relay-producer` | `scene_plan.json`（`--plan`） | `seg_###/clip.mp4` / `qc.json` / `final_movie.mp4` | 调 Ark Seedance、逐段门禁、拼成一条 |
+| 总装 | `picturebook-pipeline` | `pages/` | `final_movie.mp4` 全程门禁 | 只管顺序、交接契约、花钱闸门与失败回退；三棒逻辑一行不复制 |
 
-`living-picturebook` 同时是总装层：`scripts/run_pipeline.py` 把八步串成一条命令。
+`picturebook-pipeline` 是唯一的编排入口：它固定 S1→S2→S3，在每个门禁处停下确认，不新增处理层。
+旁路的 `ai-video-prompt-architect` 只服务交互层提示词，不进这条链。
 
 ## 3. 怎么跑
+
+整链推荐让 agent 加载 `picturebook-pipeline`：它会依次执行 S1→S2→S3，在「S1 全页 PASS」「S2 计划确认」「preflight 预算确认」「480p 样片确认」处停下等你。
+
+想手工只跑某一棒时：
 
 ```bash
 # 0) 依赖：numpy/Pillow（导演层）+ opencv/scikit-image/requests/PyYAML（relay）+ ffmpeg 在 PATH
 pip install -r skills/seedance-relay-producer/requirements.txt
 
-# 1) 免费彩排：分镜 + 桥接帧 + 生成前检查 + 打印请求体，不花钱
-python skills/living-picturebook/scripts/run_pipeline.py \
-  --pages-dir pages --out-dir book_out --resolution 1080p --dry-run
+# 1) S2 分镜（免费）
+python skills/picturebook-scene-director/scripts/plan_scenes.py --pages-dir pages --out-dir book_out
 
-# 2) 真跑（需要 ARK_API_KEY，会按条计费）
+# 2) S3 零成本预检（不调用 API）
+python skills/seedance-relay-producer/scripts/preflight.py \
+  --config skills/seedance-relay-producer/config.yaml \
+  --plan book_out/scene_plan.json --pages-dir pages \
+  --out-dir book_out/relay --resolution 1080p --dry-run
+
+# 3) S3 真跑（会按条计费；先 480p 样片，再 1080p）
 set ARK_API_KEY=...            # PowerShell: $env:ARK_API_KEY="..."
-python skills/living-picturebook/scripts/run_pipeline.py \
-  --pages-dir pages --out-dir book_out --resolution 1080p --yes
-
-# 3) 只查某一时刻是第几页
-python skills/living-picturebook/scripts/book_timeline.py \
-  --plan book_out/scene_plan.json --at 13.5
+python skills/seedance-relay-producer/scripts/generate.py \
+  --config skills/seedance-relay-producer/config.yaml \
+  --out-dir book_out/relay --resolution 480p --yes
+python skills/seedance-relay-producer/scripts/poll_download.py \
+  --config skills/seedance-relay-producer/config.yaml --out-dir book_out/relay
 ```
 
 模型默认 `doubao-seedance-2-5-flash-261115`（见 `skills/seedance-relay-producer/config.example.yaml`）。
 注意 **2.5 带首帧时不允许下发 `ratio`**，配置项 `ratio_follows_first_frame: true` 已默认打开。
-
-## 3.1 从本仓库的书接进来（官方口径对齐）
-
-`run_pipeline.py` 只认 `page_###/` 四件套，不认 `books/<id>`。三个补充脚本：
-
-```bash
-# 1) 阅读包 -> skills 输入（清字 + 三项真实 QC，不花钱）
-python skills/living-picturebook/scripts/prepare_from_book.py \
-  --book books/cn01 --out .tmp/skill_pages
-
-# 2) 总时长对齐到官方 100–200 s（plan_scenes 默认每页 5 s，12 页只有 60 s）
-python skills/living-picturebook/scripts/run_pipeline.py \
-  --pages-dir .tmp/skill_pages --out-dir .tmp/skill_out \
-  --resolution 720p --target-seconds 120 --dry-run
-
-# 3) 对着官方条目判「能不能交」
-python skills/living-picturebook/scripts/check_official.py \
-  --plan .tmp/skill_out/scene_plan.json --pages-dir .tmp/skill_pages \
-  --book books/cn01 --out .tmp/skill_out/official_check.json
-```
-
-`prepare_from_book.py` 的三项指标是真算的，不是常量：`ocr_residual_count` 用本机
-RapidOCR 在清字后的图上复读，`non_edited_ssim` 只算掩膜外，`protected_zone_intrusion_px`
-是掩膜外被改动的像素数（像素锁下应为 0）。
-
-实测（cn01，720p，dry-run）：12 页 PASS 12、关键帧统一 1920×1080、总时长 120 s、
-preflight 12 就绪 0 阻断、预估 21.6 元（preflight 熔断 20 元 → 需 `--yes` 或下调）。
-详见 `docs/SKILLS_OFFICIAL_GAP.md`。
-
-## 3.2 场景层（按文本，不按像素）
-
-`picturebook-scene-director` 的合并判据是像素级相似（色彩 ≤0.15、光流 ≥0.90），真实绘
-本几乎不满足 —— 实测 cn01 12 页 → 12 段，合并率 0。场景这一层改由
-`picturebook-scene-grouper` 按**文字**来划：
-
-```bash
-python skills/picturebook-scene-grouper/scripts/group_scenes.py \
-  --book books/cn01 --out .tmp/scene_plan_cn01.json --pages-dir .tmp/skill_pages
-python skills/picturebook-scene-grouper/scripts/build_prompts.py \
-  --book books/cn01 --scene-plan .tmp/scene_plan_cn01.json \
-  --pages-dir .tmp/skill_pages --out .tmp/prompts_cn01.json
-python skills/living-picturebook/scripts/build_qc_report.py \
-  --book books/cn01 --scene-plan .tmp/scene_plan_cn01.json \
-  --pages-dir .tmp/skill_pages --prompts .tmp/prompts_cn01.json --out .tmp/qc_report_cn01.json
-```
-
-实测：cn01 12 页 → **3 场 / 100 s / 文字覆盖 100%**；en01 28 页 → **7 场 / 140 s / 100%**。
-`qc_report.json` 六项全 PASS（成片未生成时该项 SKIP）。
 
 ## 4. 测试
 
 全部是纯标准库脚本，几秒跑完，不需要 API Key：
 
 ```bash
-python skills/living-picturebook/tests/test_book_timeline.py      # 5 条：页区间/边界/叠化/CLI
-python skills/living-picturebook/tests/test_run_pipeline.py       # 5 条：八步顺序/目录校验/--from--to
-python skills/seedance-relay-producer/tests/test_plan_adapter.py  # 7 条：段→伪页映射/锚点/QA 聚合
+python -m pytest skills/seedance-relay-producer/tests -q   # 段→伪页映射/锚点/QA 聚合/漂移/水印
 ```
 
 ## 5. 已知限制
 
 - **拼镜头与 Q43 的口径差异**：见第 1 节末尾。用作官方交付前请先与赛题口径对齐。
-- **合并段的页时间码是估算值**：一镜到底没有硬边界，`page_timeline.json` 里会标 `estimated: true`。
+- **本链不产出页 ↔ 时间码表**：交互层若需要，另行生成，不要塞回三棒。
 - **风格漂移取决于提示词**：每页 `seedance_prompt.txt` 必须带风格 DNA（画风/笔触/配色/光线），否则模型会把平涂插画渲染成写实照片。
 - **QC 是一致性检查，不是审美判断**：它只保证"首帧对得上、尾帧落在锚点上、没有文字和水印"，人物崩坏仍需人工抽检。
 - **桥接帧是合成图**：黑场/模糊/遮挡是静态合成，不是真实运动模糊；个别模型可能不接受，需要首次生成时验证。

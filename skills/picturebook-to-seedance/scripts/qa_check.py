@@ -80,6 +80,18 @@ def main():
     ap.add_argument("--ssim-min", type=float, default=0.9995)
     ap.add_argument("--p999-max", type=int, default=2)
     ap.add_argument("--hard-diff", type=int, default=5)
+    ap.add_argument(
+        "--min-text-removed",
+        type=float,
+        default=60.0,
+        help="text mask 内至少这么大比例的像素必须被改写，否则说明根本没去字",
+    )
+    ap.add_argument(
+        "--max-text-residual-edge",
+        type=float,
+        default=3.0,
+        help="text mask 内'笔画型高频'像素占比上限（%%），超过视为有字形残迹",
+    )
     a = ap.parse_args()
 
     orig = Image.open(a.original).convert("RGB")
@@ -169,6 +181,28 @@ def main():
         "hard_diff_zero": bool(over_hard == 0.0),
         "protected_zone_intact": bool(intrusion == 0),
     }
+    # 文字残留事后校验：文字 mask 内必须真的被改写；再用"笔画型高频"占比量残迹。
+    # 只能证明 mask 区被处理过且没有明显笔画，不能替代 OCR：艺术字/水印/淡字
+    # 必须由 agent 在 Stage 6 用 read_image 逐页复核，并把 ocr_residual_count=0
+    # 写进 qa_report.json（preflight 会读它）。
+    if tmask is not None and int(tmask.sum()) > 0:
+        inside_diff = diff[tmask]
+        text_removed_pct = float((inside_diff > 3).mean() * 100)
+        gy, gx = np.gradient(gray_f.astype(np.float32))
+        grad_mag = np.abs(gx) + np.abs(gy)
+        h, w = tmask.shape
+        padded = np.pad(tmask, 4, mode="edge")
+        ring = np.zeros_like(tmask)
+        for dy in range(9):  # 9x9 膨胀取 mask 外一圈作局部参照
+            for dx in range(9):
+                ring |= padded[dy : dy + h, dx : dx + w]
+        ring &= ~tmask
+        ring_med = float(np.median(grad_mag[ring])) if ring.any() else 0.0
+        residual = float((grad_mag[tmask] > max(20.0, 3.0 * ring_med)).mean() * 100)
+        report["metrics"]["text_removed_pct"] = round(text_removed_pct, 2)
+        report["metrics"]["text_residual_edge_pct"] = round(residual, 3)
+        checks["text_removed"] = bool(text_removed_pct >= a.min_text_removed)
+        checks["text_residual_edges"] = bool(residual <= a.max_text_residual_edge)
     report["checks"] = checks
     report["verdict"] = "PASS" if all(checks.values()) else "FAIL"
 

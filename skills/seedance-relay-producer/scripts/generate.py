@@ -35,6 +35,17 @@ SMOOTH_LOCK_CLAUSE = (
 ENDING_LOCK_CLAUSE = (
     ", gentle natural deceleration at the end of the sequence, holding final composition steadily"
 )
+# 全片硬锁：镜头锁死（禁 zoom）+ 画面零文字（禁淡出/漂浮字形）。
+# 这两条不依赖上游是否写对，每条请求都兜底追加；已含锁的提示词不会重复追加。
+STABILITY_LOCK_CLAUSE = (
+    ", locked-off static camera: absolutely no zoom, dolly, push-in/pull-out, pan or tilt; "
+    "all characters and props keep constant on-screen size and position, no scale drift, "
+    "only subtle in-place motion such as breathing, blinking, hair, fabric and light"
+)
+CLEAN_FRAME_LOCK_CLAUSE = (
+    ", the frame contains no text, letters, subtitles, captions, page numbers, logos or "
+    "watermark at any moment; no text fades in or out and no glyphs appear"
+)
 
 
 def build_final_prompt_and_diff(
@@ -62,6 +73,13 @@ def build_final_prompt_and_diff(
 
     extra_clauses = []
     reasons = []
+    orig_lower = orig_text.lower()
+    if "[camera lock]" not in orig_lower and "no zoom" not in orig_lower:
+        extra_clauses.append(STABILITY_LOCK_CLAUSE)
+        reasons.append("全局硬锁：镜头固定、禁止 zoom/推拉，元素屏上尺寸恒定")
+    if "no text" not in orig_lower and "no watermark" not in orig_lower:
+        extra_clauses.append(CLEAN_FRAME_LOCK_CLAUSE)
+        reasons.append("全局硬锁：画面全程零文字/零水印，禁止文字淡入淡出")
     if plan.get("needs_smooth_lock"):
         extra_clauses.append(SMOOTH_LOCK_CLAUSE)
         reasons.append("Level A 中等差异 (0.20 < DINO <= 0.35)，追加平滑过渡防形变锁定")
