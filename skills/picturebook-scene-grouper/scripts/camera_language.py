@@ -32,7 +32,19 @@ SPEED_TEXT = {"slow": "慢速", "medium": "中速", "fast": "快速"}
 MID_MOVES = ["pan_left", "pan_right", "tilt_up", "follow", "push_in"]
 
 
+SINGLE_SHOT_MOVES = ["push_in", "pan_left", "pull_out", "follow", "tilt_up", "pan_right"]
+
+
 def plan_camera(n_shots: int, scene_no: int) -> list[dict]:
+    if n_shots == 1:
+        # A scene that is a single shot cannot both establish and hand over;
+        # rotate the vocabulary per scene so a 12-page book is not 12 push-ins,
+        # while scene 1 still opens with the establishing move.
+        move = SINGLE_SHOT_MOVES[(scene_no - 1) % len(SINGLE_SHOT_MOVES)]
+        return [{"shot_size": "LS" if scene_no == 1 else "MS",
+                 "angle": "eye" if scene_no % 3 else "low",
+                 "move": move,
+                 "speed": "slow" if scene_no % 2 else "medium"}]
     out: list[dict] = []
     for i in range(n_shots):
         if i == 0:
