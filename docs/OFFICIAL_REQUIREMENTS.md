@@ -26,7 +26,7 @@
 | A4 | 输出两段视频 | "离线交两个视频：①带交互 ②不带交互" | Q4；PDF 第4页 5.a | 非交互**六本全部已出**（cn01 114.79s / cn02 110.0s / cn03 110.0s / en01 150.38s / en02 150.28s / en03 150.19s，均 1280×720/24fps/带音轨）；交互录屏**已有 cn01、en01**，缺 cn02/cn03/en02/en03 |
 | A5 | 绘本视频 100–200 s | "100–200 秒" | Q26 | 六本实测 **110.0–150.38 s**，全部落在区间内（`ffprobe` 复核） |
 | A6 | 绘本视频 ≤3 min | "两段分别计时：交互视频 ≤5 min、绘本视频 ≤3 min" | Q39 | 同上，均 < 180 s；上限口径冲突见 5.1 |
-| A7 | 交互演示视频 ≤5 min | "带交互版交操作录屏即可" | Q39 | **已有**：`runs/cn01/interactive/交互演示录屏.mp4`（30.68 s）、`runs/en01/interactive/交互演示录屏.mp4`（22.92 s），1276×804 / 25 fps，真实浏览器操作录屏（播放暂停、翻页、找画面、点选、描述帧、查词），未二次剪辑 |
+| A7 | 交互演示视频 ≤5 min | "带交互版交操作录屏即可" | Q39 | **六本全部已录**（2026-11-23，浏览器 CDP 截屏直录、未二次剪辑）：cn01 30.7s / cn02 27.8s / cn03 31.1s / en01 22.9s / en02 33.2s / en03 28.6s，1264×806 / 25 fps |
 | A8 | ≥720P、≥24 fps | "≥720P（1280×720），推荐 1080P；≥24 fps" | Q26 | 两片 ffprobe 实测均 `h264 1280×720 24/1` + `aac`（`book2real/storyfilm.py:21-22` `W,H=1280,720`、`FPS=24`）；`manifest.json` 记录同值 |
 | A9 | 一次生成，不得二次编辑 | "同一册绘本的视频必须一次生成，不能二次编辑（含生成视频与交互视频）" | Q43 | 交付路径 `python -m book2real film` 为**单趟逐帧编码**：`encode_frames(_frames(...), ...)` 直出（`storyfilm.py:435`）后只 mux 音轨（`:442`），无镜头拼接；旧 `run` 管线的逐页 `clip.mp4`+`concat`（`storyfilm.py:413-417`）**2026-11-23 确认同属合规**（同一任务内分段拼接不算二次编辑），两条路径均可交付 |
 | A10 | 完整覆盖正文情节 | "正文每页都必须在成片中有体现，不强制一页一镜；跨 2–3 页可合并" | Q33 | `timeline.json`：cn01 **13 段**（12 页 + cover/end）、en01 **29 段**（28 页 + cover/end），无掉页 |
@@ -41,7 +41,7 @@
 | A19 | 提交 2 本（1 中 1 英） | "提交 2 本（1 中 1 英）" | Q2 | **已有**：6 本官方样书全部导入（cn01–03 / en01–03），提交用的 `cn01`（《一起搭积木吧》）与 `en01`（《Going to the Cinema》）非交互成片 + 交互录屏齐备 |
 | A20 | 隐藏测试集同分布 | "与公开集同分布，为 6 本之外同级别两本" | Q12 | **部分**：`import-pdf` 对任意 PDF 通用，但 6 本只导入 2 本，无跨书泛化记录 |
 | A21 | 多 Agent 可编排可复用 | "构建可编排、可复用的多 Agent 协同链路"；框架不指定 | PDF 第4页 (4)；Q25 | **已有**：`book2real/cast/`（PageScout→CastClerk→Rigger→MotionDirector→Critic）+ `python -m book2real agent`；另有 `story`/`visuals`/`clip` 三个云端 agent 入口 |
-| A22 | 官方模型三件套 | "企业主体赛提供 DeepSeek-V4.1 Flash、豆包文生图基础版、Seedance 文生视频基础版" | Q16；Q42 | **已接未验**：`book2real/cloud.py`（DeepSeek=`deepseek-chat`、Seedream=`doubao-seedream-3-0-t2i-250415`、Seedance=`doubao-seedance-1-0-lite-t2v-250428`），命令 `cloud --check/--llm/--image/--video`，预算护栏 `CLOUD_MAX_SPEND_CNY` + 流水 `runs/cloud/ledger.jsonl`；**`.env` 里 key 为空，真实调用未验证** |
+| A22 | 官方模型三件套 | "企业主体赛提供 DeepSeek-V4.1 Flash、豆包文生图基础版、Seedance 文生视频基础版" | Q16；Q42 | **2/3 已真实调用**：DeepSeek `deepseek-chat`（`/api/ask` source=llm，2026-11-23）、Seedance `doubao-seedance-2-5-260628`（5s 探针片段，账本 5.00 元，2026-11-20）；**Seedream 仅 key 有效、未真实出图**（`cloud --check` ready）。预算护栏 `CLOUD_MAX_SPEND_CNY=50`，已用 5.00 | 流水 `runs/cloud/ledger.jsonl`；**`.env` 里 key 为空，真实调用未验证** |
 | A23 | 内容安全人工复核 + 责任人 | "生成式 AI 输出应进行人工复核并标注不确定性"；"未指定内容安全复核责任人或审核机制缺失…扣分" | PDF 第6页、第8页 八；Q30 | 年龄适配已落：6 本 `book.json` 增加 `age_range="4-8"`、`ai_generated=true`，视频页与阅读页均显示“AI 生成 · 适龄 4–8 岁”；**责任人仍为 `____` 占位**，见 `docs/COMPLIANCE.md` §4 |
 | A24 | 年龄适配标注 | "儿童内容审核机制与复核责任人落实；年龄适配标注完整" | PDF 第5页 6 量化评分表"规范合规"行 | **无**任何分龄标注字段或产物 |
 
