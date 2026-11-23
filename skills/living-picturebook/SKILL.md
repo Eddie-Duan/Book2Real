@@ -233,7 +233,7 @@ python living-picturebook\scripts\book_timeline.py --plan book_out\scene_plan.js
 - **不可二次编辑 = 一处不满意就是整本重跑。** 所以：
   - 先用 480p 跑通全链路（成本 1/4），确认叙事与接缝都对，再整本 1080p；
   - QC 必须卡在冻结前，事后没有"修一下"这个选项；
-  - 预算闸门 `budget_guard_limit` 默认 20 元会直接拦住整本，先调到 ≥100。
+  - 预算闸门 `budget_guard_limit` 默认 40 元（2026-11-23 由 20 调高）；仍低于 `CLOUD_MAX_SPEND_CNY=50` 的累计护栏。
 
 ---
 
