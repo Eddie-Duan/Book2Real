@@ -441,6 +441,40 @@ def _overview(page: dict, page_id: str, units: list[dict]):
     return answer, cits
 
 
+_INTENT_SUFFIXES = ("在做什么", "在干什么", "在哪儿", "在哪里", "怎么样",
+                    "是什么", "干什么", "做什么", "是谁", "在哪")
+
+
+def _content_fragment(text: str) -> str:
+    """Strip the question scaffolding so only the content word remains."""
+    frag = (text or "").strip().rstrip("？?。．.!！，,")
+    for suffix in _INTENT_SUFFIXES:
+        if frag.endswith(suffix) and len(frag) > len(suffix):
+            return frag[: -len(suffix)].strip()
+    return frag
+
+
+def _literal_hit(page: dict, page_id: str, units: list[dict], text: str):
+    """Answer a query that quotes this page's own words verbatim.
+
+    Bigram retrieval under-scores a query whose only keyword is a common word
+    ("一起在哪"), and a page-prefix query carries scaffolding the page never
+    contains.  When the content fragment does appear on this page, the page
+    itself is the evidence — never invent one for a page that lacks it.
+    """
+    frag = _content_fragment(text)
+    if len(frag) < 2:
+        return None
+    hay = f"{page.get('scene') or ''}\n{page.get('text') or ''}"
+    if frag not in hay:
+        return None
+    for kind, prefix in (("text", "书上这一页写："), ("scene", "这一页的画面是：")):
+        for unit in units:
+            if unit["kind"] == kind and frag in unit["quote"]:
+                return prefix + f"「{unit['quote']}」", [_cite(page_id, unit["quote"], kind)]
+    return _overview(page, page_id, units)
+
+
 def _evidence_answer(page: dict, page_id: str, units: list[dict], scores: list[float], query: str, names: list[str]):
     ranked = sorted(range(len(units)), key=lambda i: scores[i], reverse=True)
     best = ranked[0]
@@ -718,7 +752,11 @@ def _answer(req) -> dict:
                     result = (overview[0], overview[1], False)
             else:
                 found = _evidence_answer(page, pid, units, _scores(units, search, names), search, names)
-                result = (found[0], found[1], False) if found else None
+                if found:
+                    result = (found[0], found[1], False)
+                else:
+                    literal = _literal_hit(page, pid, units, search)
+                    result = (literal[0], literal[1], False) if literal else None
     if result is None and not query and not ent_name and not ent_desc and box is None:
         overview = _overview(page, pid, units)
         result = (overview[0], overview[1], False)
