@@ -17,6 +17,9 @@ description: |
 
 # living-picturebook — 把一本绘本做成"一条不能改的活片"
 
+> **交付路径唯一**：成片只能由 Seedance 生成（本 skill 的 S3–S4）。
+> `book2real/storyfilm.py` 的 2.5D 成片**不得提交**，也不再作为备选方案讨论。见 `docs/CONSTRAINTS.md`。
+
 一句话：**这不是一堆可替换的循环片段，而是一条一次生成、之后只能播不能改的片子；
 交互不产生新画面，只在暂停时解释画面。**
 
@@ -53,8 +56,10 @@ description: |
 | **S0 切页** | 你 | `pdftoppm -r 200 -png book.pdf pages/page_%03d` | `pages/page_001.png…` | 一页一图、不跨页、不裁切、≥200dpi |
 | **S1 去字补全** | `picturebook-to-seedance` | `make_text_mask.py` → `composite.py` → `qa_check.py` | `clean_keyframe.png`、`page_manifest.json`、`qa_report.json`、`seedance_prompt.txt` | `qa_report.verdict = PASS`、`ocr_residual_count = 0` |
 | **S2 分镜 + 桥接** | `picturebook-scene-director` | `plan_scenes.py` → `build_bridge_frames.py` | `director_out/scene_plan.json`、`bridge/T_*.png`、`prompts/seg_###_prompt.txt` | 每页都被分进某段、`seams[]` 无 `needs_human_review` |
+| **S2b 提示词增强** | `living-picturebook` | `enrich_seg_prompts.py` | 五段式 `prompts/seg_###_prompt.txt`（`[Camera]`/`[Subject Motion]`/`[Environment & Style]`/`[Transition/Continuity Lock]`/`[Negative Constraints]`）、`prompt_enrich.json` | 每段都有 `[Camera]` 四类标签、有角色的段带**角色锚点**（`preflight` 的 `prompt_meta.warnings` 必须为空） |
 | **S3 按段生成** | `seedance-relay-producer`（`--plan`） | `preflight.py --plan` → `generate.py` → `poll_download.py` → `qc.py` | `out/seg_###/clip.mp4`、`qc.json` | `preflight` 无 BLOCKED、每段 `qc.verdict = PASS` |
-| **S4 拼一条并冻结** | `seedance-relay-producer` | `concat.py` → `report.py` | `out/final_movie.mp4`、`cost.csv` | 段数与 `segments[]` 一致、时长误差 ≤0.45s/段 |
+| **S4 拼一条并冻结** | `seedance-relay-producer` | `concat.py --audio <旁白.mp3>` → `report.py` | `out/final_movie.mp4`、`out/final_movie.json`、`cost.csv` | 段数与 `segments[]` 一致；`final_movie.json` 的 `spec_ok` 四项全真（≥720p / ≥24fps / 100–180s / 音轨非静音） |
+| **S4a 旁白** | `living-picturebook` | `build_audio_plan.py` → `build_narration.py`（或 `--narration` 用现成轨） | `audio_plan.json`、`narration.mp3` | 逐行命中时间码、零溢出；合成进成片后 `volumedetect` 峰值 > −20 dB |
 | **S5 交付时间码** | `living-picturebook` | `book_timeline.py --plan … --clips-dir …` | `book_out/page_timeline.json`、`page_timeline.md` | 页区间连续、无空洞、估算页已标注 |
 
 > 注意两件事：
@@ -207,6 +212,10 @@ python _build\picturebook-scene-director\scripts\plan_scenes.py --pages-dir page
 python _build\picturebook-scene-director\scripts\build_bridge_frames.py `
     --plan book_out\scene_plan.json --pages-dir pages --out-dir book_out
 
+# S2b 提示词增强（五段式 + 角色锚点；不花钱，但少了这步人物会漂）
+python living-picturebook\scripts\enrich_seg_prompts.py --plan book_out\scene_plan.json `
+    --pages-dir pages --out-dir book_out --book books\cn01
+
 # S3 按段预检 → 生成 → 下载 → 质检
 cd seedance-relay-producer
 python scripts\preflight.py --plan ..\book_out\scene_plan.json --pages-dir ..\pages --out-dir ..\book_out\relay --resolution 1080p
@@ -214,8 +223,12 @@ python scripts\generate.py --out-dir ..\book_out\relay --resolution 1080p
 python scripts\poll_download.py --out-dir ..\book_out\relay
 python scripts\qc.py --out-dir ..\book_out\relay
 
-# S4 拼一条，冻结
-python scripts\concat.py --out-dir ..\book_out\relay
+# S4 旁白 + 拼一条，冻结（--audio 不给就只有静音轨）
+python _build\picturebook-scene-grouper\scripts\build_audio_plan.py --book books\cn01 `
+    --scene-plan book_out\scene_plan.json --out book_out\audio_plan.json
+python living-picturebook\scripts\build_narration.py --audio-plan book_out\audio_plan.json `
+    --out book_out\narration.mp3
+python scripts\concat.py --out-dir ..\book_out\relay --audio ..\book_out\narration.mp3
 python scripts\report.py --out-dir ..\book_out\relay
 
 # S5 交付时间码（measured）

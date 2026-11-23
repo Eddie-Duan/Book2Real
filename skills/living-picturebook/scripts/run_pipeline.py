@@ -96,6 +96,9 @@ class Ctx:
     scene_scripts: Path
     relay_root: Path
     target_seconds: int = 0
+    book: str = ""
+    narration: Path | None = None
+    build_narration: bool = False
 
 
 def run(ctx: Ctx, label: str, argv: list[str], cwd: Path) -> None:
@@ -152,6 +155,45 @@ def step_bridge(ctx: Ctx) -> None:
     ], cwd=ctx.scene_scripts)
 
 
+def infer_book_dir(ctx: Ctx) -> Path | None:
+    """从页 manifest 的 book_id 反查 books/<id>；--book 优先。"""
+    if ctx.book:
+        p = Path(ctx.book).expanduser().resolve()
+        return p if p.is_dir() else None
+    for pdir in sorted(ctx.pages_dir.iterdir()):
+        mf = pdir / "page_manifest.json"
+        if not mf.is_file():
+            continue
+        try:
+            bid = read_json(mf).get("book_id")
+        except Exception:
+            bid = None
+        if bid:
+            cand = REPO.parent / "books" / str(bid)
+            if cand.is_dir():
+                return cand
+    return None
+
+
+def step_enrich(ctx: Ctx) -> None:
+    """S3d：把段落提示词升级成五段式（[Camera] + 角色锚点 + 负向约束）。"""
+    argv = [
+        sys.executable, Path(__file__).with_name("enrich_seg_prompts.py"),
+        "--plan", str(ctx.plan_path),
+        "--pages-dir", str(ctx.pages_dir),
+        "--out-dir", str(ctx.out_dir),
+    ]
+    book_dir = infer_book_dir(ctx)
+    if book_dir:
+        argv += ["--book", str(book_dir)]
+    run(ctx, "S3d 提示词增强（enrich_seg_prompts）", argv, cwd=Path(__file__).parent)
+    summary = ctx.out_dir / "prompt_enrich.json"
+    if not summary.is_file():
+        raise SystemExit(f"[pipeline] 提示词增强没写出 {summary}")
+    data = read_json(summary)
+    print(f"    [gate] 角色锚点覆盖 {data.get('segments_with_anchors')}/{len(data.get('segments') or [])} 段")
+
+
 def step_preflight(ctx: Ctx) -> None:
     argv = [
         sys.executable, "scripts/preflight.py",
@@ -197,6 +239,50 @@ def step_generate(ctx: Ctx) -> None:
         return
     if not os.environ.get("ARK_API_KEY"):
         print("    [warn] 未检测到 ARK_API_KEY；若 generate 已报错，请在终端设置后重跑。")
+    append_ledger_for_new_costs(ctx)
+
+
+def append_ledger_for_new_costs(ctx: Ctx) -> None:
+    """把 skills 产线新增的 Seedance 费用同步进总账 runs/cloud/ledger.jsonl。
+
+    产线自己记 cost.csv，总账只认 ledger.jsonl；不同步的话预算护栏与说明书
+    里"已用 X 元"会少算。用游标文件保证不重复记账。
+    """
+    cost_csv = ctx.relay_out / "cost.csv"
+    if not cost_csv.is_file():
+        return
+    ledger = REPO.parent / "runs" / "cloud" / "ledger.jsonl"
+    cursor_file = ctx.relay_out / ".ledger_cursor"
+    try:
+        done = int(cursor_file.read_text(encoding="utf-8").strip() or 0)
+    except Exception:
+        done = 0
+    lines = [ln for ln in cost_csv.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    header, rows = lines[0], lines[1:]
+    if len(rows) <= done:
+        return
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    added = 0
+    with open(ledger, "a", encoding="utf-8") as fh:
+        for row in rows[done:]:
+            parts = row.split(",")
+            if len(parts) < 9:
+                continue
+            ts, page_id, attempt, task_id, model, resolution, dur, _lvl, cost = parts[:9]
+            entry = {
+                "ts": ts.replace("+00:00", "").strip(),
+                "provider": "seedance",
+                "model": model,
+                "cny": float(cost or 0),
+                "units": {"seconds": int(float(dur or 0)), "task": task_id, "segment": page_id,
+                          "attempt": attempt, "resolution": resolution},
+                "note": "skills pipeline (seedance-relay-producer)",
+            }
+            fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            added += 1
+    cursor_file.write_text(str(len(rows)), encoding="utf-8")
+    if added:
+        print(f"    [ledger] 新记账 {added} 条 -> {ledger}")
 
 
 def _polling_count(ctx: Ctx) -> int:
@@ -258,21 +344,81 @@ def step_qc(ctx: Ctx) -> None:
             + ", ".join(failed[:10])
         )
     print("    [gate] 全部段 qc PASS")
+    degraded = []
+    for qc_file in sorted(ctx.relay_out.glob("seg_*/qc.json")):
+        try:
+            data = read_json(qc_file)
+        except Exception:
+            continue
+        det = data.get("degraded_detectors") or {}
+        cons = (data.get("checks") or {}).get("temporal_consistency") or {}
+        if det.get("visual_feature_degraded") or cons.get("applicable") is False:
+            degraded.append(qc_file.parent.name)
+    if degraded:
+        print(f"    [warn] 人物/背景一致性检测降级或跳过（缺 DINOv2）：{len(degraded)} 段 "
+              f"→ {', '.join(degraded[:6])}{'…' if len(degraded) > 6 else ''}")
+        print("          当前一致性证据只有首/尾帧锚点 SSIM；要硬证据请装 DINOv2/CLIP 后重跑 qc。")
+
+
+def step_narration(ctx: Ctx) -> None:
+    """S4e：产出/确认旁白轨。--build-narration 才会真调 TTS（MiniMax，按字符计费，带缓存）。"""
+    if ctx.build_narration and ctx.dry_run:
+        print("\n=== [S4e 旁白] dry-run 跳过 TTS 合成")
+        return
+    if ctx.build_narration:
+        book_dir = infer_book_dir(ctx)
+        if book_dir is None:
+            raise SystemExit("[pipeline] --build-narration 需要 --book，或页 manifest 里有 book_id")
+        build_audio = ctx.scene_scripts.parent.parent / "picturebook-scene-grouper" / "scripts" / "build_audio_plan.py"
+        plan_out = ctx.out_dir / "audio_plan.json"
+        if not build_audio.is_file():
+            raise SystemExit(f"[pipeline] 找不到 {build_audio}（--scene-scripts 指错了？）")
+        run(ctx, "S4e1 声音计划（build_audio_plan）", [
+            sys.executable, build_audio,
+            "--book", str(book_dir),
+            "--scene-plan", str(ctx.plan_path),
+            "--out", str(plan_out),
+        ], cwd=build_audio.parent)
+        narration = ctx.out_dir / "narration.mp3"
+        argv = [
+            sys.executable, Path(__file__).with_name("build_narration.py"),
+            "--audio-plan", str(plan_out),
+            "--out", str(narration),
+        ]
+        run(ctx, "S4e2 旁白合成（build_narration）", argv, cwd=Path(__file__).parent)
+        if narration.is_file():
+            ctx.narration = narration
+    if ctx.narration is None:
+        print("\n=== [S4e 旁白] 未指定旁白轨：成片将只有静音轨")
+        return
+    if not Path(ctx.narration).is_file():
+        raise SystemExit(f"[pipeline] 旁白轨不存在: {ctx.narration}")
+    print(f"\n=== [S4e 旁白] 使用 {ctx.narration}")
 
 
 def step_concat(ctx: Ctx) -> None:
     if ctx.dry_run:
         print("\n=== [S5 拼接] dry-run 跳过")
         return
-    run(ctx, "S5 拼接（concat）", [
+    argv = [
         sys.executable, "scripts/concat.py",
         "--out-dir", ctx.relay_out,
-    ], cwd=ctx.relay_root)
+    ]
+    if ctx.narration and Path(ctx.narration).is_file():
+        argv += ["--audio", str(ctx.narration)]
+    run(ctx, "S5 拼接（concat）", argv, cwd=ctx.relay_root)
     movie = ctx.relay_out / "final_movie.mp4"
     if movie.is_file():
         print(f"    [out] {movie}")
     else:
         raise SystemExit(f"[pipeline] 拼接结束但没找到 {movie}")
+    spec_file = ctx.relay_out / "final_movie.json"
+    if spec_file.is_file():
+        spec = read_json(spec_file)
+        bad = [k for k, ok in (spec.get("spec_ok") or {}).items() if not ok]
+        print(f"    [spec] {spec.get('spec')}  audio={spec.get('audio_level')}")
+        if bad:
+            print(f"    [warn] 规格自检未过: {', '.join(bad)}")
 
 
 def step_timeline(ctx: Ctx) -> None:
@@ -302,10 +448,12 @@ STEPS = [
     Step("plan", "S3 分镜", step_plan, False),
     Step("duration", "S3c 时长对齐", step_duration, False),
     Step("bridge", "S3b 桥接帧", step_bridge, False),
+    Step("enrich", "S3d 提示词增强", step_enrich, False),
     Step("preflight", "S4a 生成前检查", step_preflight, False),
     Step("generate", "S4b 提交生成", step_generate, True),
     Step("poll", "S4c 轮询下载", step_poll, True),
     Step("qc", "S4d 质检", step_qc, False),
+    Step("narration", "S4e 旁白", step_narration, False),
     Step("concat", "S5 拼接", step_concat, False),
     Step("timeline", "S5b 页时间码", step_timeline, False),
 ]
@@ -328,6 +476,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--poll-timeout-min", type=int, default=30, help="轮询总超时（分钟）")
     ap.add_argument("--scene-scripts", type=Path, default=None, help="picturebook-scene-director/scripts")
     ap.add_argument("--relay-root", type=Path, default=None, help="seedance-relay-producer 根目录")
+    ap.add_argument("--book", default="", help="书目录（books/<id>）；不给就从页 manifest 的 book_id 反查")
+    ap.add_argument("--narration", type=Path, default=None,
+                    help="现成的旁白轨（mp3/wav）；concat 会铺进成片")
+    ap.add_argument("--build-narration", action="store_true",
+                    help="现场合成旁白（build_audio_plan -> build_narration，调 MiniMax TTS）")
     ap.add_argument("--list", action="store_true", help="列出步骤后退出")
     args = ap.parse_args(argv)
 
@@ -358,6 +511,9 @@ def main(argv: list[str] | None = None) -> int:
         scene_scripts=find_scene_scripts(args.scene_scripts),
         relay_root=find_relay_root(args.relay_root),
         target_seconds=args.target_seconds,
+        book=args.book,
+        narration=(args.narration.expanduser().resolve() if args.narration else None),
+        build_narration=args.build_narration,
     )
 
     keys = [s.key for s in STEPS]

@@ -32,10 +32,12 @@ EXPECTED_STEPS = [
     ("plan", False),
     ("duration", False),
     ("bridge", False),
+    ("enrich", False),
     ("preflight", False),
     ("generate", True),
     ("poll", True),
     ("qc", False),
+    ("narration", False),
     ("concat", False),
     ("timeline", False),
 ]
