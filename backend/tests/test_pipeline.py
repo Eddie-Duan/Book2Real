@@ -64,6 +64,7 @@ def make_book() -> BookIndex:
 
 def make_runner(tmp_path: Path, tts: TTSProvider, llm: LLMProvider, asr=None, filler_deadline=300):
     cfg = Settings()
+    cfg.fast_answer = False  # 测试走 LLM 流式路径，不受 .env FAST_ANSWER 影响
     cfg.data_dir = tmp_path
     cfg.filler_enabled = True
     cfg.filler_deadline_ms = filler_deadline
@@ -130,3 +131,85 @@ def test_tts_failure_still_returns_text(tmp_path):
     answer = [e for e in events if e["type"] == "answer"][-1]
     assert answer["text"]
     assert any(e["type"] == "tts_error" for e in events)
+
+
+def test_explicit_page_replaces_open_page_in_answer_context(tmp_path):
+    class ContextLLM(LLMProvider):
+        async def stream(self, messages, context=None):
+            assert "城堡倒了" in context["current_page_text"]
+            assert "城堡倒了" in messages[0]["content"]
+            assert "一起搭积木城堡" not in messages[0]["content"]
+            yield "城堡倒了，花花很生气。"
+
+    cfg, runner, store = make_runner(tmp_path, MockTTS(), ContextLLM())
+    cfg.filler_enabled = False
+
+    async def collect():
+        return [
+            event async for event in runner.run_text(
+                "probe", make_book(), "第二页讲了什么？", current_page=1,
+            )
+        ]
+
+    try:
+        answer = next(event for event in asyncio.run(collect()) if event["type"] == "answer")
+        assert answer["text"] == "城堡倒了，花花很生气。"
+        assert {item["page"] for item in answer["evidence"]} == {2}
+    finally:
+        store.close()
+
+
+def test_voice_uses_final_transcript_and_streams_preview(tmp_path):
+    class StreamingASR(MockASR):
+        async def transcribe_stream(self, audio, sample_rate=16000, language=None, initial_prompt=None):
+            yield ASRResult("继续", "zh", partial=True)
+            yield ASRResult("暂停", "zh")
+
+    cfg, runner, store = make_runner(tmp_path, MockTTS(), SlowLLM(delay=0), asr=StreamingASR())
+    cfg.filler_enabled = False
+
+    async def collect():
+        return [event async for event in runner.run_voice("probe", make_book(), bytes(6400))]
+
+    try:
+        events = asyncio.run(collect())
+        assert [(event["type"], event["text"]) for event in events[:2]] == [
+            ("asr_partial", "继续"), ("asr_final", "暂停"),
+        ]
+        answer = next(event for event in events if event["type"] == "answer")
+        assert answer["action"]["type"] == "pause"
+        assert answer["metrics"]["first_reply_audio_after_speech_ms"] is not None
+    finally:
+        store.close()
+
+
+def test_tts_starts_before_llm_finishes(tmp_path):
+    async def run():
+        tts_started = asyncio.Event()
+
+        class StreamingLLM(LLMProvider):
+            async def stream(self, messages, context=None):
+                yield "他们在搭积木，"
+                await asyncio.wait_for(tts_started.wait(), timeout=1)
+                yield "想搭一座高高的城堡。"
+
+        class StreamingTTS(TTSProvider):
+            async def stream(self, text, language=None, *, seq=0):
+                if text == "他们在搭积木，":
+                    tts_started.set()
+                yield bytes(960)
+
+        cfg = Settings(data_dir=tmp_path, filler_enabled=False)
+        cfg.fast_answer = False
+        cfg.ensure_dirs()
+        store = Store(cfg)
+        runner = VoiceTurnRunner(cfg, MockASR(), StreamingTTS(), StreamingLLM(), FillerBank(cfg), store)
+        try:
+            events = [event async for event in runner.run_text("probe", make_book(), "他们在搭什么？")]
+            audio_start = next(i for i, event in enumerate(events) if event["type"] == "audio_start")
+            second_delta = next(i for i, event in enumerate(events) if event.get("text") == "想搭一座高高的城堡。")
+            assert audio_start < second_delta
+        finally:
+            store.close()
+
+    asyncio.run(run())

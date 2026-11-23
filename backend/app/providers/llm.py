@@ -87,6 +87,9 @@ def compose_extractive(query: str, passages: list[dict], lang: str = "zh", curre
         return "这本绘本里没有找到相关的内容。" if lang == "zh" else "I couldn't find that in this picture book."
     qn = normalize_text(query)
     wants_cause = any(w in qn for w in ("为什么", "为何", "怎么会", "why", "how come"))
+    wants_sad = any(w in qn for w in ("难过", "伤心", "不开心", "不高兴", "sad", "cry"))
+    wants_happy = any(w in qn for w in ("开心", "高兴", "快乐", "happy"))
+    wants_angry = any(w in qn for w in ("生气", "愤怒", "angry"))
     wants_color = any(w in qn for w in ("颜色", "什么色", "colour", "color"))
     wants_count = any(w in qn for w in ("几个", "多少", "几块", "how many"))
     asks_quote = any(w in qn for w in ("说什么", "说了什么", "what did"))
@@ -107,12 +110,31 @@ def compose_extractive(query: str, passages: list[dict], lang: str = "zh", curre
             sl = sent.lower()
             if wants_cause and any(w in sl for w in _CAUSAL):
                 score += 1.5
+            if wants_sad:
+                if any(w in sl for w in ("不开心", "难过", "伤心", "哭")):
+                    score += 2.0
+                if "好开心" in sl or "很高兴" in sl or "生日快乐" in sl:
+                    score -= 2.5
+            if wants_happy:
+                if any(w in sl for w in ("开心", "高兴", "快乐")):
+                    score += 1.5
+                if "不开心" in sl or "难过" in sl:
+                    score -= 2.5
+            if wants_angry:
+                if any(w in sl for w in ("生气", "都怪你")):
+                    score += 1.5
+                if "不生气" in sl:
+                    score -= 2.5
             if wants_color and any(w in sl for w in _COLOR):
                 score += 0.9
             if wants_count:
                 score += 0.15 * sum(1 for w in _COUNT if w in sl)
             if "倒" in qn and ("没有倒" in sl or "不倒" in sl):
                 score -= 2.5
+            if "倒" in qn and ("一倒" in sl or "倒了" in sl or "倒一地" in sl):
+                score += 1.2
+            if ("晃" in qn or "why" in qn) and ("放上" in sl or "放在" in sl):
+                score += 0.8
             if "生气" in qn and "不生气" in sl:
                 score -= 2.0
             if sent.endswith(("？", "?")) and not asks_quote:
@@ -137,7 +159,7 @@ def compose_extractive(query: str, passages: list[dict], lang: str = "zh", curre
                 best_score, best = score, sent
                 break
     # why 问句：若最佳句不是原因句，尝试拼上同一页里下一句的因果/动作句
-    if wants_cause and not any(w in best.lower() for w in _CAUSAL):
+    if (wants_cause or wants_sad or wants_angry) and not any(w in best.lower() for w in _CAUSAL):
         try:
             idx = sentences.index(best)
         except ValueError:
@@ -147,12 +169,24 @@ def compose_extractive(query: str, passages: list[dict], lang: str = "zh", curre
                 idx = -1
         if 0 <= idx < len(sentences) - 1:
             nxt = sentences[idx + 1].strip().strip("“”\"'")
-            if nxt and not nxt.endswith(("？", "?")) and len(best) + len(nxt) < 100:
+            counting = nxt.count("块、") >= 2 or nxt.count("、") >= 4
+            if nxt and not nxt.endswith(("？", "?")) and not counting and len(best) + len(nxt) < 100:
                 best = best + nxt
     answer = best.strip()
     if len(answer) > 110:
         answer = truncate(answer, 108)
     return prefix + answer
+
+
+class _Prewarm:
+    __slots__ = ("messages", "tokens", "done", "task", "first_token_ms")
+
+    def __init__(self, messages: list[dict]) -> None:
+        self.messages = messages
+        self.tokens: list[str] = []
+        self.done = False
+        self.task: Optional[asyncio.Task] = None
+        self.first_token_ms: Optional[float] = None
 
 
 class OpenAICompatLLM(LLMProvider):
@@ -173,7 +207,52 @@ class OpenAICompatLLM(LLMProvider):
         self.requests = 0
         self.failures = 0
 
+    def prewarm(self, messages: list[dict]) -> _Prewarm:
+        """投机启动：用 ASR 部分文本先发起 LLM 请求，边生成边缓存 token。"""
+        pw = _Prewarm(messages)
+
+        async def run() -> None:
+            import time as _t
+
+            t0 = _t.perf_counter()
+            try:
+                async for token in self._raw_stream(messages):
+                    if pw.first_token_ms is None:
+                        pw.first_token_ms = (_t.perf_counter() - t0) * 1000
+                    pw.tokens.append(token)
+            except Exception as exc:  # noqa: BLE001
+                log.info("LLM prewarm aborted: %s", exc)
+            finally:
+                pw.done = True
+
+        pw.task = asyncio.create_task(run())
+        return pw
+
+    async def _consume_prewarm(self, pw: _Prewarm) -> AsyncIterator[str]:
+        idx = 0
+        while True:
+            while idx < len(pw.tokens):
+                token = pw.tokens[idx]
+                idx += 1
+                yield token
+            if pw.done:
+                break
+            await asyncio.sleep(0.005)
+        if pw.first_token_ms is not None:
+            self.first_token_ms = pw.first_token_ms
+
     async def stream(self, messages: list[dict], context: Optional[dict] = None) -> AsyncIterator[str]:
+        pw = (context or {}).get("_prewarm")
+        if isinstance(pw, _Prewarm) and pw.messages == messages:
+            async for token in self._consume_prewarm(pw):
+                yield token
+            return
+        if isinstance(pw, _Prewarm) and pw.task is not None:
+            pw.task.cancel()
+        async for token in self._raw_stream(messages):
+            yield token
+
+    async def _raw_stream(self, messages: list[dict]) -> AsyncIterator[str]:
         payload = {
             "model": self.settings.llm_model,
             "messages": messages,
@@ -182,7 +261,6 @@ class OpenAICompatLLM(LLMProvider):
             "max_tokens": self.settings.llm_max_tokens,
         }
         if "minimax" in self.settings.llm_base_url:
-            # M3 系列强制 adaptive thinking；关掉可省首 token 延迟（不支持时忽略）
             payload["enable_thinking"] = False
         import time
 

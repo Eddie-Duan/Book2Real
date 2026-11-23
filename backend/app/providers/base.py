@@ -34,6 +34,16 @@ class ASRProvider(ABC):
     ) -> ASRResult:
         raise NotImplementedError
 
+    async def transcribe_stream(
+        self,
+        audio: bytes,
+        sample_rate: int = 16000,
+        language: Optional[str] = None,
+        initial_prompt: Optional[str] = None,
+    ) -> AsyncIterator[ASRResult]:
+        """返回累计的识别内容，最后一项为定稿。"""
+        yield await self.transcribe(audio, sample_rate, language=language, initial_prompt=initial_prompt)
+
 
 class TTSProvider(ABC):
     name = "base"

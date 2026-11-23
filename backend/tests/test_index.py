@@ -104,3 +104,44 @@ def test_where_is_prefers_current_page():
     r = route_intent("Where is Xiaoman?", idx, current_page=1)
     assert r["intent"] == "find_scene"
     assert r["action"]["page"] == 1
+
+
+def test_cover_questions_are_not_scene_searches():
+    book = _book()
+    book["pages"][0].update(story_text="封面识别文字。", ocr=True)
+    book["elements"] = []
+    idx = BookIndex(book)
+    for query in (
+        "你能找到绘本里面的这个封面在说什么吗？",
+        "你看一下绘本的第一页，第一页上显示了什么画面？",
+        "What do you see on the first page?",
+    ):
+        result = route_intent(query, idx, current_page=3)
+        assert result["intent"] == "qa"
+        assert result["target_page"] == 1
+        assert "action" not in result
+        assert "暂时" in result["answer"] or "don't have" in result["answer"]
+
+
+def test_page_questions_use_the_requested_page_only():
+    idx = BookIndex(_book())
+    for query in ("第二页讲了什么？", "第2页有什么内容？", "What happens on page 2?"):
+        result = route_intent(query, idx, current_page=3)
+        assert result["target_page"] == 2
+        assert {p["page"] for p in result["passages"]} == {2}
+        assert "城堡倒了" in result["passages"][0]["text"]
+    missing = route_intent("第一百零二页讲了什么？", idx, current_page=3)
+    assert missing["target_page"] == 102
+    assert "没有第 102 页" in missing["answer"]
+
+
+def test_page_description_and_scene_search_are_distinct():
+    idx = BookIndex(_book())
+    description = route_intent("这一页的画面里有什么？", idx, current_page=1)
+    assert description["target_page"] == 1
+    assert "积木城堡" in description["answer"]
+    assert "action" not in description
+    for query in ("找到积木城堡的画面", "积木城堡在哪一页？"):
+        scene = route_intent(query, idx, current_page=1)
+        assert scene["intent"] == "find_scene"
+        assert scene["action"]["page"] == 1

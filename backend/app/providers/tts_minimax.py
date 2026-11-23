@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -35,6 +36,7 @@ class MiniMaxTTS(TTSProvider):
         self.sample_rate = settings.minimax_sample_rate
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=4.0, read=settings.tts_timeout_s, write=15.0, pool=5.0),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20, keepalive_expiry=45.0),
             headers={
                 "Authorization": f"Bearer {settings.minimax_api_key}",
                 "Content-Type": "application/json",
@@ -43,6 +45,7 @@ class MiniMaxTTS(TTSProvider):
         self.first_chunk_ms: float | None = None
         self.requests = 0
         self.failures = 0
+        self._sapi = None
 
     @property
     def endpoint(self) -> str:
@@ -76,6 +79,42 @@ class MiniMaxTTS(TTSProvider):
         text = (text or "").strip()
         if not text:
             return
+        # RPM 限流（1002）：短重试一次，仍失败则 SAPI 本地兜底，保证有声音
+        for attempt in range(1):
+            got = False
+            try:
+                async for chunk in self._stream_once(text, language, seq=seq):
+                    got = True
+                    yield chunk
+                return
+            except RuntimeError as exc:
+                if "1002" in str(exc) and not got:
+                    # RPM 限流窗口是分钟级，重试大概率仍撞墙；立即 SAPI 兜底（10-80ms）
+                    log.warning("MiniMax TTS rate-limited, falling back to SAPI")
+                    async for chunk in self._sapi_fallback(text, language):
+                        yield chunk
+                    return
+                raise
+
+    async def _sapi_fallback(self, text: str, language: Optional[str]) -> AsyncIterator[bytes]:
+        try:
+            from .tts_sapi import SapiTTS
+
+            if self._sapi is None:
+                self._sapi = SapiTTS(self.settings)
+            self.sample_rate = self._sapi.sample_rate
+            async for chunk in self._sapi.stream(text, language):
+                yield chunk
+        except Exception as exc:  # noqa: BLE001
+            log.warning("SAPI fallback failed: %s", exc)
+
+    async def _stream_once(
+        self,
+        text: str,
+        language: Optional[str] = None,
+        *,
+        seq: int = 0,
+    ) -> AsyncIterator[bytes]:
         payload = {
             "model": self.settings.minimax_tts_model,
             "text": text,
