@@ -144,7 +144,8 @@ def run_chain(bible: dict, script: dict, out: str | Path, resolution: str = "720
     for idx in range(start - 1, end):
         chunk = chunks[idx]
         cid = chunk["id"]
-        est = float(chunk["duration"]) * 1.0  # conservative pre-flight estimate
+        rate = 0.55 if resolution == "480p" else 1.0
+        est = float(chunk["duration"]) * rate  # conservative pre-flight estimate
         if spent + est > max_cny:
             raise RuntimeError(f"budget guard: spent {spent:.1f}+{est:.1f} > {max_cny}")
         dest = out / "chunks" / f"{cid}.mp4"
@@ -176,7 +177,7 @@ def run_chain(bible: dict, script: dict, out: str | Path, resolution: str = "720
                 except Exception:  # noqa: BLE001
                     plate = None
             rep = gate_chunk(chunk, dest, out, prev, book_pages, head_refs, plate,
-                             bible.get("language", "zh"))
+                             bible.get("language", "zh"), resolution=resolution)
             print(f"[{cid}] gate {rep['verdict']}: {[f['code'] for f in rep['failures']]}", flush=True)
             reports.append(rep)
             if rep["verdict"] == "PASS":

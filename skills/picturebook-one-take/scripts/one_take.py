@@ -159,6 +159,7 @@ def cmd_assemble(args):
 
 
 def cmd_verify(args):
+    delivery = bool(getattr(args, "delivery", False))
     out = Path(args.out)
     meta = jread(out / "final_movie.json")
     script = jread(out / "shot_script.json")
@@ -167,7 +168,9 @@ def cmd_verify(args):
     a = [s for s in info["streams"] if s.get("codec_type") == "audio"]
     dur = float(info["format"]["duration"])
     failures = []
-    if (v["width"], v["height"]) != (1280, 720): failures.append("final resolution")
+    allowed = ((1280, 720),) if delivery else ((854, 480), (1280, 720))
+    if (v["width"], v["height"]) not in allowed:
+        failures.append(f"final resolution {v['width']}x{v['height']} (delivery={delivery})")
     if v["r_frame_rate"] != "24/1": failures.append("final fps")
     if not a: failures.append("final audio")
     if not (100 <= dur <= 180): failures.append(f"final duration {dur:.1f}")
@@ -185,8 +188,8 @@ def cmd_verify(args):
                "gate_failures": [f for r in reps for f in r.get("failures") or []],
                "failures": failures}
     jwrite(out / "verify.json", summary)
-    print(f"verify {'PASS' if not failures else 'FAIL'}: {dur:.1f}s {v['width']}x{v['height']} "
-          f"@{v['r_frame_rate']} audio={bool(a)}")
+    print(f"verify {'PASS' if not failures else 'FAIL'} ({ 'DELIVERY' if delivery else 'TRAIN' }): "
+          f"{dur:.1f}s {v['width']}x{v['height']} @{v['r_frame_rate']} audio={bool(a)}")
     for f in failures:
         print("  -", f)
     return 0 if not failures else 1
@@ -229,16 +232,16 @@ def main(argv=None):
     p.add_argument("--which", default="room,meadow,birthday"); p.set_defaults(fn=cmd_assets)
     p = sub.add_parser("prompts"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_prompts)
     p = sub.add_parser("generate"); p.add_argument("--out", required=True)
-    p.add_argument("--resolution", default="720p"); p.add_argument("--max-cny", type=float, default=200.0)
+    p.add_argument("--resolution", default="480p"); p.add_argument("--max-cny", type=float, default=200.0)
     p.add_argument("--start", type=int, default=1); p.add_argument("--end", type=int, default=None)
     p.add_argument("--force", action="store_true"); p.add_argument("--attempts", type=int, default=3)
     p.set_defaults(fn=cmd_generate)
     p = sub.add_parser("assemble"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_assemble)
-    p = sub.add_parser("verify"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_verify)
+    p = sub.add_parser("verify"); p.add_argument("--out", required=True); p.add_argument("--delivery", action="store_true"); p.set_defaults(fn=cmd_verify)
     p = sub.add_parser("run"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
     p.add_argument("--script", default=None); p.add_argument("--assets", default="room,meadow,birthday")
-    p.add_argument("--prompts", action="store_true"); p.add_argument("--resolution", default="720p")
+    p.add_argument("--prompts", action="store_true"); p.add_argument("--resolution", default="480p")
     p.add_argument("--max-cny", type=float, default=200.0); p.add_argument("--attempts", type=int, default=3)
     p.add_argument("--yes", action="store_true"); p.set_defaults(fn=cmd_run)
     args = ap.parse_args(argv)

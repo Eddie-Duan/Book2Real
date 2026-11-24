@@ -196,14 +196,18 @@ python skills/picturebook-one-take/scripts/one_take.py prompts \
   --bible runs/cn01/one_take/bible.json --script runs/cn01/one_take/shot_script.json \
   --out runs/cn01/one_take
 
-# 6) 逐段生成 + 写后门（可 --start/--end 断点续跑；失败自动带原因重试）
+# 6) 逐段生成 + 写后门（训练/排练默认 480p；正式交付用 720p）
 python skills/picturebook-one-take/scripts/one_take.py generate \
   --bible runs/cn01/one_take/bible.json --script runs/cn01/one_take/shot_script.json \
-  --out runs/cn01/one_take --resolution 720p --max-cny 200
+  --out runs/cn01/one_take --resolution 480p --max-cny 120
+
+# 正式交付：只换分辨率，提示词/分镜/门禁不变
+#   --resolution 720p --max-cny 260
 
 # 7) 无损拼接 + 终检
 python skills/picturebook-one-take/scripts/one_take.py assemble --out runs/cn01/one_take
-python skills/picturebook-one-take/scripts/one_take.py verify --out runs/cn01/one_take
+python skills/picturebook-one-take/scripts/one_take.py verify --out runs/cn01/one_take              # 训练：接受 480p/720p
+python skills/picturebook-one-take/scripts/one_take.py verify --out runs/cn01/one_take --delivery   # 交付：必须 720p
 ```
 
 ## 6. 费用与账号事实（2026-11-25 实测）
@@ -215,6 +219,7 @@ python skills/picturebook-one-take/scripts/one_take.py verify --out runs/cn01/on
 | Seedance | `doubao-seedance-2-5-flash-261115` 实测可用；720p / 24fps / 原生音轨；单次 4–30 s；extension 只返回新增段 |
 | 30 s 上限 | 物理限制，不能一次出 100–200 s；"一镜到底"靠 extension 链 + 无缝接带实现 |
 | 帧率 | Seedance 输出 24 fps；官方要求 ≥24 fps |
+| 训练/正式 | 训练、排练、提示词验证默认 **480p**（约半价）；正式交付才用 **720p**。不要在一条 extension 链中途换分辨率。 |
 | 旁白/对白 | Seedance 原生音频实测能逐字说出中文旁白与对白；ASR 校验通过 |
 
 ## 7. 与旧 skill 的关系

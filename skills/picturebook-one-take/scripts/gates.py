@@ -135,7 +135,7 @@ def _flow_scale(f1: Path, f2: Path) -> dict:
     return {"ok": True, "scale": round(float(scale), 4), "regions": regions}
 
 
-def check_spec(video: Path, expected: float) -> dict:
+def check_spec(video: Path, expected: float, resolution: str = "720p") -> dict:
     info = ffprobe(video)
     v = [s for s in info.get("streams", []) if s.get("codec_type") == "video"]
     a = [s for s in info.get("streams", []) if s.get("codec_type") == "audio"]
@@ -144,8 +144,9 @@ def check_spec(video: Path, expected: float) -> dict:
     if not v:
         failures.append({"code": "spec.no_video", "fix": "重生成；文件无视频流"})
     else:
-        if (v[0].get("width"), v[0].get("height")) != (1280, 720):
-            failures.append({"code": "spec.resolution", "fix": "重生成 720p；不要后期放大"})
+        want = (854, 480) if resolution == "480p" else (1280, 720)
+        if (v[0].get("width"), v[0].get("height")) != want:
+            failures.append({"code": "spec.resolution", "fix": f"要求 {want[0]}x{want[1]}（{resolution}）；重生成，不要后期放大"})
         if v[0].get("r_frame_rate") != "24/1":
             failures.append({"code": "spec.fps", "fix": "重生成 24fps"})
     if not a:
@@ -320,10 +321,10 @@ def check_style_cast(frames: list[Path], head_refs: dict[str, Path],
 
 def gate_chunk(chunk: dict, video: Path, out: Path, prev: Path | None,
                book_pages: list[Path], head_refs: dict[str, Path],
-               plate: Path | None, language: str = "zh") -> dict:
+               plate: Path | None, language: str = "zh", resolution: str = "720p") -> dict:
     frames = extract_frames(video, 1.0)
     checks = {
-        "spec": check_spec(video, float(chunk["duration"])),
+        "spec": check_spec(video, float(chunk["duration"]), resolution),
         "audio": check_audio(video),
         "asr": check_asr(video, chunk, language),
         "text_free": check_text(frames),

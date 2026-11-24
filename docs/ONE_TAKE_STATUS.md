@@ -84,3 +84,9 @@ python -m book2real cloud --check
 ## 10. 当前阻塞
 
 火山 Ark 账号返回 `403 AccountOverdueError`；Seedance/Seedream 都不能再发。需要充值（≥100 元留余量）后只重跑 chunk_05，再 assemble + verify。
+## 11. 2026-11-25 新口径：训练一律 480p
+
+- 训练/排练/提示词验证：`--resolution 480p`（Seedance 2.5 flash 输出 854×480；约半价）。
+- 正式交付：`--resolution 720p`，`verify --delivery` 必须过 1280×720。
+- 不要在一条 extension 链中途换分辨率；480p 排练通过后，整条重跑 720p 正式版。
+- 360p 不在 API 档位里（只有 480p/720p），不要试。
