@@ -88,7 +88,8 @@ async def measure_online(rows, audio_index, pages, names, culture, asr, tts, bud
             continue
         query = ev.script_query(row)
         try:
-            pcm, rate = ev._read_wav_16k(wav)
+            pcm = ev._read_wav_16k(wav)
+            rate = 16000                      # _read_wav_16k 已重采样到 16k
         except Exception as exc:  # noqa: BLE001
             out.append({"n": int(row["n"]), "query": query, "reason": f"wav: {exc}"})
             continue
@@ -147,20 +148,23 @@ def main() -> int:
     names = ev._character_names(book, pages)
 
     provider = a.provider
-    if provider == "auto":
-        import os
-        provider = "minimax" if os.environ.get("MINIMAX_API_KEY") else "local"
-
-    if provider == "minimax":
+    online = None
+    if provider in ("auto", "minimax"):
+        # 注意：.env 是 app.config 导入时才灌进 os.environ 的，所以先起 Settings 再判 key
         try:
-            settings, asr, tts = online_providers()
+            online = online_providers()
         except Exception as exc:  # noqa: BLE001
-            print(f"[latency] 线上 provider 起不来：{exc}", file=sys.stderr)
-            return 2
+            if provider == "minimax":
+                print(f"[latency] 线上 provider 起不来：{exc}", file=sys.stderr)
+                return 2
+            online = None
+    if online is not None:
+        settings, asr, tts = online
         mode = f"online:{type(asr).__name__}+{type(tts).__name__}"
         out_rows = asyncio.run(measure_online(rows, audio_index, pages, names, culture,
                                               asr, tts, a.budget_ms))
     else:
+        provider = "local"
         if not ev.recognizer_available(culture):
             print(f"[latency] 本地 ASR 不可用（{culture}）", file=sys.stderr)
             return 2
