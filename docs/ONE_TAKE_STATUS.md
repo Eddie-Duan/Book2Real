@@ -75,3 +75,12 @@ cp .env.example .env
 python scripts/setup_env.py   # 交互填 3 个 key，本机保存
 python -m book2real cloud --check
 ```
+## 9. DeepSeek 在链路里的位置
+
+- `planner.py --llm` 用 `deepseek-flash` 做分场/分镜（新书走这条）；cn01 用手写基准脚本 + DS 复核。
+- cn01 的 DS 复核（`runs/cn01/one_take/ds_review.json`）指出：p03 的"积木城堡"、p05 的数积木没被完整覆盖；chunk_04/05 有"叼信封跑出门、击掌、抱住"等原文未明写的动作；chunk_04 的 `location` 与 `location_name` 不一致。
+- 处理原则：**不新增剧情**；数数句拆短/放慢；"抱住/击掌"这类只保留能由原文对白直接支撑的，其余删掉。第 5 段重跑时按这个清单改。
+
+## 10. 当前阻塞
+
+火山 Ark 账号返回 `403 AccountOverdueError`；Seedance/Seedream 都不能再发。需要充值（≥100 元留余量）后只重跑 chunk_05，再 assemble + verify。
