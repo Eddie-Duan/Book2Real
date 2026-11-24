@@ -283,9 +283,9 @@ def classify_pair(p1: dict, p2: dict, m: dict) -> dict:
     is_time_lapse = any("时间" in r for r in sem_reasons) and m["color_bhattacharyya"] > 0.25
     if is_time_lapse:
         subtype, bridge_kind = "FADE_THROUGH_BLACK", "black"
-    elif m["subject_shift_pct"] > 0.30:
-        subtype, bridge_kind = "WHIP_PAN", "whip_blur"
     else:
+        # 人物大跳也不能用甩镜（甩镜要横摇相机，违反机位严格静态），
+        # 统一改用静态机位 + 前景物体横扫遮挡。
         subtype, bridge_kind = "FOREGROUND_WIPE", "foreground_occlude"
 
     return {

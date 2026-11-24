@@ -98,7 +98,7 @@
 ## 8. 独立桥接镜头 `BRIDGE_INSERT_SHOT`
 
 ```text
-[Camera]: Steady close-up insert framing, subtle micro-push-in.
+[Camera]: Steady close-up insert framing, locked-off static camera; no zoom, no push-in.
 [Subject Motion]: {simple_single_bridge_action}, simple and clearly readable within 2 seconds.
 [Environment & Style]: {ambient_detail}, strictly matching {style_dna_summary} hand-painted pigment, pencil outlines, and paper grain.
 [Transition/Continuity Lock]: Keep single focal object centered and structurally rigid; maintain exact color palette continuity with adjacent scenes.
