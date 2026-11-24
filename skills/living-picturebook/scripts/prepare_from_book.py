@@ -328,6 +328,51 @@ def edge_color(arr: np.ndarray) -> tuple[int, int, int]:
     return tuple(int(v) for v in med)
 
 
+def content_crop_box(arr: np.ndarray, margin: int = 4, white_thresh: int = 245) -> tuple:
+    """内容（非白）区域的包围盒 (x0, y0, x1, y1)，用于去掉四周白边。
+
+    全白图返回整图包围盒。被 639fb48 引用但漏提交定义，这里补齐。
+    """
+    gray = arr if arr.ndim == 2 else arr[..., :3].mean(axis=2)
+    mask = gray < white_thresh
+    ys, xs = np.where(mask)
+    if xs.size == 0:
+        return (0, 0, arr.shape[1], arr.shape[0])
+    x0 = max(0, int(xs.min()) - margin)
+    x1 = min(arr.shape[1], int(xs.max()) + 1 + margin)
+    y0 = max(0, int(ys.min()) - margin)
+    y1 = min(arr.shape[0], int(ys.max()) + 1 + margin)
+    return (x0, y0, x1, y1)
+
+
+def whiten_flat_boxes(orig: np.ndarray, boxes: list) -> tuple:
+    """白边上的字（页码/页脚）直接涂成纸张白，避免修补在白边留灰补丁。
+
+    返回 (修改后的 orig, 剩余待修补的 boxes)：落在纯白底的框被涂白并移出修补列表。
+    被 639fb48 引用但漏提交定义，这里补齐（逻辑同下方 text_gate 的内联实现）。
+    """
+    gray = orig if orig.ndim == 2 else orig[..., :3].mean(axis=2)
+    h, w = gray.shape
+    out = orig.copy()
+    kept: list = []
+    for b in boxes:
+        x0, y0 = int(round(b[0])), int(round(b[1]))
+        x1, y1 = int(round(b[2])), int(round(b[3]))
+        x0, y0 = max(0, x0), max(0, y0)
+        x1, y1 = min(w, x1), min(h, y1)
+        pad = 8
+        ry0, ry1 = max(0, y0 - pad), min(h, y1 + pad)
+        rx0, rx1 = max(0, x0 - pad), min(w, x1 + pad)
+        ring = gray[ry0:ry1, rx0:rx1].copy()
+        ring[max(0, y0 - ry0):max(0, y1 - ry0), max(0, x0 - rx0):max(0, x1 - rx0)] = 0
+        vals = ring[ring > 0]
+        if vals.size and float(np.median(vals)) >= 238 and float(np.std(vals)) <= 8:
+            out[y0:y1, x0:x1] = int(np.median(vals))
+        else:
+            kept.append(b)
+    return out, kept
+
+
 def build_prompt(page: dict, lang: str, style_dna: str) -> str:
     body = (page.get("scene") or "").strip() or (page.get("text") or "").strip().replace("\n", " ")
     if not body:
@@ -541,6 +586,26 @@ def main() -> int:
                 "count": len(hits),
                 "sample": [h["text"][:20] for h in hits[:5]],
             })
+
+        # ---- 淡字收尾闸门 ----
+        # text_gate 用常规 OCR，够不着"背景差分才读得出"的淡页码/淡水印；
+        # 这里再用 faint_text_hits 追两轮，把清完后仍读得出的淡字也补掉。
+        if not a.prefer_art:
+            faint_hits = faint_text_hits(out)
+            for round_no in range(2):
+                if not faint_hits:
+                    break
+                m = np.array(mask_used, copy=True)
+                for h in faint_hits:
+                    x0, y0, x1, y1 = [int(round(v)) for v in h["box"]]
+                    x0, y0 = max(0, x0 - 6), max(0, y0 - 6)
+                    x1, y1 = min(w0, x1 + 6), min(h0, y1 + 6)
+                    m[y0:y1, x0:x1] = 255
+                out = inpaint_clean(out, m, radius=5 + round_no)
+                mask_used = m
+                faint_hits = faint_text_hits(out)
+            kf = finalize(out)
+            kf.save(pdir / "clean_keyframe.png", format="PNG")
 
         # 指标：用最终结果重算，不用中间轮次的
         res_count = 0
