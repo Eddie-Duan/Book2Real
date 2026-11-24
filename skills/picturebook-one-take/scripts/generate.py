@@ -2,6 +2,7 @@
 """Seedance 2.5 flash one-take chain: first frame + ordered extensions + gate/retry."""
 from __future__ import annotations
 
+import csv
 import json
 import time
 from pathlib import Path
@@ -119,16 +120,29 @@ def generate_chunk(chunk: dict, bible: dict, out: Path, manifest: dict,
     return {"path": dest, "url": link, "meta": meta}
 
 
+def prior_spend(out: Path) -> float:
+    """Sum every attempt recorded in cost.csv so --max-cny is a TOTAL budget."""
+    f = out / "cost.csv"
+    if not f.exists():
+        return 0.0
+    try:
+        rows = list(csv.DictReader(f.open(encoding="utf-8")))
+        return round(sum(float(r.get("est_cny") or 0) for r in rows), 3)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
 def run_chain(bible: dict, script: dict, out: str | Path, resolution: str = "720p",
               max_cny: float = 200.0, start: int = 1, end: int | None = None,
-              force: bool = False, max_attempts: int = 3) -> dict:
+              force: bool = False, max_attempts: int = 1) -> dict:
     out = Path(out)
     manifest = jread(out / "assets" / "assets.json")
     book_pages = sorted((Path("books") / bible["book_id"] / "reader" / "art").glob("p*.jpg"))
     head_refs = {c["id"]: out / c["ref"] for c in bible["characters"] if (out / c["ref"]).exists()}
     chunks = script["chunks"]
     end = end or len(chunks)
-    spent = 0.0
+    spent = prior_spend(out)
+    print(f"  prior spend on this book: CNY {spent:.2f}; budget CNY {max_cny:.2f}", flush=True)
     prev = None
     prev_url = None
     # warm prev from an existing previous chunk

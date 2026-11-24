@@ -50,6 +50,46 @@ CN01_SPECS = {
 }
 
 
+
+EN01_SPECS = {
+    "cinema_front": {
+        "refs": ["books/en01/reader/art/p01.jpg"],
+        "chars": ["kuan", "dad"],
+        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
+                   "水彩/彩铅上色，纸纹，暖棕橙红灰蓝配色。画面：夜晚电影院门厅，墙上三张无字电影海报"
+                   "（功夫、卓别林、赛车，只有图形没有可读文字），暖黄灯。红色刺猬头、蓝T恤、黄领结的 Kuan "
+                   "和红卷发、戴眼镜、绿开衫的 Dad 站在海报前。中景，平视，柔和灯光。"
+                   "画面无文字、无水印、无边框、无页码。不要3D，不要写实照片，不要日漫赛璐璐。"),
+    },
+    "lobby": {
+        "refs": ["books/en01/reader/art/p10.jpg", "books/en01/reader/art/p13.jpg"],
+        "chars": ["kuan", "dad"],
+        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
+                   "水彩/彩铅上色，纸纹，暖色。画面：明亮电影院大堂，一台街机、糖果柜台、爆米花机、"
+                   "彩色零食；Kuan 抱着浅蓝色圆头机器人玩具，Dad 在旁边微笑。中景，平视，暖黄灯。"
+                   "画面无文字、无水印、无边框、无页码。不要3D，不要写实照片，不要日漫赛璐璐。"),
+    },
+    "auditorium": {
+        "refs": ["books/en01/reader/art/p07.jpg", "books/en01/reader/art/p23.jpg"],
+        "chars": ["kuan", "dad"],
+        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
+                   "水彩/彩铅上色，纸纹，暗色影院。画面：黑暗的电影放映厅，深红色绒面座椅成排，"
+                   "前方银幕发光；Kuan 抱着红白条纹爆米花桶坐在 Dad 旁边，Dad 戴眼镜穿绿开衫。"
+                   "中景，平视，银幕冷光打在脸上。画面无文字、无水印、无边框、无页码。"
+                   "不要3D，不要写实照片，不要日漫赛璐璐。"),
+    },
+    "home_table": {
+        "refs": ["books/en01/reader/art/p26.jpg"],
+        "chars": ["kuan", "dad"],
+        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
+                   "水彩/彩铅上色，纸纹，暖色。画面：温暖的家里的餐桌，Dad 戴眼镜、红卷发、绿开衫，"
+                   "看着报纸；Kuan 红色刺猬头、蓝T恤，手里举着一辆蓝色玩具车；桌上有晚餐和茶杯，"
+                   "暖黄吊灯。中景，平视。画面无文字、无水印、无边框、无页码。"
+                   "不要3D，不要写实照片，不要日漫赛璐璐。"),
+    },
+}
+
+
 def _resize(src: Path, out: Path, w: int = 1280, h: int = 720) -> Path:
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src),
                     "-vf", f"scale={w}:{h}:flags=lanczos", str(out)], check=True)
@@ -119,7 +159,12 @@ def build_assets(bible: dict, out: str | Path, which: list[str] | None = None) -
             cv2.imwrite(str(dest), img)
         manifest[c["id"]] = {"head": str(dest.relative_to(out))}
 
-    specs = CN01_SPECS if bible.get("book_id") == "cn01" else {}
+    if bible.get("book_id") == "cn01":
+        specs = CN01_SPECS
+    elif bible.get("book_id") == "en01":
+        specs = EN01_SPECS
+    else:
+        specs = {}
     which = which or list(specs.keys())
     for name in which:
         spec = specs.get(name)

@@ -12,8 +12,8 @@ from typing import Any
 
 from common import contains_approx, normalize, overlap
 
-REQUIRED_BLOCKS = ["[Iron Rules]", "[Style]", "[Cast]", "[Scene]", "[Shots]",
-                   "[Audio]", "[Camera Lock]", "[Self Check]"]
+REQUIRED_BLOCKS = ["[Iron Rules]", "[Style]", "[Cast]", "[Props]", "[Scene]", "[Shots]",
+                   "[Audio]", "[Voice Lock]", "[Audio Continuity]", "[Camera Lock]", "[Self Check]"]
 RULE_SIGNATURES = [
     "R1 禁止原书页当背景",
     "R2 只允许角色表里的角色",
@@ -32,7 +32,12 @@ ALLOWED_CAMERA = ["横移", "跟拍", "摇摄", "环绕", "升降", "轨道", "�
 ACTION_VERBS = ["放", "拿", "搭", "叠", "走", "跑", "蹲", "站", "坐", "转", "伸", "抱", "推", "拉",
                 "捡", "递", "画", "看", "望", "笑", "哭", "喊", "跺", "扶", "拍", "摸", "爬", "跳",
                 "挥", "打开", "关", "咬", "叼", "追", "飞", "滚", "倒", "塌", "点头", "摇头", "叹",
-                "捡起", "放上", "放下", "抱起", "伸手", "转身", "低头", "抬头", "蹲下", "跑向"]
+                "捡起", "放上", "放下", "抱起", "伸手", "转身", "低头", "抬头", "蹲下", "跑向",
+                "walk", "run", "point", "tap", "follow", "sweep", "spin", "ride", "squeeze", "bury",
+                "pat", "peek", "smile", "slap", "line", "spill", "lean", "hold", "pour", "count",
+                "drop", "reach", "settle", "grip", "take", "laugh", "cover", "nod", "snore", "act",
+                "flick", "dim", "open", "close", "pick", "put", "stack", "turn", "lift", "grab",
+                "hug", "wave", "jump", "clap", "whisper", "shout", "cry", "wipe", "climb", "kick"]
 
 
 def _norm_keys(script: dict) -> list[str]:
@@ -194,8 +199,9 @@ def lint_prompt(prompt: str, chunk: dict, bible: dict) -> dict:
     for bad in ("以原书页作为背景", "用第", "把原图当", "分格小图当背景", "直接使用原书页"):
         if bad in prompt:
             fail("prompt.raw_page", f"提示词出现原书页用法「{bad}」", "只允许 assets/ 的干净场景板")
-    if len(prompt) > 2000:
-        fail("prompt.length", f"提示词过长 {len(prompt)} 字", "压到 2000 字以内，先删重复形容词")
+    limit = 3200 if re.search(r"[A-Za-z]{4,}", prompt[:400]) else 2000
+    if len(prompt) > limit:
+        fail("prompt.length", f"提示词过长 {len(prompt)} 字（上限 {limit}）", "压到上限以内，先删重复形容词")
     return {"passed": not failures, "checks": checks, "failures": failures, "length": len(prompt)}
 
 

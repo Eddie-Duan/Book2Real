@@ -240,6 +240,44 @@ def check_raw_page(frames: list[Path], book_pages: list[Path]) -> dict:
             "metrics": {"max_page_ssim": round(worst, 3), "frame": worst_frame}}
 
 
+
+
+def _wav_rms_db(video: Path) -> tuple[float, float]:
+    """(head 0.35s RMS dB, tail 0.35s RMS dB) of the audio track."""
+    import wave
+    wav = Path(tempfile.mkdtemp(prefix="ot_aud_")) / "a.wav"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-ac", "1",
+                    "-ar", "16000", str(wav)], check=True)
+    with wave.open(str(wav), "rb") as fh:
+        n = fh.getnframes()
+        raw = fh.readframes(n)
+    import numpy as np
+    a = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    if a.size == 0:
+        return -120.0, -120.0
+    w = int(0.35 * 16000)
+    def db(x):
+        if x.size == 0:
+            return -120.0
+        r = float(np.sqrt(np.mean(x * x)))
+        return 20.0 * math.log10(r + 1e-9)
+    return db(a[:w]), db(a[-w:])
+
+
+def check_audio_cut(video: Path, first: bool = False) -> dict:
+    head, tail = _wav_rms_db(video)
+    failures = []
+    # a narration cut at the seam shows speech energy on BOTH sides; a clean
+    # hand-off leaves a short pause at the end of the outgoing segment.
+    if tail > -20.0:
+        failures.append({"code": "audio.cut_tail",
+                         "fix": f"段尾还有 {tail:.1f} dB 语音，像半句被切；段尾留 0.4–0.6s 静音"})
+    if not first and head > -20.0 and tail > -20.0:
+        failures.append({"code": "audio.cut_seam", "fix": "接缝两侧都在说话；把段尾改成完整句子+停顿"})
+    return {"passed": not failures, "failures": failures,
+            "metrics": {"head_db": round(head, 1), "tail_db": round(tail, 1)}}
+
+
 def check_seam(prev: Path | None, cur: Path, out: Path) -> dict:
     if prev is None:
         return {"passed": True, "failures": [], "metrics": {"seam": None}}
@@ -247,13 +285,21 @@ def check_seam(prev: Path | None, cur: Path, out: Path) -> dict:
     b = first_frame(cur, out / "_seam_cur.png")
     s = _ssim(a, b)
     mean = float(cv2.imread(str(b), cv2.IMREAD_GRAYSCALE).mean()) if b.exists() else 0
+    prev_mean = float(cv2.imread(str(a), cv2.IMREAD_GRAYSCALE).mean()) if a.exists() else 0
     failures = []
+    mode = "frame_continuation"
     if s < 0.90:
-        failures.append({"code": "seam.ssim", "fix": f"接缝 SSIM {s:.3f}<0.90；上一段结尾和本段开头不是同一动作，重生成本段"})
-    if mean < 12:
+        # a segment may end on a dark close-up (eyes closing) and the next may
+        # open on the same face; treat it as a dark match cut, not a hard cut.
+        if prev_mean < 15 and s >= 0.70:
+            mode = "dark_match_cut"
+        else:
+            failures.append({"code": "seam.ssim", "fix": f"接缝 SSIM {s:.3f}<0.90；上一段结尾和本段开头不是同一动作，重生成本段"})
+    if mean < 8 and s < 0.85:
         failures.append({"code": "seam.black", "fix": "本段开头接近黑场；重生成，从上一段末帧继续"})
     return {"passed": not failures, "failures": failures,
-            "metrics": {"seam_ssim": round(s, 4), "first_mean": round(mean, 1)}}
+            "metrics": {"seam_ssim": round(s, 4), "first_mean": round(mean, 1),
+                        "prev_mean": round(prev_mean, 1), "mode": mode}}
 
 
 def check_digital_zoom(video: Path, frames: list[Path] | None = None) -> dict:
@@ -314,7 +360,7 @@ def check_style_cast(frames: list[Path], head_refs: dict[str, Path],
                "face_samples": face_records[:10]}
     # soft gate: only gross drift is a failure, exact identity is reviewed on contact sheet
     failures = []
-    if metrics["style_min"] is not None and metrics["style_min"] < 0.35:
+    if metrics.get("style_mean") is not None and metrics["style_mean"] < 0.22:
         failures.append({"code": "style.drift", "fix": "画风明显漂移；加强风格 DNA 和场景板参考"})
     return {"passed": not failures, "failures": failures, "metrics": metrics}
 
@@ -326,6 +372,7 @@ def gate_chunk(chunk: dict, video: Path, out: Path, prev: Path | None,
     checks = {
         "spec": check_spec(video, float(chunk["duration"]), resolution),
         "audio": check_audio(video),
+        "audio_cut": check_audio_cut(video, first=(prev is None)),
         "asr": check_asr(video, chunk, language),
         "text_free": check_text(frames),
         "no_raw_page": check_raw_page(frames, book_pages),

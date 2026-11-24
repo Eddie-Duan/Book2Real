@@ -18,6 +18,7 @@ from common import (ARK_KEY, DEEPSEEK_KEY, MINIMAX_KEY, ROOT, ffprobe, jread,  #
 from contract import lint_all, validate_script  # noqa: E402
 from generate import run_chain  # noqa: E402
 from planner import plan as plan_fn  # noqa: E402
+from vision import analyze_book, merge_into_bible  # noqa: E402
 from prompting import write_prompts  # noqa: E402
 
 
@@ -53,6 +54,18 @@ def cmd_doctor(args):
         print(f"{'OK ' if ok else 'MISS'} {name}")
     print("models:", env.get("DEEPSEEK_MODEL"), "| seedream 5.5 | seedance 2.5 flash")
     return 0 if all(ok for _, ok in checks) else 1
+
+
+
+def cmd_vision(args):
+    out, bible, _ = _paths(args)
+    bible = bible or build_bible(args.book)
+    vision = analyze_book(bible, out, args.max_pages)
+    merged = merge_into_bible(bible, vision)
+    jwrite(out / "bible.json", merged)
+    print(f"vision: {len(vision['characters'])} chars / {len(vision['props'])} props / "
+          f"{len(vision['locations'])} locations -> {out/'vision_bible.json'}")
+    return 0
 
 
 def cmd_bible(args):
@@ -224,6 +237,8 @@ def main(argv=None):
 
     p = sub.add_parser("doctor"); p.set_defaults(fn=cmd_doctor)
     p = sub.add_parser("bible"); p.add_argument("--book", required=True); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_bible)
+    p = sub.add_parser("vision"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
+    p.add_argument("--max-pages", type=int, default=8); p.set_defaults(fn=cmd_vision)
     p = sub.add_parser("plan"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
     p.add_argument("--script", default=None); p.set_defaults(fn=cmd_plan)
@@ -234,7 +249,7 @@ def main(argv=None):
     p = sub.add_parser("generate"); p.add_argument("--out", required=True)
     p.add_argument("--resolution", default="480p"); p.add_argument("--max-cny", type=float, default=200.0)
     p.add_argument("--start", type=int, default=1); p.add_argument("--end", type=int, default=None)
-    p.add_argument("--force", action="store_true"); p.add_argument("--attempts", type=int, default=3)
+    p.add_argument("--force", action="store_true"); p.add_argument("--attempts", type=int, default=1)
     p.set_defaults(fn=cmd_generate)
     p = sub.add_parser("assemble"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_assemble)
     p = sub.add_parser("verify"); p.add_argument("--out", required=True); p.add_argument("--delivery", action="store_true"); p.set_defaults(fn=cmd_verify)
@@ -242,7 +257,7 @@ def main(argv=None):
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
     p.add_argument("--script", default=None); p.add_argument("--assets", default="room,meadow,birthday")
     p.add_argument("--prompts", action="store_true"); p.add_argument("--resolution", default="480p")
-    p.add_argument("--max-cny", type=float, default=200.0); p.add_argument("--attempts", type=int, default=3)
+    p.add_argument("--max-cny", type=float, default=200.0); p.add_argument("--attempts", type=int, default=1)
     p.add_argument("--yes", action="store_true"); p.set_defaults(fn=cmd_run)
     args = ap.parse_args(argv)
     return args.fn(args)

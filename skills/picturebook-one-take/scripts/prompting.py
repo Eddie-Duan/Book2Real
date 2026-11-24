@@ -24,9 +24,42 @@ CAMERA_LOCK = """[Camera Lock]
 只做物理机位：横移/跟拍/摇摄/环绕/升降/真实推拉/切镜；禁止变焦、数字缩放、整幅等比放大缩小；近景用切镜。
 """
 
-AUDIO_RULES = """[Audio]
-旁白温柔年轻女声，慢速像妈妈讲故事；对白用角色自己的声音，嘴型同步；音效<>；不要生成任何背景音乐。
-"""
+def _props_lines(chunk: dict, bible: dict) -> str:
+    ids = set(chunk.get("props") or [])
+    pages = set(chunk.get("pages") or [])
+    props = []
+    for p in bible.get("props") or []:
+        if p["id"] in ids or (not ids and pages.intersection(p.get("pages") or [])):
+            props.append(p)
+    lines = ["[Props]"]
+    if not props:
+        lines.append("本段没有关键道具；不要新增道具。")
+    else:
+        lines.append("道具锁定：以下道具的颜色、形状、数量、位置在整段中保持不变；"
+                     "禁止把绿色长方体变成红色三角，禁止替换/新增道具。"
+                     "所有屏幕、包装、招牌、海报上不得出现任何文字、字母、数字。")
+        for p in props:
+            lines.append(f"- {p['name']}：{p['look']}")
+    return "\n".join(lines)
+
+
+def _voice_lock(chunk: dict, bible: dict) -> str:
+    chars = {c["id"]: c for c in bible.get("characters", [])}
+    narrator = (bible.get("narrator") or {}).get("voice") or "成年女性，幼儿园老师"
+    lines = ["[Voice Lock]",
+             f"旁白固定为：{narrator}。旁白与所有角色声音必须明显不同。",
+             "角色声音固定，不许互换、不许张冠李戴："]
+    for cid in chunk.get("cast") or []:
+        c = chars.get(cid)
+        if c:
+            lines.append(f"- {c['name']}：{c['voice']}")
+    lines.append("同一角色全片同一种声音；台词必须由对应角色说出；狗只发汪汪/呜呜声。")
+    return "\n".join(lines)
+
+
+AUDIO_CONTINUITY = """[Audio Continuity]
+每个镜头的旁白/对白必须说完完整一句；段尾说完后留 0.4–0.6 秒静音或环境音，不要在半句时切断；下一段从完整句子开始。"""
+
 
 
 def _cast_lines(chunk: dict, bible: dict, image_map: dict[str, int]) -> str:
@@ -59,7 +92,7 @@ def _audio_lines(chunk: dict) -> str:
     narr = [n.get("text", "") for n in chunk.get("narration") or []]
     lines = []
     if narr:
-        lines.append("旁白：" + " ".join("{" + t + "}" for t in narr))
+        lines.append("旁白（幼儿园老师女声）：" + " ".join("{" + t + "}" for t in narr))
     for d in chunk.get("dialogue") or []:
         name = (chunk.get("_names") or {}).get(d.get("speaker"), d.get("speaker"))
         voice = (chunk.get("_voices") or {}).get(d.get("speaker"), "")
@@ -77,7 +110,7 @@ def _self_check(chunk: dict, bible: dict) -> str:
     tr = (chunk.get("transition_out") or {}).get("type", "continuous_action")
     lines = ["[Self Check] 生成后机器逐条复查，任何一条不过就打回重生成："]
     lines.extend(RULE_SIGNATURES)
-    lines.append(f"本段页 {pages}；对白 {dlg} 句；结尾 {tr}；画面无字/无水印/无原书页/无新增角色。")
+    lines.append(f"本段页 {pages}；对白 {dlg} 句；结尾 {tr}；道具颜色/形状不变；旁白与角色声音分开；段尾留静音；画面无字/无水印/无原书页/无新增角色。")
     return "\n".join(lines)
 
 
@@ -93,10 +126,12 @@ def build_prompt(chunk: dict, bible: dict, image_map: dict[str, int] | None = No
     parts.append(IRON_RULES)
     parts.append(f"[Style]\n{style.get('prompt', '')}\n负向：{style.get('negative', '')}")
     parts.append(_cast_lines(chunk, bible, image_map))
+    parts.append(_props_lines(chunk, bible))
     scene = [f"地点：{chunk.get('location_name') or chunk.get('location') or ''}",
              f"页：{'、'.join(chunk.get('pages') or [])}"]
     if chunk.get("scene_note"):
         scene.append(chunk["scene_note"])
+    scene.append("本段开头直接接上一段最后一帧，不要黑场/淡入；结尾说完最后一句再停。")
     if chunk.get("first_frame"):
         scene.append(f"首帧场景板：{chunk['first_frame']}；严格从它开始，人物/光线/构图/画风一致。")
     if location_ref:
@@ -104,6 +139,8 @@ def build_prompt(chunk: dict, bible: dict, image_map: dict[str, int] | None = No
     parts.append("[Scene]\n" + "\n".join(scene))
     parts.append(_shots_lines(chunk))
     parts.append(_audio_lines(chunk))
+    parts.append(_voice_lock(chunk, bible))
+    parts.append(AUDIO_CONTINUITY)
     parts.append(CAMERA_LOCK)
     parts.append(_self_check(chunk, bible))
     return "\n\n".join(parts)
