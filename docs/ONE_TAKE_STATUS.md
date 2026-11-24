@@ -43,10 +43,11 @@ chunk_05 唯一失败：旁白"一块、两块、三块、四块、五块、六�
 1. 把 chunk_05 的计数旁白拆成两句、放慢：
    `{一块、两块、三块、四块、五块。}` + 短暂停顿 + `{六块、七块、八块、九块。}`
 2. 只重跑第 5 段：
-   `python skills/picturebook-one-take/scripts/one_take.py generate --out runs/cn01/one_take --start 5 --end 5 --force`
+   `python skills/picturebook-one-take/scripts/one_take.py generate --out runs/cn01/one_take --start 5 --end 5 --resolution 720p --force
+# 注意：现有 1–4 段是 720p；第 5 段必须同分辨率，不能默认 480p`
 3. 重新拼接与终检：
    `python skills/picturebook-one-take/scripts/one_take.py assemble --out runs/cn01/one_take`
-   `python skills/picturebook-one-take/scripts/one_take.py verify --out runs/cn01/one_take`
+   `python skills/picturebook-one-take/scripts/one_take.py verify --out runs/cn01/one_take --delivery`
 
 ## 6. 上游提交审阅
 
