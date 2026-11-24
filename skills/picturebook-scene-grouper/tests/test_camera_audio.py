@@ -81,3 +81,19 @@ def test_audio_plan_timing_is_monotonic():
     assert starts == sorted(starts)
     assert all(l["end_sec"] <= 20.01 for l in out["lines"])
     assert out["channels"]["dialogue"] >= 1
+
+
+def test_audio_plan_uses_global_timeline_across_segments():
+    book = {"book_id": "t", "language": "zh",
+            "pages": [{"id": "p01", "text": "第一页。"},
+                      {"id": "p02", "text": "第二页。"}]}
+    plan = {"segments": [
+        {"segment_id": "seg_001", "pages": ["page_001"], "duration_sec": 5},
+        {"segment_id": "seg_002", "pages": ["page_002"], "duration_sec": 7},
+    ]}
+    out = ap.build(book, plan)
+    starts = [l["start_sec"] for l in out["lines"]]
+    assert out["total_sec"] == 12
+    assert starts == sorted(starts)
+    assert starts[0] == 0 and starts[-1] >= 5
+    assert out["lines"][-1]["end_sec"] <= 12

@@ -21,7 +21,7 @@ description: 按文本把绘本页聚成场景（S0 可选），并产出场景�
 3. **机位锁定**：本 skill 只下发固定机位（`static`），不推近、不拉远、不摇、不移、不变焦；景别只在镜头之间变化（建立 LS → 中景 → 收束 CU），镜头内部恒定。
 4. **动作不锁**：人物动作必须“完整、可见、按正常速度完成”，禁止只写呼吸/眨眼/微动；无人物的场景写环境动态但主体尺寸位置稳定。
 5. **id 两种命名都要认**：book 页 id 可能是 `p01`，S1 目录是 `page_001`；脚本按“同名 → manifest.page_id → 数字序号”三级映射，映射失败要报错，不能静默跳过。
-6. **不和 director 抢文件**：本 skill 的 `scene_plan.json` 与 `picturebook-scene-director` 的 `book_out/scene_plan.json` 同名但 schema 不同，务必写到 `.tmp/`，不要覆盖正式 plan。
+6. **不和 director 抢文件**：本 skill 的 `scene_plan.json` 与 `picturebook-scene-director` 的 `book_out/scene_plan.json` 同名但 schema 不同，务必写到 `.tmp/`，不要覆盖正式 plan，也不要拿它喂 relay；director 通过 `--scene-groups .tmp/scene_groups.json` 消费它（按数字序号映射 `p01 -> page_001`），只取“哪些页同一场”，分镜与接缝仍由 director 决定。
 
 ## 输入 / 输出
 
@@ -102,6 +102,7 @@ description: 按文本把绘本页聚成场景（S0 可选），并产出场景�
 - 音色按角色 id 排序轮流分配（哈希取模会撞，实测四个角色全落到同一个音色）；
 - 旁白 zh-CN-XiaoxiaoNeural / en-US-AriaNeural，语速 -8%；角色语速 +4%、音高 +8Hz；
 - `--scene-plan` 可以是 director 的 `book_out/scene_plan.json`：按数字序号把 `page_001` 映射回 `p01`，`total_sec` 缺省时按各段时长求和；
+- `start_sec/end_sec` 是整片全局时间轴：每段时长累加，不按段重置；`total_sec` 等于各段时长之和；
 - **0 行直接返回 2**，不再输出空计划。
 
 ## 事后校验
