@@ -226,7 +226,9 @@ def ledger_append(out: Path, row: dict) -> None:
     with f.open("a", encoding="utf-8") as fh:
         if new:
             fh.write("ts,chunk,task_id,model,resolution,duration_sec,tokens,est_cny,note\n")
-        fh.write(",".join(str(row.get(k, "")).replace(",", ";") for k in
+        def clean(v):
+            return str(v).replace(",", ";").replace("\n", " ").replace("\r", " ")
+        fh.write(",".join(clean(row.get(k, "")) for k in
                           ("ts", "chunk", "task_id", "model", "resolution",
                            "duration_sec", "tokens", "est_cny", "note")) + "\n")
 
