@@ -252,11 +252,39 @@ def build_final_movie(out_dir: Path, cfg: Dict[str, Any], audio: Path | None = N
             }
         )
     hard_cut_count = sum(1 for s in seam_audit if s["transition"] == "hard_cut")
+    # 分镜侧有效的转场不只 xfade：SHARED_T 桥接帧与 POST 交叉溶解在画面上也是转场。
+    # 只有"计划里根本没安排转场"的全硬切才算失败；计划路径取自 state.meta.plan_path。
+    planned_effective = 0
+    planned_total = 0
+    plan_path = str((state.get("meta") or {}).get("plan_path") or "")
+    if plan_path and Path(plan_path).is_file():
+        try:
+            plan_json = json.loads(Path(plan_path).read_text(encoding="utf-8-sig"))
+            seams = plan_json.get("seams") or []
+            planned_total = 0
+            for s in seams:
+                if str(s.get("from_segment") or "").split(" ")[0] == str(s.get("to_segment") or "").split(" ")[0]:
+                    continue  # 段内合并页之间没有拼接接缝，不计入成片转场审计
+                planned_total += 1
+                decision = str(s.get("decision") or "")
+                cut = str(s.get("cut") or "")
+                # CONTINUOUS 走双锚定、DESIGNED_TRANSITION 走共享桥接帧/T；它们都不是裸硬切。
+                if decision in {"CONTINUOUS", "DESIGNED_TRANSITION"} or cut == "xfade":
+                    planned_effective += 1
+        except Exception:  # noqa: BLE001 - 审计读不到计划时不阻断成片
+            planned_effective, planned_total = 0, 0
     concat_audit = {
         "seams": seam_audit,
         "hard_cut_count": hard_cut_count,
         "xfade_count": len(seam_audit) - hard_cut_count,
         "hard_cut_ratio": round(hard_cut_count / max(1, len(seam_audit)), 3),
+        "plan_seams_total": planned_total,
+        "plan_effective_transitions": planned_effective,
+        "transition_audit_ok": bool(
+            len(seam_audit) <= 1
+            or hard_cut_count < len(seam_audit)
+            or (planned_total > 0 and planned_effective > 0)
+        ),
         "warning": (
             "全部接缝都是硬切：请确认 scene_plan 的 SHARED_T/POST 转场已生效，"
             "否则成片只会有'简单切换'"
