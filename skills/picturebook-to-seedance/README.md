@@ -51,7 +51,7 @@
 | `clean_keyframe.png` | 零文字首帧，分辨率与宽高比与原图完全一致 |
 | `page_manifest.json` | 文字块清单、去字掩膜位置、补全项目及其原文依据 |
 | `qa_report.json` | 验收判据：尺寸偏差、SSIM、像素差分布、保护带入侵 |
-| `seedance_prompt.txt` | 镜头运动、主体微动作、环境动态与负向约束 |
+| `seedance_prompt.txt` | 固定机位、主体完整动作、环境动态与负向约束 |
 
 ---
 

@@ -92,6 +92,17 @@ def main():
         default=3.0,
         help="text mask 内'笔画型高频'像素占比上限（%%），超过视为有字形残迹",
     )
+    ap.add_argument(
+        "--watermark-mask",
+        default=None,
+        help="可选：水印/角标 mask（Stage 3 输出）；给了就校验水印区被彻底改写且无残迹",
+    )
+    ap.add_argument(
+        "--min-watermark-removed",
+        type=float,
+        default=90.0,
+        help="watermark mask 内至少这么大比例的像素必须被改写（水印必须清干净，不允许半透明残留）",
+    )
     a = ap.parse_args()
 
     orig = Image.open(a.original).convert("RGB")
@@ -127,6 +138,7 @@ def main():
     tmask = as_mask(a.text_mask, orig.size)
     emask = as_mask(a.edit_mask, orig.size)
     pmask = as_mask(a.protected_mask, orig.size)
+    wmask = as_mask(a.watermark_mask, orig.size)
 
     union = np.zeros(orig.size[::-1], dtype=bool)
     if tmask is not None:
@@ -203,6 +215,26 @@ def main():
         report["metrics"]["text_residual_edge_pct"] = round(residual, 3)
         checks["text_removed"] = bool(text_removed_pct >= a.min_text_removed)
         checks["text_residual_edges"] = bool(residual <= a.max_text_residual_edge)
+    # 水印残留事后校验：水印必须整块被重绘（尤其半透明角标/looping 水印），
+    # 只"变淡"不算去掉。同样不能替代 agent 的 read_image 逐页复核。
+    if wmask is not None and int(wmask.sum()) > 0:
+        w_inside = diff[wmask]
+        wm_removed = float((w_inside > 3).mean() * 100)
+        gy, gx = np.gradient(gray_f.astype(np.float32))
+        grad_mag = np.abs(gx) + np.abs(gy)
+        h, w = wmask.shape
+        padded = np.pad(wmask, 4, mode="edge")
+        ring = np.zeros_like(wmask)
+        for dy in range(9):
+            for dx in range(9):
+                ring |= padded[dy : dy + h, dx : dx + w]
+        ring &= ~wmask
+        ring_med = float(np.median(grad_mag[ring])) if ring.any() else 0.0
+        wm_residual = float((grad_mag[wmask] > max(20.0, 3.0 * ring_med)).mean() * 100)
+        report["metrics"]["watermark_removed_pct"] = round(wm_removed, 2)
+        report["metrics"]["watermark_residual_edge_pct"] = round(wm_residual, 3)
+        checks["watermark_removed"] = bool(wm_removed >= a.min_watermark_removed)
+        checks["watermark_residual_edges"] = bool(wm_residual <= a.max_text_residual_edge)
     report["checks"] = checks
     report["verdict"] = "PASS" if all(checks.values()) else "FAIL"
 

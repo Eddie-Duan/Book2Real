@@ -16,7 +16,7 @@ description: |
 4. **便宜先行 (Cheap-First)**：标准执行顺序为 `preflight --dry-run`（零成本预检与估价） → `--resolution 480p` 低分样片验证接力与动态 → `--resolution 1080p` 全量正式渲染。
 5. **未知键 Fail-Closed**：所有上游 JSON 解析必须经过 `inputs/adapter.py` 映射；遇到未映射字段或缺失必填契约键立即报错阻断，严禁猜测。
 6. **合规底线**：`watermark=false` 仅用于抑制平台推广角标；严禁去除法定 AI 生成标识或第三方版权水印；成片合并阶段统一保留合规 AI 生成声明元数据与片尾声明。
-7. **请求与产物双重锁**：请求 prompt 已带镜头锁时不得重复追加；缺失时按 `STABILITY_LOCK_CLAUSE`（禁 zoom、元素尺寸恒定）与 `CLEAN_FRAME_LOCK_CLAUSE`（无字、无水印、无淡出字形）写 `prompt_override` 并留 diff。QC 的 `ZOOM_DRIFT`、`PAGE_TOO_SHORT`、`TEXT_DETECTED`、`WATERMARK_DETECTED` 任一命中都不得 PASS；`concat_audit.json` 的转场计数与 `hard_cut_ratio` 必须随成片一起验收。
+7. **请求与产物双重锁**：请求 prompt 已带镜头锁时不得重复追加；缺失时按 `STABILITY_LOCK_CLAUSE`（禁 zoom、元素尺寸恒定、相机锁死不等于动作锁死）、`MOTION_BOOST_CLAUSE`（完整可见动作、正常速度、段内完成）与 `CLEAN_FRAME_LOCK_CLAUSE`（无字、无水印、无淡出字形）写 `prompt_override` 并留 diff。QC 的 `ZOOM_DRIFT`、`MOTION_TOO_SMALL`、`PAGE_TOO_SHORT`、`TEXT_DETECTED`、`WATERMARK_DETECTED` 任一命中都不得 PASS；`concat_audit.json` 的转场计数、`hard_cut_ratio` 与 `transition_audit_ok` 必须随成片一起验收，全硬切不得交付。
 
 ## 2. 首尾帧双锚定原理与接力降级链
 ### 为什么强制「首尾帧双锚定」而禁止「尾帧像素回灌」？

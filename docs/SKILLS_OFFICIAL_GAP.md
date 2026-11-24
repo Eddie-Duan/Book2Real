@@ -9,7 +9,7 @@
 ## 1. 一句话结论
 
 **能力上 5 条目标基本落地（文案那条在 backend），官方口径下唯一的阻断项（Q43 分段拼接）
-已于 2026-11-23 解除**：`check_official.py` 现在只把**人工后期剪辑**判为二次编辑；
+已于 2026-11-23 解除**：官方核对脚本现在只把**人工后期剪辑**判为二次编辑；
 剩余缺口是**交互录屏、语音问答**，未知项是**成片帧率**。
 
 ## 2. 5 条目标 → 落地情况
@@ -17,22 +17,22 @@
 | yhl 文档里的目标 | 落在哪 | 实跑证据 | 结论 |
 |---|---|---|---|
 | 1 生成提示词 skill | `ai-video-prompt-architect` + 每页 `seedance_prompt.txt` | 12 页都写出了带风格 DNA 的提示词 | ✅ |
-| 2 扣掉绘本文字 + 按文字丰富图片 | `picturebook-to-seedance`（掩膜）+ 本轮新增 `prepare_from_book.py` | 12 页 OCR 残留 0、SSIM 1.0000、保护带入侵 0px | ✅ 但要靠本地 OCR 复检 |
+| 2 扣掉绘本文字 + 按文字丰富图片 | `picturebook-to-seedance`（掩膜） | 12 页 OCR 残留 0、SSIM 1.0000、保护带入侵 0px | ✅ 但要靠本地 OCR 复检 |
 | 3 文生视频 / 一致性 / 自检 / 扣水印 | `seedance-relay-producer`（双锚定 + `qc.py`） | preflight 12 页就绪、0 阻断；真实生成未跑（要花钱） | ⚠️ 代码齐，未实测 |
 | 4 文案像绘本、面向儿童 | `backend/app/skill4`（另一个包） | `pytest backend/tests/test_style.py` = 7 passed | ✅（不在 skills/ 里） |
 | 5 分场景 / 转场 / 合并镜头 | `picturebook-scene-director` | 12 页 → 12 段、11 条接缝、桥接帧 11 张 | ✅ |
 
 ## 3. 官方要求逐条
 
-`python skills/living-picturebook/scripts/check_official.py` 的实测输出（cn01，dry-run）：
+官方核对脚本（已随旧工具库删除）的实测输出（cn01，dry-run）：
 
 | 官方条目 | 状态 | 说明 |
 |---|---|---|
-| 总时长 100–200 s（Q26/Q39） | ✅ | 原 plan 只有 60 s，本轮加 `ensure_duration` 后 **120 s** |
+| 总时长 100–200 s（Q26/Q39） | ✅ | 原 plan 只有 60 s，本轮做时长对齐后 **120 s** |
 | 正文页覆盖（Q33） | ✅ | 书 12 页 / 分镜 12 页 |
 | ≥720P（Q26） | ✅ | 关键帧 1920×1080，短边 1080 |
 | ≥24 fps（Q26） | ❓ | 由 Seedance 输出决定，生成后必须 `ffprobe` 复核 |
-| 视频内检索（Q11） | ⚠️ | `page_timeline.json` 12 页/12 段/120.0 s 有了；四能力仍要接到播放器 |
+| 视频内检索（Q11） | ⚠️ | 本链不产出 `page_timeline.json`；页↔时间码需按各段时长另行累加，四能力仍要接到播放器 |
 | 触控对象级（Q28/Q35） | ⚠️ | `book.json` 有 34 个 spots，但 skills 产线不产出、不消费 spots |
 | 两段视频（Q4） | ❌ | 非交互成片没生成；**交互操作录屏这套产线不产出** |
 | 一次生成（Q43） | ✅ | 同一任务内分段生成再拼接不算二次编辑（2026-11-23 队内确认）；只禁人工后期剪辑 |
@@ -42,10 +42,6 @@
 
 | 文件 | 改动 | 为什么 |
 |---|---|---|
-| `skills/living-picturebook/scripts/prepare_from_book.py` | **新增**：`books/<id>` 的阅读包 → skills 要的 `page_###/` 四件套；掩膜用 S1 的笔画级脚本，清字用 OpenCV Telea + 掩膜外像素锁定；三项 QC 是**真算**（RapidOCR 复读残字 / 掩膜外 SSIM / 掩膜外改动像素数） | 没有这个文件，skills 产线根本接不上本仓库的书；之前 `run_pipeline` 直接报"没有 clean_keyframe.png" |
-| `skills/living-picturebook/scripts/ensure_duration.py` | **新增**：把总时长在 5/10 s 档位内对齐到 100–200 s | `plan_scenes` 固定每页 5 s，12 页只有 60 s，低于官方下限 |
-| `skills/living-picturebook/scripts/check_official.py` | **新增**：对着官方条目逐项判定，输出 JSON + 结论行 | 让"能不能交"变成可复跑的一条命令，而不是靠人回忆 |
-| `skills/living-picturebook/scripts/run_pipeline.py` | 加 `--target-seconds`，plan 之后插 S3c 时长对齐；stdout 强制 UTF-8 | Windows 控制台 GBK 下 `¥` 会直接抛 `UnicodeEncodeError`（实测必现） |
 
 ## 5. 实测数字（cn01，720p，dry-run）
 
@@ -97,7 +93,7 @@
 **Q43 记录（2026-11-23 队内判断，待官方澄清）**：**同一任务内分段生成再拼接**（同一模型、同一次
 任务里输出多段，由流水线脚本 `concat.py` 拼成一条）**不算**二次编辑。
 仍算二次编辑的只有人工后期：加片头/转场/BGM、挑段重剪、换配音。
-→ `check_official.py` 不再把多段拼接判为阻断。**注意**：`docs/答疑/答疑总结.md` §3.3 的解读是
+→ 官方核对脚本不再把多段拼接判为阻断。**注意**：`docs/答疑/答疑总结.md` §3.3 的解读是
 Q43 "直接否定多镜头分别生成再 ffmpeg 拼接"，两者冲突，已列为待确认项；在官方澄清前，
 说明书里只能写"分段生成后由流水线拼接"，不能写"官方允许拼接"。
 
@@ -139,8 +135,8 @@ MiniMax key 验证通过（`get_voice` 327 音色 / `t2a_v2` 出 mp3 / `speech_t
 | 官方额度 | ⏳ | Q42：账号额度 ≤500 元、并发 ≤20，**2026-11-30 开通** |
 | 端到端 | ✅ | 提交→下载→QC→返修→拼接跑通：`runs/cn01/probe_20261123/final_movie_2shots.mp4`（20.1 s） |
 | 帧率 | ✅ | `ffprobe` 实测 **24 fps**，1920×1080 / 1280×720，h264；官方 ≥24 fps 达标 |
-| 旁白 | ✅ 已接 | `run_pipeline --narration/--build-narration` → `concat --audio`；实测铺轨后 `volumedetect` max −8.1 dB（静音轨是 −91 dB） |
-| 人物/背景一致性 | ⚠️ 部分 | 提示词已带角色锚点（`enrich_seg_prompts.py`，cn01 10/12 段）；段内一致性检测仍因缺 DINOv2 **降级为空跑**，锚点侧靠首/尾帧 SSIM（0.94 / 0.996） |
+| 旁白 | ✅ 已接 | 调用方 TTS 合成旁白 → `concat --audio`；实测铺轨后 `volumedetect` max −8.1 dB（静音轨是 −91 dB） |
+| 人物/背景一致性 | ⚠️ 部分 | 提示词已带角色锚点（cn01 10/12 段）；段内一致性检测仍因缺 DINOv2 **降级为空跑**，锚点侧靠首/尾帧 SSIM（0.94 / 0.996） |
 | 生成效率 | ⚠️ | Q26 把"整本总耗时"当主要指标；12 段 × 分钟级 + 返修，比 2.5D 单趟慢（**已按 `CONSTRAINTS.md` 接受，不再作为换路径理由**） |
 
 **结论**：链路能出整本片，四要素里 3 项已有实测证据（场景/转场、帧率规格、旁白铺轨），
@@ -149,17 +145,4 @@ MiniMax key 验证通过（`get_voice` 327 音色 / `t2a_v2` 出 mp3 / `speech_t
 
 ## 7. 复现命令
 
-```bash
-# 1) 本仓库的书 -> skills 输入
-python skills/living-picturebook/scripts/prepare_from_book.py --book books/cn01 --out .tmp/skill_pages
-
-# 2) 分镜 + 时长对齐 + 桥接 + 预检 + 时间码（不花钱）
-python skills/living-picturebook/scripts/run_pipeline.py \
-  --pages-dir .tmp/skill_pages --out-dir .tmp/skill_out \
-  --resolution 720p --target-seconds 120 --dry-run
-
-# 3) 官方口径核对
-python skills/living-picturebook/scripts/check_official.py \
-  --plan .tmp/skill_out/scene_plan.json --pages-dir .tmp/skill_pages \
-  --book books/cn01 --out .tmp/skill_out/official_check.json
-```
+本节原始命令依赖的旧工具库脚本已删除；现在从 `pages/page_###/` 四件套进入本链，见 [`skills/README.md`](../skills/README.md)。

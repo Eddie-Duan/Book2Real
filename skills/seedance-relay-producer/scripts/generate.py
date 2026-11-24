@@ -39,8 +39,13 @@ ENDING_LOCK_CLAUSE = (
 # 这两条不依赖上游是否写对，每条请求都兜底追加；已含锁的提示词不会重复追加。
 STABILITY_LOCK_CLAUSE = (
     ", locked-off static camera: absolutely no zoom, dolly, push-in/pull-out, pan or tilt; "
-    "all characters and props keep constant on-screen size and position, no scale drift, "
-    "only subtle in-place motion such as breathing, blinking, hair, fabric and light"
+    "all characters and props keep constant on-screen size and position, no scale drift. "
+    "The camera is locked, the action is not: characters perform full, clearly visible motion"
+)
+MOTION_BOOST_CLAUSE = (
+    ", full clearly visible action at normal human pace: characters move limbs, torso and "
+    "expression with obvious amplitude, the action progresses to completion in this clip; "
+    "no frozen pose, no micro-motion-only, no slow motion, no static hold"
 )
 CLEAN_FRAME_LOCK_CLAUSE = (
     ", the frame contains no text, letters, subtitles, captions, page numbers, logos or "
@@ -80,6 +85,9 @@ def build_final_prompt_and_diff(
     if "no text" not in orig_lower and "no watermark" not in orig_lower:
         extra_clauses.append(CLEAN_FRAME_LOCK_CLAUSE)
         reasons.append("全局硬锁：画面全程零文字/零水印，禁止文字淡入淡出")
+    if ("[motion]" not in orig_lower and "visible action" not in orig_lower) or plan.get("motion_boost"):
+        extra_clauses.append(MOTION_BOOST_CLAUSE)
+        reasons.append("动作门禁兜底：主体必须完成可见的大幅度动作，禁止微动/慢动作定格")
     if plan.get("needs_smooth_lock"):
         extra_clauses.append(SMOOTH_LOCK_CLAUSE)
         reasons.append("Level A 中等差异 (0.20 < DINO <= 0.35)，追加平滑过渡防形变锁定")

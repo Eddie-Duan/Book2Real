@@ -27,7 +27,7 @@ from camera_language import enrich as enrich_camera  # noqa: E402
 DEFAULT_STYLE_DNA = (
     "儿童绘本插画风格；严格保持原书的画风、笔触、配色与光线；"
     "构图与主体比例沿用参考图；同一场景内只有一个固定机位，"
-    "机位运动由下方[镜头]条目决定，不自行切换镜头。"
+    "全程不推近、不拉远、不摇、不移、不变焦，主体尺寸与位置保持不变。"
 )
 DEFAULT_NEGATIVE = (
     "画面中出现文字, 字幕, 音效字, 水印, logo, 台标, 边框, 多余人物, "
@@ -62,13 +62,56 @@ def _shot_bounds(seg: dict, tr: dict) -> list[str]:
         out.append("镜头收尾：保持构图稳定，末帧与下一镜首帧呼应；不要淡出。")
     elif str(tr.get("realization") or "").upper() == "POST":
         out.append("镜头收尾：画面稳定到结束，不要自行淡出（叠化在后期加）。")
-    elif decision:
-        out.append("镜头收尾：最后 0.6 秒缓慢淡出到黑场。")
+    else:
+        out.append("镜头收尾：画面稳定到结束，不要自行淡出、不切机位"
+                   "（转场在拼接阶段处理）。")
     return out
 
 
 def load_text_by_page(book: dict) -> dict:
     return {p.get("id"): (p.get("text") or "").strip() for p in (book.get("pages") or [])}
+
+
+def _digits(value) -> str:
+    return "".join(ch for ch in str(value or "") if ch.isdigit()).lstrip("0") or "0"
+
+
+def resolve_page_dir(pages_dir: Path, pid: str) -> Path | None:
+    """把 book 页 id（p01）映射到 S1 目录（page_001）。
+
+    顺序：目录名相同 → page_manifest.json 的 page_id 相同 → 序号相同（p01 ↔ page_001）。
+    """
+    direct = Path(pages_dir) / str(pid)
+    if (direct / "clean_keyframe.png").is_file():
+        return direct
+    for sub in sorted(Path(pages_dir).iterdir()) if Path(pages_dir).is_dir() else []:
+        if not sub.is_dir():
+            continue
+        mf = sub / "page_manifest.json"
+        if mf.is_file():
+            try:
+                data = json.loads(mf.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+            if str(data.get("page_id") or "") == str(pid):
+                return sub
+    target = _digits(pid)
+    for sub in sorted(Path(pages_dir).iterdir()) if Path(pages_dir).is_dir() else []:
+        if sub.is_dir() and (sub / "clean_keyframe.png").is_file() and _digits(sub.name) == target:
+            return sub
+    return None
+
+
+def _has_characters(book: dict, pages: list[str]) -> bool:
+    """该场景是否有角色：兼容 book 页 characters（dict/name）与 p01/page_001 两种 id。"""
+    wanted = {_digits(p) for p in pages}
+    for p in book.get("pages") or []:
+        if _digits(p.get("id")) not in wanted:
+            continue
+        chars = p.get("characters") or []
+        if chars:
+            return True
+    return False
 
 
 def _character_anchors(book_dir: Path, pages: list[str]) -> list[str]:
@@ -81,9 +124,10 @@ def _character_anchors(book_dir: Path, pages: list[str]) -> list[str]:
     except Exception:
         return []
     out: list[str] = []
+    wanted = {_digits(p) for p in pages}
     for c in chars:
-        cps = set(c.get("pages") or [])
-        if cps and not (cps & set(pages)):
+        cps = {_digits(p) for p in (c.get("pages") or [])}
+        if cps and not (cps & wanted):
             continue
         name = str(c.get("name") or "").strip()
         if not name:
@@ -123,16 +167,19 @@ def main() -> int:
         if not pages:
             problems.append(f"{sid} 没有页")
             continue
-        kf = pages_dir / pages[0] / "clean_keyframe.png"
-        if not kf.is_file():
-            problems.append(f"{sid} 缺首帧 {kf}")
+        pdir = resolve_page_dir(pages_dir, pages[0])
+        kf = (pdir / "clean_keyframe.png") if pdir else (pages_dir / pages[0] / "clean_keyframe.png")
+        if not pdir or not kf.is_file():
+            problems.append(f"{sid} 缺首帧 {pages[0]}（pages-dir 里找不到对应 page 目录）")
             continue
         body = " ".join(texts.get(pid, "") for pid in pages).replace("\n", " ").strip()
         if not body:
             problems.append(f"{sid} 正文为空，提示词缺内容")
         tr = transitions.get(sid) or {}
         parts = [a.style_dna, f"本场景画面：{body}",
-                 "画面本身不要出现任何文字；保持角色一致。"]
+                 "画面本身不要出现任何文字；保持角色一致。",
+                 "机位锁定：不推近、不拉远、不摇、不移、不变焦；"
+                 "人物动作完整可见、按正常速度完成。"]
         parts.extend(_shot_bounds(seg, tr))
         anchors = _character_anchors(Path(a.book), pages)
         if anchors:
@@ -155,11 +202,8 @@ def main() -> int:
             "negative": a.negative,
         })
 
-    scene_chars = {}
-    for p_ in book.get("pages") or []:
-        sid = p_.get("scene_hint")
-        if sid:
-            scene_chars.setdefault(sid, []).append(p_.get("id"))
+    scene_chars = {r["scene_id"]: (r["pages"] if _has_characters(book, r["pages"]) else [])
+                   for r in rows}
 
     out = {
         "book_id": book.get("book_id") or Path(a.book).name,
@@ -170,7 +214,7 @@ def main() -> int:
         "segments": rows,
         "problems": problems,
     }
-    out = enrich_camera(out)
+    out = enrich_camera(out, scene_chars)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 

@@ -9,22 +9,39 @@ import build_audio_plan as ap  # noqa: E402
 import camera_language as cl  # noqa: E402
 
 
-def test_first_shot_is_establishing_and_last_pulls_out():
+def test_first_shot_establishing_and_last_closes():
     cams = cl.plan_camera(3, 1)
-    assert cams[0]["shot_size"] == "LS" and cams[0]["move"] == "push_in"
-    assert cams[-1]["shot_size"] == "CU" and cams[-1]["move"] == "pull_out"
+    assert cams[0]["shot_size"] == "LS" and cams[0]["move"] == "static"
+    assert cams[-1]["shot_size"] == "CU" and cams[-1]["move"] == "static"
 
 
-def test_no_two_consecutive_same_move():
+def test_all_moves_are_static():
+    for cam in cl.plan_camera(6, 2):
+        assert cam["move"] == "static"
+
+
+def test_no_two_consecutive_same_shot_size():
     cams = cl.plan_camera(6, 2)
     for a, b in zip(cams, cams[1:]):
-        assert a["move"] != b["move"]
+        assert a["shot_size"] != b["shot_size"]
 
 
-def test_camera_sentence_mentions_move_and_subject():
+def test_camera_sentence_locks_camera_and_demands_full_action():
     cam = cl.plan_camera(1, 1)[0]
     s = cl.camera_sentence(cam, has_characters=True)
-    assert "镜头" in s and "推近" in s and "人物自然动作" in s
+    assert "固定机位" in s and "不推近" in s
+    assert "人物动作完整可见" in s and "不放慢" in s
+
+
+def test_audio_plan_maps_page_001_to_book_p01():
+    book = {"book_id": "t", "language": "zh",
+            "pages": [{"id": "p01", "text": "第一页。"},
+                      {"id": "p02", "text": "花花说：“你好！”"}]}
+    plan = {"segments": [{"segment_id": "seg_001", "pages": ["page_001", "page_002"],
+                          "duration_sec": 20}]}
+    out = ap.build(book, plan)
+    assert out["lines"], "page_001 应能映射到 book p01"
+    assert out["total_sec"] == 20
 
 
 def test_enrich_writes_camera_into_every_shot():
@@ -33,7 +50,7 @@ def test_enrich_writes_camera_into_every_shot():
                                         "duration_sec": 10}], "prompt": "base"}]}
     out = cl.enrich(prompts, {"sc_01": ["huahua"]})
     seg = out["segments"][0]
-    assert seg["shots"][0]["camera"]["move"] == "push_in"
+    assert seg["shots"][0]["camera"]["move"] == "static"
     assert "镜头" in seg["prompt"]
 
 
@@ -64,3 +81,19 @@ def test_audio_plan_timing_is_monotonic():
     assert starts == sorted(starts)
     assert all(l["end_sec"] <= 20.01 for l in out["lines"])
     assert out["channels"]["dialogue"] >= 1
+
+
+def test_audio_plan_uses_global_timeline_across_segments():
+    book = {"book_id": "t", "language": "zh",
+            "pages": [{"id": "p01", "text": "第一页。"},
+                      {"id": "p02", "text": "第二页。"}]}
+    plan = {"segments": [
+        {"segment_id": "seg_001", "pages": ["page_001"], "duration_sec": 5},
+        {"segment_id": "seg_002", "pages": ["page_002"], "duration_sec": 7},
+    ]}
+    out = ap.build(book, plan)
+    starts = [l["start_sec"] for l in out["lines"]]
+    assert out["total_sec"] == 12
+    assert starts == sorted(starts)
+    assert starts[0] == 0 and starts[-1] >= 5
+    assert out["lines"][-1]["end_sec"] <= 12

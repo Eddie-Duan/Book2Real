@@ -23,7 +23,7 @@
 
 | 决议 | 内容 |
 |---|---|
-| **唯一入口** | `skills/picturebook-pipeline`（三棒：去字 → 分镜 → 生成拼接）。它的四道硬门（zoom / 时长 / 文字 / 转场审计）就是交付门禁。`living-picturebook` 降为**工具库**（旁白、页时间码、五段式提示词增强），不再当入口 |
+| **唯一入口** | `skills/picturebook-pipeline`（三棒：去字 → 分镜 → 生成拼接）。它的四道硬门（zoom / 时长 / 文字 / 转场审计）就是交付门禁。旁白由调用方 TTS 合成后 `concat --audio` 铺轨；页时间码不在本链交付范围 |
 | **机位政策** | **严格静态**：`qc.py` 的 `zoom_check` 阈值 4%，尺度偏差超了判 `ZOOM_DRIFT` 打回重生成。提示词里只许写静态锁定 + `[Camera Lock]`，**不许出现推近/拉远/横摇/俯仰/换机位**（电影语言那版已作废） |
 
 ## 1. 一句话
@@ -46,7 +46,7 @@
 
 | 要素 | 必须做到 | 验收 |
 |---|---|---|
-| 关键帧（新增） | **整帧读不出字**才算干净；页脚/页码/水印一律不许留 | `qa_report.text_gate.passed = true`；`run_pipeline` 在 S1 出口直接拦 |
+| 关键帧（新增） | **整帧读不出字**才算干净；页脚/页码/水印一律不许留 | `qa_report.text_gate.passed = true`；S1 出口直接拦 |
 | 场景判定 | 每页都被分进某段；跨 2–3 页连续情节合并；段时长只能是 5/10 s | `scene_plan.json` 段数 = 页覆盖，`needs_human_review` 为空 |
 | 场景转换 | **禁止压暗/模糊的"桥接帧"**（成片里就是原书页闪一下）；一律改成后期 0.6s 交叉溶解 + 动作切 | `scene_plan.concat_plan` 里该接缝 `cut=xfade`；`concat_audit.json` 的 `hard_cut_ratio` < 1 |
 | 人物与背景一致性 | ① 提示词带**角色锚点** + `[Cast Lock]`（只许首帧里的角色，不许新增）② `[Scene Lock]`（不换场景/时间/光线）③ 段内一致性要有量化值，无模型时必须显式标 `DEGRADED`，不许静默 PASS | `prompts/seg_###_prompt.txt` 含 `[Cast Lock]` / `[Scene Lock]` / 尾部 `[Camera Lock]`；`qc.json` 的 `temporal_consistency` 不是"跳过即通过" |

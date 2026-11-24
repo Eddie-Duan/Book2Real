@@ -38,6 +38,10 @@ QUOTE_RE = re.compile(r"[“\"]([^”\"]{1,80})[”\"]")
 MIN_LINE_SEC = 1.2
 
 
+def _digits(value) -> str:
+    return "".join(ch for ch in str(value or "") if ch.isdigit()).lstrip("0") or "0"
+
+
 def load_page_characters(book_dir: Path) -> dict:
     """characters.json 里每个角色带出场页；反过来建成 page -> [角色名]。"""
     f = Path(book_dir) / "reader" / "characters" / "characters.json"
@@ -117,7 +121,13 @@ def mood_of(text: str) -> str:
 
 def build(book: dict, plan: dict, book_dir: Path | None = None) -> dict:
     lang = (book.get("language") or "zh").lower()
-    pages = {p.get("id"): p for p in (book.get("pages") or [])}
+    pages = {}
+    for p in book.get("pages") or []:
+        pid = p.get("id")
+        if pid is not None:
+            pages[pid] = p
+            pages.setdefault(str(pid), p)
+    by_digits = {_digits(k): v for k, v in pages.items()}
     char_names = [c.get("name") for p in (book.get("pages") or [])
                   for c in (p.get("characters") or []) if isinstance(c, dict)]
     chars = sorted({c for c in char_names if c})
@@ -126,20 +136,24 @@ def build(book: dict, plan: dict, book_dir: Path | None = None) -> dict:
     cards = voice_card(lang, chars)
 
     lines = []
+    offset = 0.0  # 全局时间轴：多段成片是一条连续音轨，每段必须累加，不能重置
     for seg in plan.get("segments") or []:
         pids = seg.get("pages") or []
         dur = int(seg.get("duration_sec") or 0)
         if not pids or dur <= 0:
             continue
-        weights = [max(1, len((pages.get(pid, {}).get("text") or ""))) for pid in pids]
+        def page_of(pid):
+            return pages.get(pid) or by_digits.get(_digits(pid)) or {}
+
+        weights = [max(1, len((page_of(pid).get("text") or ""))) for pid in pids]
         total_w = sum(weights)
         t = 0.0
         for pid, w in zip(pids, weights):
             page_dur = dur * w / total_w
-            page_text = (pages.get(pid, {}).get("text") or "")
-            page_chars = list(page_char_map.get(pid) or [])
+            page_text = (page_of(pid).get("text") or "")
+            page_chars = list(page_char_map.get(pid) or page_char_map.get(str(pid)) or [])
             if not page_chars:
-                page_chars = [c.get("name") for c in (pages.get(pid, {}).get("characters") or [])
+                page_chars = [c.get("name") for c in (page_of(pid).get("characters") or [])
                               if isinstance(c, dict) and c.get("name")]
             raw = split_lines(page_text, chars, page_chars)
             if not raw:
@@ -161,8 +175,8 @@ def build(book: dict, plan: dict, book_dir: Path | None = None) -> dict:
                 lines.append({
                     "scene_id": seg.get("segment_id"),
                     "page_id": pid,
-                    "start_sec": round(cursor, 2),
-                    "end_sec": round(min(cursor + share, t + page_dur), 2),
+                    "start_sec": round(offset + cursor, 2),
+                    "end_sec": round(min(offset + cursor + share, offset + t + page_dur), 2),
                     "speaker": item["speaker"],
                     "kind": item["kind"],
                     "text": item["text"],
@@ -173,11 +187,14 @@ def build(book: dict, plan: dict, book_dir: Path | None = None) -> dict:
                 })
                 cursor += share
             t += page_dur
+        offset += dur
 
     return {
         "book_id": book.get("book_id"),
         "lang": lang,
-        "total_sec": int(plan.get("estimated_total_sec") or 0),
+        # 成片时长由各段实际时长决定，estimated_total_sec 只作估算不参与对齐
+        "total_sec": int(sum(int(s.get("duration_sec") or 0)
+                             for s in (plan.get("segments") or []))),
         "voices": cards,
         "lines": lines,
         "channels": {
@@ -203,6 +220,11 @@ def main() -> int:
     plan = json.loads(Path(a.scene_plan).read_text(encoding="utf-8"))
 
     out = build(book, plan, Path(a.book))
+    if not out["lines"]:
+        print("[audio] 错误：scene-plan 与 book.json 对不上（0 行）。"
+              "检查 page id 是否为 p01 / page_001 两种命名，或 book.json 是否带正文。",
+              file=sys.stderr)
+        return 2
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 

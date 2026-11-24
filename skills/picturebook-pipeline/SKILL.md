@@ -25,9 +25,9 @@ pages/page_###/ 四件套      book_out/scene_plan.json        book_out/relay/fi
 （4）花钱前必须停：S3 的 preflight 结果与预算先给用户看，拿到明确同意再 `generate`。
 （5）文件即交接：只通过磁盘产物传递状态，不靠对话记忆；重跑从最近一个通过门禁的检查点开始。
 （6）成片一次成型：`final_movie.mp4` 交付后不做二次编辑；要改只能回对应页/段重跑再拼。
-（7）成片验收四条硬门，缺一条不算交付：① `qc.json` 的 `zoom_check` PASS（无推近/拉远，元素屏上尺寸恒定）；② `text_zero_check` 与 `watermark_check` PASS，且逐页 `read_image` 复核无普通字/艺术字/页码/水印/淡字；③ `page_duration` PASS，每页屏上时长 ≥1s；④ `concat_audit.json` 有转场记录且不是全硬切。
+（7）成片验收五条硬门，缺一条不算交付：① `qc.json` 的 `zoom_check` PASS（无推近/拉远，元素屏上尺寸恒定）；② `text_zero_check` 与 `watermark_check` PASS，且逐页 `read_image` 复核无普通字/艺术字/页码/水印/淡字，S1 的水印 mask 检查（`watermark_removed`）也要过；③ `page_duration` PASS，每页屏上时长 ≥1s；④ `motion_check` PASS（动作是完整可见的，不是微动/慢动作/定格幻灯片）；⑤ `concat_audit.json` 的 `transition_audit_ok == true` 且不是全硬切——S2 的 `transition_gate` 必须 PASS。
 （8）**这就是官方交付路径**：成片只能由本链的 Seedance 生成；`book2real/storyfilm.py` 的 2.5D 成片不得提交（见 `docs/CONSTRAINTS.md`）。
-（9）**机位严格静态**：`zoom_check` 阈值 4%；提示词里不许出现推近/拉远/横摇/俯仰/换机位，段尾固定 `[Camera Lock]`。
+（9）**机位严格静态**：`zoom_check` 阈值 4%；提示词里不许出现推近/拉远/横摇/俯仰/换机位，段尾固定 `[Camera Lock]`。相机锁死不等于动作锁死——人物动作必须完整可见（`[Motion]` + `motion_check`）。
 （10）**成片必须带旁白**：静音轨（anullsrc −91 dB）不算交付，见 §6.1。
 
 ## 2. 目录与产物
@@ -62,13 +62,25 @@ pages/page_###/ 四件套      book_out/scene_plan.json        book_out/relay/fi
 
 门禁：逐页 `qa_report.verdict == "PASS"`。任一页不是 PASS，修该页重跑，禁止交接。
 
+## 4.5 S0（可选）— 文本分场（picturebook-scene-grouper）
+
+只有当 `<proj>/books/<id>/reader/book.json` 每页都有正文时才跑；没有正文直接跳过，S2 按像素自行判断。
+
+```bash
+python "$SKILLS/picturebook-scene-grouper/scripts/group_scenes.py" \
+  --book books/<id> --out .tmp/scene_groups.json --pages-dir pages
+```
+
+产物必须写 `.tmp/`：grouper 的 `scene_plan.json` 与 S2 的 `book_out/scene_plan.json` 同名不同 schema，覆盖正式 plan 会让 relay 直接解析失败，也不要拿它喂 relay。接缝、时长、转场仍由 S2 决定；grouper 只提供「哪些页属于同一场」这一个约束。
+
 ## 5. S2 — 分镜（picturebook-scene-director）
 
 先加载 `picturebook-scene-director`。
 
 ```bash
 python "$SKILLS/picturebook-scene-director/scripts/plan_scenes.py" \
-  --pages-dir pages --out-dir book_out
+  --pages-dir pages --out-dir book_out \
+  [--scene-groups .tmp/scene_groups.json]   # 有 S0 分场时带上
 ```
 
 （1）读 `book_out/scene_plan.md`，把页数 N、段数 M、接缝类型分布、`cost_estimate_cny`、`needs_human_review` 项报给用户。
@@ -87,7 +99,8 @@ python "$SKILLS/picturebook-scene-director/scripts/build_bridge_frames.py" \
 （4）没有 `needs_human_review: true` 的段或接缝，没有 `confidence < 0.70` 自动定案；
 （5）计划不是「M == N 且全是 HARD_CUT」——那说明分镜没真正执行（S2 铁律 3）。
 （6）`short_page_segments` 为空：每段 `page_screen_sec ≥ 1.0`，不能有"一秒不到就刷过去"的页。
-（7）`transition_summary.hard_cut_ratio` 合理，`post_xfade + shared_t_bridge` 覆盖了非连续接缝；逐段 prompt 尾部都有 `[Camera Lock]` 且正文没有 dolly/zoom/推拉/摇移。
+（7）带 `--scene-groups` 时，`pages[].scene_id` 必须等于 S0 的场号，同一 `segments[].pages` 里的页 `scene_id` 必须相同（跨场页不许被合并进一个镜头）。
+（8）`transition_gate == "PASS"` 且 `transition_summary.effective_transition_ratio > 0`（全是 0s 硬切就是没执行转场）；逐段 prompt 尾部都有 `[Camera Lock]` 与 `[Motion]`，正文没有 dolly/zoom/推拉/摇移，`[Motion]` 写的是完整可见动作。
 
 分镜本身免费，但它是花钱前最后一道人工闸门：把上面摘要给用户确认后再进 S3。
 
@@ -126,7 +139,7 @@ python "$R/scripts/poll_download.py" --config "$C" --out-dir book_out/relay
 python "$R/scripts/qc.py" --config "$C" --out-dir book_out/relay
 ```
 
-门禁：每个 `book_out/relay/seg_*/qc.json` 的 `verdict == "PASS"`，且 `checks.seam.passed == true`、`checks.zoom_check.passed == true`（无推近/拉远）、`checks.page_duration.passed == true`（每页 ≥1s）、`checks.text_zero_check.passed == true`、`checks.watermark_check.passed == true`；残留 `POLLING` 就再 poll；有 FAIL 只重跑点名段（S3 §5.4，≤3 次），不整本推倒。QC 的 OCR 只是代理信号——成片抽帧 + 上游关键帧仍要用 `read_image` 逐页看一遍普通字/艺术字/页码/水印/淡字，确认没有"文字慢慢淡没"。
+门禁：每个 `book_out/relay/seg_*/qc.json` 的 `verdict == "PASS"`，且 `checks.seam.passed == true`、`checks.zoom_check.passed == true`（无推近/拉远）、`checks.page_duration.passed == true`（每页 ≥1s）、`checks.motion_check.passed == true`（动作够大够快，不是微动）、`checks.text_zero_check.passed == true`、`checks.watermark_check.passed == true`；残留 `POLLING` 就再 poll；有 FAIL 只重跑点名段（S3 §5.4，≤3 次），不整本推倒。QC 的 OCR 只是代理信号——成片抽帧 + 上游关键帧仍要用 `read_image` 逐页看一遍普通字/艺术字/页码/水印/淡字，确认没有"文字慢慢淡没"。
 
 （4）拼接与报告：
 
@@ -137,36 +150,25 @@ python "$R/scripts/report.py" --out-dir book_out/relay
 
 门禁：`book_out/relay/final_movie.mp4` 存在且时长约等于各选中段之和；`qc_report.md`、`qc_report.json`、`cost.csv` 已生成；`concat_audit.json` 存在，不是全部 `hard_cut`（若告警，说明 S2 的 SHARED_T/POST 没生效，回 S2 查，不要直接交付"简单切换"的片子）。
 
-### 6.1 提示词增强 + 旁白 + 页时间码（工具在 living-picturebook，仍是三棒之内）
+### 6.1 旁白铺轨（本链不自带 TTS）
 
-**S2 之后、S3 之前**必须跑一次提示词增强，否则人物会漂、`preflight` 会报缺 `[Camera]` 等标签：
+提示词增强不单独跑：S2 的 `write_segment_prompt` 已剥离运镜词并强制追加 `[Camera Lock]` 与 `[Motion]`，S1 的 `seedance_prompt.txt` 自带 `[Camera]/[Subject Motion]/[Environment]/[Negative Constraints]` 段；`preflight` 对缺段落只告警、不拦截。
 
-```bash
-python "$SKILLS/living-picturebook/scripts/enrich_seg_prompts.py" \
-  --plan book_out/scene_plan.json --pages-dir pages --out-dir book_out --book books/cn01
-```
-
-**S3 之后**合成旁白并铺进成片（不铺就只有 −91 dB 静音轨，不算交付）：
+成片必须带旁白（静音轨 −91 dB 不算交付）。本链不内置 TTS，用你已有的 TTS 按 `audio_plan.json` 合成 `narration.mp3` 即可（`start_sec/end_sec` 是整条成片的全局时间轴，已跨段累加，直接照它铺音轨）：
 
 ```bash
 # 1) 声音计划（旁白 + 对白，带起止秒、音色、情绪）
 python "$SKILLS/picturebook-scene-grouper/scripts/build_audio_plan.py" \
   --book books/cn01 --scene-plan book_out/scene_plan.json --out book_out/audio_plan.json
 
-# 2) 合成旁白（MiniMax TTS，逐行缓存，重跑几乎不花钱）
-python "$SKILLS/living-picturebook/scripts/build_narration.py" \
-  --audio-plan book_out/audio_plan.json --out book_out/narration.mp3
+# 2) 用你自己的 TTS（MiniMax / 火山 / 其他）按 audio_plan.json 逐行合成，拼成 book_out/narration.mp3
 
 # 3) 拼接时铺轨（这一步替代 §6(4) 的裸 concat）
 python "$R/scripts/concat.py" --config "$C" --out-dir book_out/relay --audio book_out/narration.mp3
-
-# 4) 页↔时间码（交互层 Q11 视频内检索要用，不进成片）
-python "$SKILLS/living-picturebook/scripts/book_timeline.py" \
-  --plan book_out/scene_plan.json --clips-dir book_out/relay --out-dir book_out
 ```
 
 门禁：`book_out/relay/final_movie.json` 的 `spec_ok` 四项全真
-（`min_720p` / `min_24fps` / `in_100_180s` / `audio_not_silent`），`page_timeline.json` 页区间连续无空洞。
+（`min_720p` / `min_24fps` / `in_100_180s` / `audio_not_silent`）。页↔时间码不在本链交付范围，需要时按各段时长累加自行生成。
 
 ## 7. 失败回退
 

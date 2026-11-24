@@ -57,7 +57,7 @@
 
 - **动机**：从环境交代聚焦到情绪细节，或从细节拉出展示环境。
 - **机制**：面积比 > 1.5× 或 < 0.67×，且机位水平偏移 ≥ 30°（避免同轴跳切）。
-- **Prompt**：`steady {shot_size} framing angled 35 degrees off-axis, subtle micro-push-in`
+- **Prompt**：`steady {shot_size} framing angled 35 degrees off-axis, locked-off static camera`
 - **禁用**：机位不变只等比放大（Jump Cut 跳帧感）。
 - **失败特征**：背景透视线没变，只有主体突然变大。
 
@@ -67,15 +67,15 @@
 - **机制**：高速横摇产生方向性模糊，模糊峰值帧作为共享锚点。上段 `last=T_blur`，下段 `first=T_blur`，接缝 0s。
 - **Prompt 上段**：`rapid lateral whip pan right building strong directional motion blur into the final frame`
 - **Prompt 下段**：`starting from rapid lateral motion blur, whip pan decelerates smoothly to lock onto the scene`
-- **禁用**：抒情、静谧、睡前安抚段落（甩镜会破坏情绪）。
+- **禁用**：抒情、静谧、睡前安抚段落（甩镜会破坏情绪）。**本链禁用**：甩镜必须横摇相机，违反「机位严格静态」；人物大跳改用 `FOREGROUND_WIPE`（静态机位、前景物体横扫遮挡）。
 - **失败特征**：模型没生成模糊，只是平移——可在 T 处补 `0.15s` 后期方向模糊兜底。
 
 ## 06 前景遮挡 `FOREGROUND_WIPE` — `SHARED_T`
 
 - **动机**：跟随角色穿过树干、灌木、门框、人群，空间自然过渡。
 - **机制**：风格一致的前景深色/虚化物体横扫并占满 85%–95% 画幅，形成自然遮挡。上段 `last=T_occlude`，下段 `first=T_occlude`。
-- **Prompt 上段**：`camera tracks sideways as a close foreground tree trunk sweeps across to fill 90% of the frame`
-- **Prompt 下段**：`starting behind a close-up tree trunk, camera continues tracking laterally to reveal the new clearing`
+- **Prompt 上段**：`locked-off static camera; a close foreground tree trunk sweeps across the frame to fill 90% of the view`
+- **Prompt 下段**：`locked-off static camera; the close foreground tree trunk continues sweeping away, revealing the new clearing`
 - **禁用**：两页横向运动方向相反。
 - **失败特征**：遮挡物笔触/配色脱离原画风；两侧矢量反向（撞墙反弹）。
 
@@ -111,7 +111,7 @@
 - **机制**：镜头沿光轴前推到某局部纹理 `T_detail`，下段从同纹理拉出。本 skill 用“中心 1/3 裁切放大 3×”合成 T，**粗糙**——真实制作建议用原图高清局部或补一张特写。
 - **Prompt 上段**：`smooth continuous dolly push-in toward the dark doorway texture until it fills the frame`
 - **Prompt 下段**：`smooth dolly pull-back emerging from the textured shadow into the new interior space`
-- **禁用**：画面中心没有通道/窗口/纯色纹理。
+- **禁用**：画面中心没有通道/窗口/纯色纹理。**本链禁用**：推镜违反「机位严格静态」，会触发 `ZOOM_DRIFT`；需要进入感时改用 `CROSS_DISSOLVE`（POST）或静态 `SHARED_T` 桥接帧。
 - **失败特征**：前推时背景透视扭曲融化；下段拉出纹理跳变。
 
 ## 11 独立桥接镜头 `BRIDGE_CLIP`
@@ -125,7 +125,7 @@
 ## 12 延时/光影流转 `TIME_LAPSE_LIGHT`
 
 - **动机**：同地点长时间等待（山坡上从下午等到星空）。
-- **机制**：主体静止或极微呼吸，光位与色温连续演变到目标页。若同构图，直接 `first=K_i, last=K_j, 10s`，并锁死主体。
+- **机制**：机位与主体位置保持不变，但肢体、姿态与表情动作持续可见（不是只做微动）；光位与色温连续演变到目标页。若同构图，直接 `first=K_i, last=K_j, 10s`，并锁死机位。
 - **Prompt**：`locked tripod framing, character remains peacefully seated while afternoon sunlight shifts into deep twilight blue and stars appear`
 - **禁用**：两页角色姿态或机位大跳。
 - **失败特征**：光影变化时角色跟着背景一起变形重绘。
