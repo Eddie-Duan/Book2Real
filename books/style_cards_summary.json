@@ -1,0 +1,62 @@
+[
+  {
+    "book": "cn01",
+    "lang": "zh",
+    "samples": 3,
+    "avg_len": 10.4,
+    "unit": "字",
+    "pov": "第三人称",
+    "path": "C:\\Users\\DUANboyang\\Desktop\\Book2Real\\books\\cn01\\style_card.json",
+    "unchanged": false
+  },
+  {
+    "book": "cn02",
+    "lang": "zh",
+    "samples": 3,
+    "avg_len": 9.4,
+    "unit": "字",
+    "pov": "第三人称",
+    "path": "C:\\Users\\DUANboyang\\Desktop\\Book2Real\\books\\cn02\\style_card.json",
+    "unchanged": false
+  },
+  {
+    "book": "cn03",
+    "lang": "zh",
+    "samples": 3,
+    "avg_len": 10.5,
+    "unit": "字",
+    "pov": "第一人称",
+    "path": "C:\\Users\\DUANboyang\\Desktop\\Book2Real\\books\\cn03\\style_card.json",
+    "unchanged": false
+  },
+  {
+    "book": "en01",
+    "lang": "en",
+    "samples": 3,
+    "avg_len": 22.1,
+    "unit": "词",
+    "pov": "第一人称",
+    "path": "C:\\Users\\DUANboyang\\Desktop\\Book2Real\\books\\en01\\style_card.json",
+    "unchanged": false
+  },
+  {
+    "book": "en02",
+    "lang": "en",
+    "samples": 3,
+    "avg_len": 8.7,
+    "unit": "词",
+    "pov": "第一人称",
+    "path": "C:\\Users\\DUANboyang\\Desktop\\Book2Real\\books\\en02\\style_card.json",
+    "unchanged": false
+  },
+  {
+    "book": "en03",
+    "lang": "en",
+    "samples": 2,
+    "avg_len": 24.2,
+    "unit": "词",
+    "pov": "第一人称",
+    "path": "C:\\Users\\DUANboyang\\Desktop\\Book2Real\\books\\en03\\style_card.json",
+    "unchanged": false
+  }
+]

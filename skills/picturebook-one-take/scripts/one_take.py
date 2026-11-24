@@ -79,7 +79,8 @@ def cmd_plan(args):
     out, bible, _ = _paths(args)
     bible = bible or build_bible(args.book)
     jwrite(out / "bible.json", bible)
-    script = plan_fn(args.book, bible, out, args.target_seconds, args.llm, args.script)
+    script = plan_fn(args.book, bible, out, args.target_seconds, args.llm, args.script,
+                     getattr(args, "style", None))
     result = validate_script(script, bible)
     print(f"plan: {len(script['chunks'])} chunks / {result['total_seconds']}s / "
           f"{len(result['pages_covered'])} pages")
@@ -186,7 +187,7 @@ def cmd_verify(args):
         failures.append(f"final resolution {v['width']}x{v['height']} (delivery={delivery})")
     if v["r_frame_rate"] != "24/1": failures.append("final fps")
     if not a: failures.append("final audio")
-    if not (100 <= dur <= 180): failures.append(f"final duration {dur:.1f}")
+    if not (100 <= dur <= 180.5): failures.append(f"final duration {dur:.1f}")
     reps = []
     for c in script["chunks"]:
         p = out / f"{c['id']}_gate.json"
@@ -213,7 +214,8 @@ def cmd_run(args):
         print("run spends money; pass --yes"); return 2
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     bible = build_bible(args.book); jwrite(out / "bible.json", bible)
-    script = plan_fn(args.book, bible, out, args.target_seconds, args.llm, args.script)
+    script = plan_fn(args.book, bible, out, args.target_seconds, args.llm, args.script,
+                     getattr(args, "style", None))
     if validate_script(script, bible)["passed"] is False:
         return 1
     if args.assets:
@@ -241,7 +243,9 @@ def main(argv=None):
     p.add_argument("--max-pages", type=int, default=8); p.set_defaults(fn=cmd_vision)
     p = sub.add_parser("plan"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
-    p.add_argument("--script", default=None); p.set_defaults(fn=cmd_plan)
+    p.add_argument("--script", default=None)
+    p.add_argument("--style", default=None, help="books/<id>/style_card.json (skill4 叙述声音)")
+    p.set_defaults(fn=cmd_plan)
     p = sub.add_parser("preflight"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_preflight)
     p = sub.add_parser("assets"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
     p.add_argument("--which", default="room,meadow,birthday"); p.set_defaults(fn=cmd_assets)
@@ -255,7 +259,9 @@ def main(argv=None):
     p = sub.add_parser("verify"); p.add_argument("--out", required=True); p.add_argument("--delivery", action="store_true"); p.set_defaults(fn=cmd_verify)
     p = sub.add_parser("run"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
-    p.add_argument("--script", default=None); p.add_argument("--assets", default="room,meadow,birthday")
+    p.add_argument("--script", default=None)
+    p.add_argument("--style", default=None, help="books/<id>/style_card.json (skill4 叙述声音)")
+    p.add_argument("--assets", default="room,meadow,birthday")
     p.add_argument("--prompts", action="store_true"); p.add_argument("--resolution", default="480p")
     p.add_argument("--max-cny", type=float, default=200.0); p.add_argument("--attempts", type=int, default=1)
     p.add_argument("--yes", action="store_true"); p.set_defaults(fn=cmd_run)

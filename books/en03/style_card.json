@@ -1,0 +1,19 @@
+{
+  "book_id": "en03",
+  "title": "Will We Save the World?",
+  "lang": "en",
+  "pov": "第一人称",
+  "tone": "温暖、具体",
+  "avg_sentence_len": 24.2,
+  "unit": "词",
+  "sentence_count": 12,
+  "dialogue_ratio": 0.67,
+  "onomatopoeia": [],
+  "connectors": [],
+  "samples": [
+    "创新 I like to recycle whenever I can.I'm all for reducing pollution.",
+    "I've heard about global warming and climate change, but I still feel confused.It feels cold today.So much for global warming!"
+  ],
+  "prompt_preview": "【这本书的叙述声音】\n- 叙述人称：第一人称\n- 语气：温暖、具体；多用动作和感官细节，少用抽象词。\n- 平均句长：约 24.2 词/句。\n- 常用连接词：（无）；拟声词：（无）。\n- 可模仿的原文句子（只学语气，不要照抄整句）：\n  1. 创新 I like to recycle whenever I can.I'm all for reducing pollution.\n  2. I've heard about global warming and climate change, but I still feel confused.It feels cold today.So much for global warming!\n- 这次是孩子读完一页后提出的问题：先回答问题，再补一个画面/动作细节。\n- 回答最多 2 句，中文不超过 45 字，英文不超过 30 词。\n- 回答语言与本书语言相同；直接模仿上面的句式、语气和具体程度。",
+  "source": "backend/app/skill4.build_style_card"
+}
