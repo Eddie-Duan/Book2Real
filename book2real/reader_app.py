@@ -18,6 +18,7 @@ import json
 import re
 import socket
 import threading
+import os
 import time
 import uuid
 import webbrowser
@@ -184,18 +185,25 @@ def _film_dir(book_id: str) -> Path | None:
     base = _within(RUNS, bid)
     if base is None:
         return None
-    films = base / "reader_film"
-    if not films.is_dir():
-        return None
-    try:
-        cands = [p for p in films.iterdir()
-                 if p.is_dir()
-                 and (p / "timeline.json").is_file()
-                 and (p / "film.mp4").is_file()]
-    except OSError:
-        return None
-    # run names are ``YYYYmmdd-HHMMSS``, so the lexical max is the newest run
-    return max(cands, key=lambda p: p.name) if cands else None
+    # Seedance 成片发布在 runs/<id>/seedance_film/<stamp>/；设 B2R_FILM_SEEDANCE=1 优先读它，
+    # 否则仍读 2.5D 的 reader_film/（两套互不覆盖，切换只需一个环境变量）。
+    sources = ["seedance_film", "reader_film"] if os.environ.get("B2R_FILM_SEEDANCE") == "1" \
+        else ["reader_film", "seedance_film"]
+    for source in sources:
+        films = base / source
+        if not films.is_dir():
+            continue
+        try:
+            cands = [p for p in films.iterdir()
+                     if p.is_dir()
+                     and (p / "timeline.json").is_file()
+                     and (p / "film.mp4").is_file()]
+        except OSError:
+            continue
+        # run names are ``YYYYmmdd-HHMMSS``, so the lexical max is the newest run
+        if cands:
+            return max(cands, key=lambda p: p.name)
+    return None
 
 
 def _int_or_none(value) -> int | None:
@@ -302,6 +310,26 @@ def film_timeline(book_id: str) -> tuple[int, dict]:
     data["run"] = film_dir.name
     data["video_url"] = f"/api/film/{bid}/video"
     return 200, data
+
+
+def click_targets(book_id: str) -> tuple[int, dict]:
+    """官方脚本点名的固定可点元素（books/<id>/click_targets.json）。
+
+    只是播放器 UI 的提示层数据：不进成片、不改画面；缺失时 404，前端自动隐藏按钮。
+    """
+    bid = _clean_book_id(book_id)
+    if not bid:
+        return 404, {"error": "bad book id"}
+    book_dir = _within(ROOT / "books", bid)
+    if book_dir is None or not book_dir.is_dir():
+        return 404, {"error": "unknown book"}
+    path = book_dir / "click_targets.json"
+    if not path.is_file():
+        return 404, {"error": "no click targets"}
+    try:
+        return 200, json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return 500, {"error": "click targets unreadable"}
 
 
 def film_video(book_id: str) -> Path | None:
@@ -555,6 +583,9 @@ class Handler(BaseHTTPRequestHandler):
                     return self._error(404, "film not found")
                 return self._video(target)
             code, payload = film_timeline(unquote(rest))
+            return self._json(payload, code)
+        if p.startswith("/api/click_targets/"):
+            code, payload = click_targets(unquote(p[len("/api/click_targets/"):]))
             return self._json(payload, code)
         if p == "/api/job":
             jid = (q.get("id") or [""])[0]

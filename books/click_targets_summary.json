@@ -1,0 +1,38 @@
+[
+  {
+    "book": "cn01",
+    "script": "中文绘本01.txt",
+    "items": 7,
+    "miss": 1
+  },
+  {
+    "book": "cn02",
+    "script": "中文绘本02.txt",
+    "items": 8,
+    "miss": 0
+  },
+  {
+    "book": "cn03",
+    "script": "中文绘本03.txt",
+    "items": 8,
+    "miss": 0
+  },
+  {
+    "book": "en01",
+    "script": "英文绘本01.txt",
+    "items": 8,
+    "miss": 0
+  },
+  {
+    "book": "en02",
+    "script": "英文绘本02.txt",
+    "items": 8,
+    "miss": 5
+  },
+  {
+    "book": "en03",
+    "script": "英文绘本03.txt",
+    "items": 8,
+    "miss": 5
+  }
+]

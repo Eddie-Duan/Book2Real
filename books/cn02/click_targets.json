@@ -1,0 +1,171 @@
+{
+  "book_id": "cn02",
+  "script": "纸书智伴企业预选赛绘本素材\\绘本素材\\中文绘本02.txt",
+  "note": "官方底线：只点这些固定元素；圆圈只画在播放器 UI 层，不进成片。",
+  "needs_spots": false,
+  "items": [
+    {
+      "n": 6,
+      "kind": "highlight_text",
+      "target": "番茄",
+      "required": false,
+      "matched": true,
+      "page": "p01",
+      "spot": "番茄！",
+      "box": [
+        424.116,
+        413.798,
+        1081.6960000000001,
+        676.83
+      ],
+      "pages": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06",
+        "p07",
+        "p08",
+        "p09",
+        "p10",
+        "p11"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 9,
+      "kind": "click",
+      "target": "黄瓜",
+      "required": true,
+      "matched": true,
+      "page": "p03",
+      "spot": "黄瓜",
+      "box": [
+        0.1147,
+        0.7548,
+        0.2761,
+        0.0399
+      ],
+      "pages": [
+        "p03"
+      ],
+      "desc": "小满追追追，看到了许多绿黄瓜。"
+    },
+    {
+      "n": 14,
+      "kind": "click",
+      "target": "辣椒",
+      "required": true,
+      "matched": true,
+      "page": "p04",
+      "spot": "辣椒",
+      "box": [
+        0.1125,
+        0.6542,
+        0.2761,
+        0.04
+      ],
+      "pages": [
+        "p04"
+      ],
+      "desc": "小满追追追，看到了许多红辣椒。"
+    },
+    {
+      "n": 23,
+      "kind": "highlight_text",
+      "target": "南瓜",
+      "required": false,
+      "matched": true,
+      "page": "p06",
+      "spot": "小满追追追，看到了许多大南瓜。",
+      "box": [
+        117.002,
+        133.672,
+        998.5197,
+        195.272
+      ],
+      "pages": [
+        "p06",
+        "p11"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 39,
+      "kind": "click",
+      "target": "小刺猬",
+      "required": false,
+      "matched": true,
+      "page": "p10",
+      "spot": "小刺猬",
+      "box": [
+        0.6958,
+        0.9541,
+        0.184,
+        0.02
+      ],
+      "pages": [
+        "p10"
+      ],
+      "desc": "小小一团满身尖，鼻头翘翘眼睛圆"
+    },
+    {
+      "n": 42,
+      "kind": "highlight",
+      "target": "小刺猬",
+      "required": true,
+      "matched": true,
+      "page": "p10",
+      "spot": "小刺猬",
+      "box": [
+        0.6958,
+        0.9541,
+        0.184,
+        0.02
+      ],
+      "pages": [
+        "p10"
+      ],
+      "desc": "小小一团满身尖，鼻头翘翘眼睛圆"
+    },
+    {
+      "n": 47,
+      "kind": "click",
+      "target": "茄子",
+      "required": false,
+      "matched": true,
+      "page": "p12",
+      "spot": "茄子",
+      "box": [
+        0.6186,
+        0.2769,
+        0.2577,
+        0.0399
+      ],
+      "pages": [
+        "p12"
+      ],
+      "desc": "小满高兴地大声说：“快看，有个茄子动起来了！"
+    },
+    {
+      "n": 49,
+      "kind": "highlight",
+      "target": "茄子",
+      "required": false,
+      "matched": true,
+      "page": "p12",
+      "spot": "茄子",
+      "box": [
+        0.6186,
+        0.2769,
+        0.2577,
+        0.0399
+      ],
+      "pages": [
+        "p12"
+      ],
+      "desc": "小满高兴地大声说：“快看，有个茄子动起来了！"
+    }
+  ]
+}

@@ -35,7 +35,7 @@ Book2Real/
 └─ scripts/            # sync_reader.py、start_backend.ps1、ingest_all.ps1
 ```
 
-- **只跑一个进程**：`py scripts/start_backend.ps1`（= `uvicorn app.main:app`，端口 8790）。
+- **只跑一个进程**：`scripts\start_backend.cmd`（= 仓库根 `.venv` 里的 `uvicorn app.main:app`，端口 8790）。
   阅读器页面 `/`、影院 `/film?book=cn01` 与 API 同源，避免 CORS/端口漂移。
 - **入库只有一条路**：backend 的 `app.book.ingest`（PDF 文字层 + RapidOCR 兜底 +
   脚本/音频解析），产出 `data/books/<id>/book.json`。
@@ -46,7 +46,7 @@ Book2Real/
 ## 2 一次性准备
 
 ```powershell
-py -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install -r requirements.txt   # 或先跑 scripts\setup_env.ps1
 
 # 1) 6 本官方素材入库（PDF → data/books/<id>，含 OCR，约 10–20 分钟；已入库可省）
 py backend/tools/ingest_competition.py --path "纸书智伴企业预选赛绘本素材" --force
@@ -81,7 +81,7 @@ scripts\start_backend.cmd               # http://127.0.0.1:8790/  ; /film?book=c
 
 ```powershell
 cd backend
-py -m pytest -q                    # 18 passed（pipeline/检索/切句/VAD）
+..\.venv\Scripts\python.exe -m pytest -q    # 36 passed（pipeline/检索/切句/VAD/ASR）
 
 # 进程级冒烟
 scripts\start_backend.cmd
@@ -91,15 +91,15 @@ scripts\start_backend.cmd
 #   GET  /api/tts?text=你好      -> audio/wav
 ```
 
-`book2real` 的测试是脚本式的（`py tests/test_x.py`，末行打印 `N tests passed`），
-不要用 pytest 跑 `tests/`（`test_server.py` 等靠模块级 `main()` 起进程，pytest 下会
-把 32 个用例误报成网络错误）。
+`book2real` 的测试是脚本式的（`python tests/test_x.py`，末行打印 `N tests passed`）。
+其中 `test_server.py` / `test_film.py` 靠模块级 `main()` 起进程，从仓库根跑 `pytest`
+时 `pytest.ini` 会跳过它们；其余文件 pytest 与脚本两种跑法都成立。
 
 ## 5 验证记录（2026-11-16，本机实测）
 
 | 项目 | 命令 | 结果 |
 | --- | --- | --- |
-| backend 单元测试 | `cd backend; py -m pytest -q` | 18 passed |
+| backend 单元测试 | `cd backend; ..\.venv\Scripts\python.exe -m pytest -q` | 36 passed |
 | 融合层测试 | `py tests/test_fusion.py` | 11 passed（页面/CSP/静态/绘本包/兼容层/数据同源） |
 | 老阅读器回归 | `py tests/test_film.py` | 9 passed |
 | 启动 | `scripts\start_backend.cmd` | 监听 0.0.0.0:8790，warm=True，6 本已加载 |

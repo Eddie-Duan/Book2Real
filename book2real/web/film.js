@@ -21,6 +21,8 @@ const state = {
   mark: null,          // { id, rect: [u0,v0,u1,v1], label }
   scrubbing: false,
   listening: false,
+  hints: false,        // 是否显示"可点元素"提示圆圈（UI 层，不进成片）
+  targets: null,       // books/<id>/click_targets.json 的内容
 };
 
 window.addEventListener("error", (e) => {
@@ -83,6 +85,15 @@ async function loadFilm(book) {
     return dead("这本书还没有成片", (err && err.message) || "先回到绘本页生成一段影片。");
   }
   state.data = data;
+  state.targets = null;
+  // 官方脚本点名的那几个元素（[点击] 行）。只在播放器 UI 层画提示圆圈，不写进成片。
+  api("/api/click_targets/" + encodeURIComponent(book))
+    .then((t) => {
+      state.targets = t && (t.items || []).length ? t : null;
+      syncHintButton();
+      paint();
+    })
+    .catch(() => { state.targets = null; syncHintButton(); });
   state.segs = (data.segments || []).filter(s => s && isNum(s.t1) && s.t1 > (s.t0 || 0));
   if (!state.segs.length) {
     $("#filmMeta").textContent = "时间轴是空的";
@@ -187,6 +198,7 @@ function paint() {
   }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
+  drawHints(fit);
 
   const mark = state.mark;
   if (!mark || !mark.rect) return;
@@ -221,11 +233,66 @@ function paint() {
   ctx.restore();
 }
 
+/** 提示圆圈：只画官方脚本点名的那几个元素，画在 UI 画布上（成片保持干净）。 */
+function drawHints(fit) {
+  if (!state.hints || !state.targets) return;
+  const seg = currentSeg();
+  if (!seg) return;
+  const items = (state.targets.items || []).filter(
+    (it) => it && it.page === seg.id && Array.isArray(it.box) && it.box.length === 4);
+  if (!items.length) return;
+  const s = fit.s;
+  items.forEach((it) => {
+    const b = it.box;
+    const nb = [b[0], b[1], b[0] + b[2], b[1] + b[3]];
+    const box = frameOf(seg, nb);
+    if (!box) return;
+    const cx = fit.ox + ((box[0] + box[2]) / 2) * s;
+    const cy = fit.oy + ((box[1] + box[3]) / 2) * s;
+    const r = Math.max(18, Math.min(72, ((box[2] - box[0]) * s) / 2 + 12));
+    ctx.save();
+    ctx.setLineDash([7, 5]);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(255, 205, 96, 0.95)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const label = it.target || it.spot || "";
+    if (label) {
+      ctx.font = "600 12px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+      ctx.fillRect(cx - tw / 2 - 6, cy + r + 4, tw + 12, 18);
+      ctx.fillStyle = "#ffe9b0";
+      ctx.fillText(label, cx - tw / 2, cy + r + 17);
+    }
+    ctx.restore();
+  });
+}
+
+function syncHintButton() {
+  const b = document.getElementById("btnHints");
+  if (!b) return;
+  const n = state.targets ? (state.targets.items || []).length : 0;
+  b.disabled = n === 0;
+  b.classList.toggle("on", !!state.hints);
+  b.title = n ? ("可点元素 " + n + " 个（H 切换提示圆圈）") : "这本书没有固定可点元素";
+}
+
+function toggleHints() {
+  if (!state.targets) return;
+  state.hints = !state.hints;
+  syncHintButton();
+  paint();
+}
+
 function setMark(seg, nb, label) {
   state.mark = nb && seg ? { id: seg.id, rect: nb, label: label || "" } : null;
   canvas.classList.remove("fade");
   paint();
 }
+
 
 function clearMark() {
   if (!state.mark) return;
@@ -507,6 +574,10 @@ function wire() {
   };
   $("#btnPrev").onclick = () => step(-1);
   $("#btnNext").onclick = () => step(1);
+  $("#btnHints").onclick = toggleHints;
+  document.addEventListener("keydown", (e) => {
+    if ((e.key === "h" || e.key === "H") && !e.metaKey && !e.ctrlKey && !e.altKey) toggleHints();
+  });
   $("#btnDescribe").onclick = describeFrame;
   $("#infoClose").onclick = hideInfo;
   $("#descClose").onclick = hideDesc;
