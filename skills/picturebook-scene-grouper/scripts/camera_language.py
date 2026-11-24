@@ -1,80 +1,77 @@
-"""摄影机语言：受 Stable Cinemetrics（arXiv 2509.26555）四类控制（Setup/Event/Lighting/Camera）启发，
-把「镜头」拆成可下发的字段，而不是一句"镜头平稳"。
+"""摄影机语言：把「镜头」拆成可下发的结构化字段。
 
 字段（每镜一份）：
     shot_size   景别：ELS 大远景 / LS 全景 / MS 中景 / CU 近景
     angle       机位：eye 平视 / low 仰拍 / high 俯拍
-    move        运镜：static / push_in / pull_out / pan_left / pan_right / tilt_up / tilt_down / follow
-    speed       速度：slow / medium / fast
-    subject     主体动作（人物动作或环境微动）
+    move        运镜：固定 static（本 skill 只允许这一种）
+    speed       速度：slow
+    subject     主体动作（人物动作或环境动态）
+
+铁律（与 picturebook-pipeline 一致）：
+    1. 机位锁定：不推近、不拉远、不摇、不移、不变焦，画面主体尺寸与位置保持不变。
+       景别只在不同镜头之间变化（建立镜 LS → 中景 → 收尾 CU），镜头内部恒定，
+       避免 Seedance 把"景别变化"理解成"一路 zoom"。
+    2. 动作不锁：人物动作必须完整、可见、按正常速度完成，不允许只写呼吸/眨眼/微动。
 
 规则（确定性）：
-    场首镜 = LS + push_in + slow（建立镜头）
-    场末镜 = CU + pull_out + slow（把观众交出去）
-    场中镜 = MS/CU 交替，move 在 pan/tilt/follow 里轮换，相邻不重复
+    场首镜 = LS + eye（建立镜头）
+    场末镜 = CU + eye（收束镜头）
+    场中镜 = MS/CU 交替，角度在 eye/low/high 里轮换，相邻两镜景别不重复
 """
 
 from __future__ import annotations
 
 SHOT_SIZE_TEXT = {"ELS": "大远景", "LS": "全景", "MS": "中景", "CU": "近景"}
 ANGLE_TEXT = {"eye": "平视机位", "low": "轻微仰拍", "high": "轻微俯拍"}
-MOVE_TEXT = {
-    "static": "固定机位",
-    "push_in": "缓慢推近",
-    "pull_out": "缓慢拉远",
-    "pan_left": "向左横摇",
-    "pan_right": "向右横摇",
-    "tilt_up": "向上摇",
-    "tilt_down": "向下摇",
-    "follow": "跟随主体移动",
-}
+MOVE_TEXT = {"static": "固定机位"}
 SPEED_TEXT = {"slow": "慢速", "medium": "中速", "fast": "快速"}
-MID_MOVES = ["pan_left", "pan_right", "tilt_up", "follow", "push_in"]
 
-
-SINGLE_SHOT_MOVES = ["push_in", "pan_left", "pull_out", "follow", "tilt_up", "pan_right"]
+# 机位锁定句：所有镜头共用，禁止推拉摇移与变焦
+CAMERA_LOCK_SENTENCE = (
+    "固定机位，全程不推近、不拉远、不摇、不移、不变焦；"
+    "画面主体与元素的尺寸、位置保持不变。"
+)
 
 
 def plan_camera(n_shots: int, scene_no: int) -> list[dict]:
-    if n_shots == 1:
-        # A scene that is a single shot cannot both establish and hand over;
-        # rotate the vocabulary per scene so a 12-page book is not 12 push-ins,
-        # while scene 1 still opens with the establishing move.
-        move = SINGLE_SHOT_MOVES[(scene_no - 1) % len(SINGLE_SHOT_MOVES)]
+    """给一场内的 n_shots 个镜头分配景别与角度；运镜恒为 static。"""
+    if n_shots <= 1:
         return [{"shot_size": "LS" if scene_no == 1 else "MS",
                  "angle": "eye" if scene_no % 3 else "low",
-                 "move": move,
-                 "speed": "slow" if scene_no % 2 else "medium"}]
+                 "move": "static",
+                 "speed": "slow"}]
     out: list[dict] = []
     for i in range(n_shots):
         if i == 0:
-            cam = {"shot_size": "LS", "angle": "eye", "move": "push_in", "speed": "slow"}
-        elif i == n_shots - 1 and n_shots > 1:
-            cam = {"shot_size": "CU", "angle": "eye", "move": "pull_out", "speed": "slow"}
+            cam = {"shot_size": "LS", "angle": "eye", "move": "static", "speed": "slow"}
+        elif i == n_shots - 1:
+            cam = {"shot_size": "CU", "angle": "eye", "move": "static", "speed": "slow"}
         else:
             cam = {
                 "shot_size": "MS" if i % 2 else "CU",
-                "angle": "eye" if i % 3 else "low",
-                "move": MID_MOVES[(i + scene_no) % len(MID_MOVES)],
-                "speed": "medium",
+                "angle": ("eye", "low", "high")[(i + scene_no) % 3],
+                "move": "static",
+                "speed": "slow",
             }
-        if out and cam["move"] == out[-1]["move"] and cam["move"] != "static":
-            alt = [m for m in MID_MOVES if m != cam["move"]]
-            cam["move"] = alt[(i + scene_no) % len(alt)]
+        if out and cam["shot_size"] == out[-1]["shot_size"]:
+            cam["shot_size"] = "CU" if cam["shot_size"] == "MS" else "MS"
         out.append(cam)
     return out
 
 
 def subject_action(has_characters: bool) -> str:
-    return ("人物自然动作：呼吸、眨眼、轻微重心转移；表情克制，不做夸张形变"
-            if has_characters else
-            "环境微动：雨丝、光影、纸张纹理缓慢变化；主体轮廓保持稳定")
+    if has_characters:
+        return ("人物动作完整可见：肢体、躯干与表情都有明显幅度，动作在镜头内完成；"
+                "正常速度，不放慢、不冻结、不只做呼吸眨眼。")
+    return ("环境动态可见（风、光、雨丝、衣角等），但主体轮廓、尺寸与位置保持稳定；"
+            "不整体缩放、不平移画面。")
 
 
 def camera_sentence(cam: dict, has_characters: bool) -> str:
     return (f"镜头：{SHOT_SIZE_TEXT[cam['shot_size']]}、{ANGLE_TEXT[cam['angle']]}、"
-            f"{MOVE_TEXT[cam['move']]}（{SPEED_TEXT[cam['speed']]}）；"
-            f"{subject_action(has_characters)}；不做剪辑、不换机位。")
+            f"{CAMERA_LOCK_SENTENCE}"
+            f"{subject_action(has_characters)}"
+            f"不做剪辑、不切机位。")
 
 
 def enrich(prompts: dict, scene_characters: dict | None = None) -> dict:

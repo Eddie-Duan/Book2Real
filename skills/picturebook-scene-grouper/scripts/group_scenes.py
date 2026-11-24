@@ -5,7 +5,7 @@
   1. 续页不切：上一页文字没有句末标点，这页必须同场
   2. 硬边界：本页开头出现时间/地点转换词
   3. 角色全换：两页角色集合完全不重叠
-  4. 场长上限 3 页（超过必切）
+  4. 场长上限 3 页（到第 4 页必切）
 
 用法：
     python group_scenes.py --book books/cn01 --out .tmp/scene_plan.json
@@ -35,7 +35,7 @@ TIME_PLACE_CUES = [
 # 句末标点（没有就视为续页）
 TERMINAL = "。！？.!?…」』”\"'）)"
 
-MAX_PAGES_PER_SCENE = 4      # 一场最多 4 页
+MAX_PAGES_PER_SCENE = 3      # 一场最多 3 页（官方 Q33：跨 2–3 页可合并）
 MAX_PAGES_PER_SHOT = 2      # 一个镜头最多覆盖 2 页（官方 Q33：跨 2–3 页可合并）
 
 
@@ -44,8 +44,12 @@ def norm(s: str) -> str:
 
 
 def chars_of(page: dict) -> set:
+    """读角色集合；同时兼容 book 的 characters 与内部页的 character_set。"""
     out = set()
-    for c in page.get("characters") or []:
+    raw = page.get("characters")
+    if raw is None:
+        raw = page.get("character_set") or []
+    for c in raw:
         if isinstance(c, dict):
             v = c.get("id") or c.get("name")
         else:
@@ -82,14 +86,10 @@ def boundary_score(prev: dict | None, cur: dict, scene_len: int) -> tuple[int, l
     if continuing:
         signals.append("上一页句子没结束（续页）")
 
-    # 规则 4：场长上限（硬规则）——满 3 页必切；只有续页且未满 4 页才放行
+    # 规则 4：场长上限（硬规则）——满 3 页必切，续页也不能突破
     if scene_len >= MAX_PAGES_PER_SCENE:
-        # 只有「刚好到上限前一页且句子未完」才宽限一页，把场长封在 MAX 页
-        if continuing and scene_len == MAX_PAGES_PER_SCENE - 1:
-            signals.append(f"场长 {scene_len} 页但句子未完，宽限到 {MAX_PAGES_PER_SCENE} 页")
-        else:
-            signals.append(f"场长已达上限 {MAX_PAGES_PER_SCENE} 页")
-            return 10, signals
+        signals.append(f"场长已达上限 {MAX_PAGES_PER_SCENE} 页")
+        return 10, signals
 
     if continuing:
         score -= 3
@@ -216,6 +216,11 @@ def build(book: dict, page_chars: dict | None = None) -> dict:
 
     if not pages:
         raise SystemExit("[grouper] book.json 里没有 pages")
+    if not any(norm(p["text"]) for p in pages):
+        raise SystemExit(
+            "[grouper] book.json 没有可用的 text（每页 text 都为空）。"
+            "本 skill 按文本分场，没有正文就无法分组；请先用 reader/book.json 提供每页正文，"
+            "不要让脚本在空文本上输出假的「100% 覆盖」。")
 
     scenes: list[dict] = []
     boundaries: list[dict] = []
@@ -288,18 +293,24 @@ def build(book: dict, page_chars: dict | None = None) -> dict:
     return plan
 
 
+def _digits(value) -> str:
+    return "".join(ch for ch in str(value or "") if ch.isdigit()).lstrip("0") or "0"
+
+
 def apply_scene_tags(plan: dict, pages_dir: Path) -> int:
     """把 scene_id 写回 page_manifest.json，给 director 的语义轴用。"""
     page_to_scene = {}
     for sc in plan["segments"]:
         for pid in sc["pages"]:
-            page_to_scene[pid] = sc["segment_id"]
+            page_to_scene[str(pid)] = sc["segment_id"]
+            page_to_scene.setdefault(_digits(pid), sc["segment_id"])
     n = 0
     for mf in Path(pages_dir).glob("*/page_manifest.json"):
         d = json.loads(mf.read_text(encoding="utf-8"))
         pid = d.get("page_id") or mf.parent.name
-        if pid in page_to_scene:
-            d["scene_tag"] = page_to_scene[pid]
+        sid = page_to_scene.get(str(pid)) or page_to_scene.get(_digits(pid))
+        if sid:
+            d["scene_tag"] = sid
             mf.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             n += 1
     return n
