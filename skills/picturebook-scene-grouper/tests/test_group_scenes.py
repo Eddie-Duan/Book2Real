@@ -36,10 +36,27 @@ def test_time_cue_splits_scene():
     assert plan["boundaries"][0]["signals"][0].startswith("时间/地点转换词")
 
 
-def test_scene_cap_is_four_pages():
+def test_scene_cap_is_three_pages():
     b = book([page(f"p{i:02d}", f"第{i}页讲了一件事。") for i in range(1, 7)])
     plan = gs.build(b)
-    assert all(len(s["pages"]) <= gs.MAX_PAGES_PER_SCENE for s in plan["segments"])
+    assert gs.MAX_PAGES_PER_SCENE == 3
+    assert all(len(s["pages"]) <= 3 for s in plan["segments"])
+    assert plan["scene_count"] == 2
+
+
+def test_role_swap_splits_scene():
+    b = book([page("p01", "小猫在门口。", ["cat"]),
+              page("p02", "妈妈在厨房。", ["mom"])])
+    plan = gs.build(b)
+    assert plan["scene_count"] == 2
+    assert any("角色全换" in sig for sig in plan["boundaries"][0]["signals"])
+
+
+def test_empty_text_book_is_rejected():
+    import pytest
+    b = book([page("p01", ""), page("p02", "")])
+    with pytest.raises(SystemExit):
+        gs.build(b)
 
 
 def test_text_coverage_is_100_percent():

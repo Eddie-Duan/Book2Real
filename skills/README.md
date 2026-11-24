@@ -75,9 +75,9 @@ python skills/seedance-relay-producer/scripts/poll_download.py \
 
 ## 3.2 场景层（按文本，不按像素）
 
-`picturebook-scene-director` 的合并判据是像素级相似（色彩 ≤0.15、光流 ≥0.90），真实绘
-本几乎不满足 —— 实测 cn01 12 页 → 12 段，合并率 0。场景这一层改由
-`picturebook-scene-grouper` 按**文字**来划：
+`picturebook-scene-director` 的合并判据是像素级相似（色彩 ≤0.15、光流 ≥0.90），真实绘本几乎不满足 —— 实测 cn01 12 页 → 12 段，合并率 0。场景这一层改由 `picturebook-scene-grouper` 按**文字**来划：
+
+要求：`books/<id>/reader/book.json` 每页带 `text`。仓库里的 `books/*/book.json` 是 storyfilm 的 card 结构、没有正文，直接跑会报错退出（故意的，不允许在空文本上输出“100% 覆盖”）。
 
 ```bash
 python skills/picturebook-scene-grouper/scripts/group_scenes.py \
@@ -87,8 +87,7 @@ python skills/picturebook-scene-grouper/scripts/build_prompts.py \
   --pages-dir .tmp/skill_pages --out .tmp/prompts_cn01.json
 ```
 
-实测：cn01 12 页 → **3 场 / 100 s / 文字覆盖 100%**；en01 28 页 → **7 场 / 140 s / 100%**。
-段生成后的 QC 改由 `seedance-relay-producer` 的 `qc.py` 逐段产出，不再有独立的 book 级 QC 报告脚本。
+输出写 `.tmp/`，不要覆盖 S2 的 `book_out/scene_plan.json`（同名不同 schema）。分组规则：续页不切 / 时间地点词切 / 角色全换切 / 场长 ≤3 页；镜头机位恒为固定（不推拉摇移），人物动作要求完整可见、正常速度。段生成后的 QC 由 `seedance-relay-producer/qc.py` 逐段产出。
 
 ## 4. 测试
 
