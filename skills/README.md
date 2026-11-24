@@ -22,7 +22,7 @@
 是**队内判断，待官方澄清**（[`docs/答疑/答疑总结.md`](../docs/答疑/答疑总结.md) §3.3 的解读相反）。
 所以：交付走 Seedance 分段拼接路径；**说明书只写事实，不写"官方允许拼接"**。
 
-## 2. 四个 skill 各管什么
+## 2. skill 分工
 
 | 顺序 | skill | 输入 | 输出 | 不可替代的职责 |
 | --- | --- | --- | --- | --- |
@@ -30,7 +30,6 @@
 | S2 | `picturebook-scene-director` | `pages/` 目录 | `scene_plan.json` / `bridge/T_*.png` / `prompts/seg_###_prompt.txt` | 决定切段、合并、接缝类型、锚点 |
 | S3 | `seedance-relay-producer` | `scene_plan.json`（`--plan`） | `seg_###/clip.mp4` / `qc.json` / `final_movie.mp4` / `concat_audit.json` | 调 Ark Seedance、逐段门禁（zoom/时长/文字/水印/接缝）、拼成一条 |
 | **总装** | `picturebook-pipeline` | `pages/` | 全程门禁 + `final_movie.mp4` | **唯一编排入口**：只管顺序、交接契约、花钱闸门与失败回退，三棒逻辑一行不复制 |
-| 工具库 | `living-picturebook` | `scene_plan.json` + 成片 | `narration.mp3` / `page_timeline.json` / 五段式段提示词 | 旁白合成与铺轨、页↔时间码、提示词增强（角色锚点）；不再当入口 |
 | S0 可选 | `picturebook-scene-grouper` | `books/<id>/reader/book.json` | `scene_plan.json` / `prompts.json` / `audio_plan.json` | **按文本**先把页聚成场景（官方 Q33），并出旁白计划 |
 | 旁路 | `ai-video-prompt-architect` | 交互层提示词需求 | 提示词参考 | 只服务交互层，不参与视频链路 |
 
@@ -68,33 +67,11 @@ python skills/seedance-relay-producer/scripts/poll_download.py \
 模型默认 `doubao-seedance-2-5-flash-261115`（见 `skills/seedance-relay-producer/config.example.yaml`）。
 注意 **2.5 带首帧时不允许下发 `ratio`**，配置项 `ratio_follows_first_frame: true` 已默认打开。
 
-## 3.1 从本仓库的书接进来（官方口径对齐）
+## 3.1 输入边界
 
-`run_pipeline.py` 只认 `page_###/` 四件套，不认 `books/<id>`。三个补充脚本：
-
-```bash
-# 1) 阅读包 -> skills 输入（清字 + 三项真实 QC，不花钱）
-python skills/living-picturebook/scripts/prepare_from_book.py \
-  --book books/cn01 --out .tmp/skill_pages
-
-# 2) 总时长对齐到官方 100–200 s（plan_scenes 默认每页 5 s，12 页只有 60 s）
-python skills/living-picturebook/scripts/run_pipeline.py \
-  --pages-dir .tmp/skill_pages --out-dir .tmp/skill_out \
-  --resolution 720p --target-seconds 120 --dry-run
-
-# 3) 对着官方条目判「能不能交」
-python skills/living-picturebook/scripts/check_official.py \
-  --plan .tmp/skill_out/scene_plan.json --pages-dir .tmp/skill_pages \
-  --book books/cn01 --out .tmp/skill_out/official_check.json
-```
-
-`prepare_from_book.py` 的三项指标是真算的，不是常量：`ocr_residual_count` 用本机
-RapidOCR 在清字后的图上复读，`non_edited_ssim` 只算掩膜外，`protected_zone_intrusion_px`
-是掩膜外被改动的像素数（像素锁下应为 0）。
-
-实测（cn01，720p，dry-run）：12 页 PASS 12、关键帧统一 1920×1080、总时长 120 s、
-preflight 12 就绪 0 阻断、预估 21.6 元（preflight 熔断 20 元 → 需 `--yes` 或下调）。
-详见 `docs/SKILLS_OFFICIAL_GAP.md`。
+本链只认 `pages/page_###/` 的四件套（`clean_keyframe.png`、`page_manifest.json`、`qa_report.json`、`seedance_prompt.txt`）。
+把 `books/<id>/reader/book.json` 转成这套目录、按官方 100–200 s 对齐总时长、对着官方条目判"能不能交"，
+都不在本链内；需要时用 S1 的脚本手工把每页做成四件套，再从 `pages/` 进入本链。
 
 ## 3.2 场景层（按文本，不按像素）
 
@@ -108,13 +85,10 @@ python skills/picturebook-scene-grouper/scripts/group_scenes.py \
 python skills/picturebook-scene-grouper/scripts/build_prompts.py \
   --book books/cn01 --scene-plan .tmp/scene_plan_cn01.json \
   --pages-dir .tmp/skill_pages --out .tmp/prompts_cn01.json
-python skills/living-picturebook/scripts/build_qc_report.py \
-  --book books/cn01 --scene-plan .tmp/scene_plan_cn01.json \
-  --pages-dir .tmp/skill_pages --prompts .tmp/prompts_cn01.json --out .tmp/qc_report_cn01.json
 ```
 
 实测：cn01 12 页 → **3 场 / 100 s / 文字覆盖 100%**；en01 28 页 → **7 场 / 140 s / 100%**。
-`qc_report.json` 六项全 PASS（成片未生成时该项 SKIP）。
+段生成后的 QC 改由 `seedance-relay-producer` 的 `qc.py` 逐段产出，不再有独立的 book 级 QC 报告脚本。
 
 ## 4. 测试
 
