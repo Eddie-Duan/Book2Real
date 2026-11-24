@@ -97,7 +97,7 @@ scene_plan 写 `.tmp/`，不要覆盖 S2 的 `book_out/scene_plan.json`（同名
 全部是纯标准库脚本，几秒跑完，不需要 API Key：
 
 ```bash
-python -m pytest skills/seedance-relay-producer/tests -q   # 段→伪页映射/锚点/QA 聚合/漂移/水印
+python -m pytest skills/picturebook-scene-grouper/tests skills/picturebook-scene-director/tests skills/seedance-relay-producer/tests -q   # 32 条：分场/机位/时间轴 + 分镜契约 + 段映射/锚点/QA/漂移/水印
 ```
 
 ## 5. 已知限制
