@@ -1,0 +1,128 @@
+{
+  "book_id": "en02",
+  "script": "纸书智伴企业预选赛绘本素材\\绘本素材\\英文绘本02.txt",
+  "note": "官方底线：只点这些固定元素；圆圈只画在播放器 UI 层，不进成片。",
+  "needs_spots": true,
+  "items": [
+    {
+      "n": 4,
+      "kind": "click",
+      "target": "蝙蝠翅膀",
+      "required": false,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 6,
+      "kind": "highlight_text",
+      "target": "文字“bats",
+      "required": false,
+      "matched": true,
+      "page": "p04",
+      "spot": "Bats are so cool they live in dark,",
+      "box": [
+        133.88819999999998,
+        247.1214,
+        663.573,
+        282.2592
+      ],
+      "pages": [
+        "p04",
+        "p05",
+        "p08",
+        "p21"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 7,
+      "kind": "click",
+      "target": "熊猫右眼",
+      "required": true,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 19,
+      "kind": "click",
+      "target": "骆驼身上的小老鼠",
+      "required": true,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 23,
+      "kind": "highlight_text",
+      "target": "文字“camels",
+      "required": false,
+      "matched": true,
+      "page": "p11",
+      "spot": "I really like camels ... they are so tall!",
+      "box": [
+        199.6098,
+        567.9888,
+        748.659,
+        600.813
+      ],
+      "pages": [
+        "p11"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 27,
+      "kind": "click",
+      "target": "章鱼眼睛",
+      "required": false,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 34,
+      "kind": "click",
+      "target": "青蛙",
+      "required": false,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 45,
+      "kind": "highlight_text",
+      "target": "文字“butterflies",
+      "required": false,
+      "matched": true,
+      "page": "p23",
+      "spot": "Yes, Jenny, I really like butterflies",
+      "box": [
+        182.5926,
+        131.4414,
+        673.7442,
+        166.5792
+      ],
+      "pages": [
+        "p23"
+      ],
+      "desc": "OCR 行"
+    }
+  ]
+}

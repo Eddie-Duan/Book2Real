@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import shutil
 from pathlib import Path
@@ -30,41 +29,25 @@ DEFAULT_STYLE_DNA = (
     "构图、主体比例与背景布局沿用首帧参考图。"
 )
 DEFAULT_NEGATIVE = (
-    "文字, 字幕, 音效字, 手写字, 水印, logo, 台标, 边框, 多余人物, 多余动物, "
-    "现代物品, 写实照片, 3D 渲染感, 变形, 扭曲, 闪烁, 缺肢"
+    "文字, 字幕, 音效字, 手写字, 页码, 水印, logo, 台标, 边框, 纸张, 书页, 翻页, "
+    "拍摄反光, 折痕, 多余人物, 多余动物, 现代物品, 写实照片, 3D 渲染感, 变形, 扭曲, 闪烁, 缺肢"
 )
 
-
-def _load_camera_language():
-    """复用分场 skill 的摄影机语言；找不到就退回内置的极简排布。"""
-    p = REPO / "skills" / "picturebook-scene-grouper" / "scripts" / "camera_language.py"
-    if not p.is_file():
-        return None
-    spec = importlib.util.spec_from_file_location("camera_language", p)
-    if spec is None or spec.loader is None:
-        return None
-    mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(mod)
-    except Exception:
-        return None
-    return mod
-
-
-CAM = _load_camera_language()
+# 机位政策（2026-11-24，见 docs/CONSTRAINTS.md）：严格静态锁定。
+# 与 seedance-relay-producer/scripts/qc.py 的 zoom_check（尺度偏差 >4% 判 ZOOM_DRIFT）一致，
+# 也与 picturebook-scene-director 末尾的 [Camera Lock] 同义——不许出现推/拉/摇/移。
+CAMERA_LOCK = (
+    "[Camera Lock]: locked-off static camera. No zoom in/out, no dolly, no push-in or "
+    "pull-out, no pan, no tilt, no framing change; every character and prop keeps a "
+    "constant on-screen size and position. Only subtle in-place motion is allowed "
+    "(breathing, blink, cloth, hair, light)."
+)
+STATIC_CAMERA = ("镜头：固定机位、平视、静态构图；机位与取景全程不变，"
+                 "人物与道具在屏幕上的尺寸和位置恒定，不做剪辑。")
 
 
 def camera_line(n_shots: int, scene_no: int, has_chars: bool) -> str:
-    if CAM is not None:
-        try:
-            cams = CAM.plan_camera(n_shots, scene_no)
-            return CAM.camera_sentence(cams[0], has_chars)
-        except Exception:
-            pass
-    move = ["缓慢推近", "向左横摇", "缓慢拉远", "跟随主体移动"][(scene_no - 1) % 4]
-    action = ("人物自然动作：呼吸、眨眼、轻微重心转移；表情克制"
-              if has_chars else "环境微动：光影与纸张纹理缓慢变化，主体轮廓保持稳定")
-    return f"镜头：中景、平视机位、{move}（慢速）；{action}；不做剪辑、不换机位。"
+    return STATIC_CAMERA
 
 
 def load_book(book_arg: str | None, pages_dir: Path, pages: list[str]) -> tuple[dict, dict]:
@@ -159,7 +142,14 @@ def build_prompt(seg: dict, scene_no: int, text: str, anchors: list[str], style_
     sections.append(f"[Subject Motion] {subject}")
 
     sections.append(f"[Environment & Style] {style_dna}背景与本段首帧一致，"
-                    "不随意更换地点、季节、天气与家具摆位。")
+                    "不随意更换地点、季节、天气与家具摆位。"
+                    "场景锁定：全段只发生在首帧这一处场景内，不切换房间/地点/时间/光线方向。")
+
+    cast = ("[Cast Lock] 出场角色仅限首帧里已经出现的人物与动物，数量、位置、朝向不变；"
+            "不得新增任何人物、动物、车辆或现代物品，不得出现第二处场景。")
+    if anchors:
+        cast += "本段锁定：" + "、".join(a.split("（")[0] for a in anchors) + f"（共 {len(anchors)} 个）。"
+    sections.append(cast)
 
     lock = "严格从给定首帧参考图开始，不淡入、不改构图；"
     if last.get("source"):
@@ -173,6 +163,8 @@ def build_prompt(seg: dict, scene_no: int, text: str, anchors: list[str], style_
     sections.append(f"[Transition/Continuity Lock] {lock}")
 
     sections.append(f"[Negative Constraints] {DEFAULT_NEGATIVE}")
+    # 尾部固定 Camera Lock（picturebook-pipeline 的 S2 门禁要求"逐段 prompt 尾部都有 [Camera Lock]"）
+    sections.append(CAMERA_LOCK)
 
     text_out = "\n".join(sections)
     if len(text_out) > PROMPT_CHAR_LIMIT:

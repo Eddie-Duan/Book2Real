@@ -1,8 +1,15 @@
 # 硬约束：视频交付路径（CONSTRAINTS）
 
-> **状态**：2026-11-23 定稿。分支 `feat/skills-tuning`。
+> **状态**：2026-11-23 定稿，2026-11-24 补分支与机位决议。分支 `feat/picturebook-skills`（主线）。
 > **优先级**：官方硬指标（`docs/OFFICIAL_REQUIREMENTS.md`）> 本文件 > 其他设计文档。
 > 与本文件冲突的旧结论，以本文件为准并就地改文档；不得再拿旧结论回来讨论。
+
+## 0. 2026-11-24 两条决议
+
+| 决议 | 内容 |
+|---|---|
+| **唯一入口** | `skills/picturebook-pipeline`（三棒：去字 → 分镜 → 生成拼接）。它的四道硬门（zoom / 时长 / 文字 / 转场审计）就是交付门禁。`living-picturebook` 降为**工具库**（旁白、页时间码、五段式提示词增强），不再当入口 |
+| **机位政策** | **严格静态**：`qc.py` 的 `zoom_check` 阈值 4%，尺度偏差超了判 `ZOOM_DRIFT` 打回重生成。提示词里只许写静态锁定 + `[Camera Lock]`，**不许出现推近/拉远/横摇/俯仰/换机位**（电影语言那版已作废） |
 
 ## 1. 一句话
 
@@ -24,9 +31,10 @@
 
 | 要素 | 必须做到 | 验收 |
 |---|---|---|
+| 关键帧（新增） | **整帧读不出字**才算干净；页脚/页码/水印一律不许留 | `qa_report.text_gate.passed = true`；`run_pipeline` 在 S1 出口直接拦 |
 | 场景判定 | 每页都被分进某段；跨 2–3 页连续情节合并；段时长只能是 5/10 s | `scene_plan.json` 段数 = 页覆盖，`needs_human_review` 为空 |
-| 场景转换 | 每条接缝有明确判定（CONTINUOUS / MATCH_CUT / HARD_CUT / DESIGNED_TRANSITION），要转场就给共享桥接帧 | `seam_decisions.json` 无空判定；成片接缝 SSIM ≥ 0.88 |
-| 人物与背景一致性 | ① 提示词带**角色锚点**（姓名/身份/外观，整段不许换人改龄）② 双锚定锁首尾帧 ③ 段内一致性要有量化值，无模型时必须显式标 `DEGRADED`，不许静默 PASS | `prompts/seg_###_prompt.txt` 含 `[Transition/Continuity Lock]` + 角色锚点；`qc.json` 的 `temporal_consistency` 不是"跳过即通过" |
+| 场景转换 | **禁止压暗/模糊的"桥接帧"**（成片里就是原书页闪一下）；一律改成后期 0.6s 交叉溶解 + 动作切 | `scene_plan.concat_plan` 里该接缝 `cut=xfade`；`concat_audit.json` 的 `hard_cut_ratio` < 1 |
+| 人物与背景一致性 | ① 提示词带**角色锚点** + `[Cast Lock]`（只许首帧里的角色，不许新增）② `[Scene Lock]`（不换场景/时间/光线）③ 段内一致性要有量化值，无模型时必须显式标 `DEGRADED`，不许静默 PASS | `prompts/seg_###_prompt.txt` 含 `[Cast Lock]` / `[Scene Lock]` / 尾部 `[Camera Lock]`；`qc.json` 的 `temporal_consistency` 不是"跳过即通过" |
 | 旁白 | 由 `build_audio_plan → build_narration` 出轨，`concat` 铺进成片；音轨必须非静音 | `ffprobe` 有 aac 流；`volumedetect` 峰值 > −6 dB（不能是 anullsrc 的 −91 dB） |
 
 ## 4. 已知代价（算过账，接受）

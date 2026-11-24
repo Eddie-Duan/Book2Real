@@ -1,0 +1,175 @@
+{
+  "book_id": "en01",
+  "script": "纸书智伴企业预选赛绘本素材\\绘本素材\\英文绘本01.txt",
+  "note": "官方底线：只点这些固定元素；圆圈只画在播放器 UI 层，不进成片。",
+  "needs_spots": false,
+  "items": [
+    {
+      "n": 4,
+      "kind": "click",
+      "target": "电影海报",
+      "required": true,
+      "matched": true,
+      "page": "p02",
+      "spot": "Film poster",
+      "box": [
+        0.02,
+        0.15,
+        0.72,
+        0.63
+      ],
+      "pages": [
+        "p02",
+        "p03"
+      ],
+      "desc": "A yellow film poster that says Kung Fu, with a man holding a long stick."
+    },
+    {
+      "n": 6,
+      "kind": "highlight_text",
+      "target": "文字“Kung Fu",
+      "required": true,
+      "matched": true,
+      "page": "p02",
+      "spot": "Kung Fu",
+      "box": [
+        256.3338,
+        671.0886,
+        670.419,
+        1058.7612
+      ],
+      "pages": [
+        "p02"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 12,
+      "kind": "click",
+      "target": "机器人",
+      "required": false,
+      "matched": true,
+      "page": "p07",
+      "spot": "Robot",
+      "box": [
+        0.44,
+        0.35,
+        0.52,
+        0.58
+      ],
+      "pages": [
+        "p07",
+        "p08",
+        "p11",
+        "p14",
+        "p16",
+        "p27"
+      ],
+      "desc": "A big round blue robot with an antenna and round mechanical eyes."
+    },
+    {
+      "n": 21,
+      "kind": "click",
+      "target": "游戏机",
+      "required": true,
+      "matched": true,
+      "page": "p10",
+      "spot": "Arcade machine",
+      "box": [
+        0.11,
+        0.32,
+        0.57,
+        0.65
+      ],
+      "pages": [
+        "p10"
+      ],
+      "desc": "An arcade machine with blocks on the screen and the score 360."
+    },
+    {
+      "n": 27,
+      "kind": "click",
+      "target": "爆米花",
+      "required": false,
+      "matched": true,
+      "page": "p07",
+      "spot": "Popcorn",
+      "box": [
+        0.72,
+        0.6,
+        0.14,
+        0.16
+      ],
+      "pages": [
+        "p07",
+        "p08",
+        "p12",
+        "p13",
+        "p22"
+      ],
+      "desc": "A tub of popcorn with the word popcorn on the box."
+    },
+    {
+      "n": 29,
+      "kind": "highlight_text",
+      "target": "文字“POPCORN",
+      "required": false,
+      "matched": true,
+      "page": "p08",
+      "spot": "PPOPCORN",
+      "box": [
+        148.5582,
+        1085.946,
+        424.25640000000004,
+        1426.0452
+      ],
+      "pages": [
+        "p08",
+        "p12",
+        "p13",
+        "p14"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 40,
+      "kind": "click",
+      "target": "汽车",
+      "required": false,
+      "matched": true,
+      "page": "p24",
+      "spot": "Talking car",
+      "box": [
+        0.31,
+        0.13,
+        0.68,
+        0.36
+      ],
+      "pages": [
+        "p24",
+        "p25"
+      ],
+      "desc": "A purple car on the screen with eyes and a big toothy smile."
+    },
+    {
+      "n": 44,
+      "kind": "highlight_text",
+      "target": "文字“KARATE",
+      "required": false,
+      "matched": true,
+      "page": "p24",
+      "spot": "and a car that knows karate. In other words",
+      "box": [
+        129.29160000000002,
+        1132.5072,
+        770.175,
+        1165.3314
+      ],
+      "pages": [
+        "p24",
+        "p25"
+      ],
+      "desc": "OCR 行"
+    }
+  ]
+}

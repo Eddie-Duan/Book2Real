@@ -274,6 +274,37 @@ def ocr_residual_count(img: np.ndarray, boxes: list, sx: float, sy: float) -> tu
     return len(hits), hits
 
 
+def full_frame_text_hits(img: np.ndarray, *, min_score: float = 0.5) -> list[dict]:
+    """整帧 OCR：不依赖已知文本框，回答"这张关键帧里还能不能读出字"。
+
+    旧实现只用原始 ``text_boxes`` 判残字——页脚（汉字源流／阅读指导）、页码和半透明
+    水印根本不在框里，于是永远是 0 残留、永远 PASS，而成片里这些字会被 Seedance
+    原样"动"起来，观众看到的就是"原书页在动"。这里改成整帧读字，读不出来才算干净。
+    """
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+    except Exception:
+        return []
+    global _OCR
+    try:
+        _OCR
+    except NameError:
+        _OCR = RapidOCR()
+    res, _ = _OCR(img)
+    out: list[dict] = []
+    for item in res or []:
+        pts, text, score = item[0], str(item[1] or "").strip(), float(item[2])
+        if score < min_score or not text:
+            continue
+        if not any(ch.isalnum() or "\u4e00" <= ch <= "\u9fff" for ch in text):
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        out.append({"box": [float(min(xs)), float(min(ys)), float(max(xs)), float(max(ys))],
+                    "text": text, "score": round(score, 3)})
+    return out
+
+
 def pad_to_ratio(img: Image.Image, ratio: float, bg: tuple[int, int, int]) -> Image.Image:
     """把页图放进固定宽高比的画布（居中、留边），保证整本条段尺寸一致。"""
     w, h = img.size
@@ -357,14 +388,42 @@ def main() -> int:
         img_path, src_tag = page_image(book_dir, page, prefer_art=a.prefer_art)
         orig_img = Image.open(img_path).convert("RGB")
         w0, h0 = orig_img.size
+        src_w, src_h = w0, h0
         orig = np.asarray(orig_img)
+        crop = (0, 0, w0, h0)
+        if not a.prefer_art:
+            crop = content_crop_box(orig)
+            cx0, cy0, cx1, cy1 = crop
+            if (cx0, cy0, cx1, cy1) != (0, 0, w0, h0):
+                orig = np.ascontiguousarray(orig[cy0:cy1, cx0:cx1])
+                orig_img = Image.fromarray(orig)
+                work_img = pdir / "_work_page.png"
+                orig_img.save(work_img)
+                img_path = work_img
+                w0, h0 = orig_img.size
 
         boxes = page.get("text_boxes") or [(l.get("box") or []) for l in (page.get("ocr_lines") or [])]
         boxes = [[float(v) for v in b] for b in boxes if isinstance(b, (list, tuple)) and len(b) == 4]
+        if crop != (0, 0, src_w, src_h):
+            ox, oy = crop[0], crop[1]
+            shifted = []
+            for b in boxes:
+                x0, y0 = max(0.0, b[0] - ox), max(0.0, b[1] - oy)
+                x1, y1 = min(float(w0), b[2] - ox), min(float(h0), b[3] - oy)
+                if x1 - x0 > 2 and y1 - y0 > 2:
+                    shifted.append([x0, y0, x1, y1])
+            boxes = shifted
         # Watermarks / faint overlays are invisible to the raw OCR pass; read them
         # on the background-subtracted image and mask them too.
         faint = faint_text_hits(orig)
         boxes = merge_boxes(boxes, [h["box"] for h in faint])
+        # 白边上的字先涂白（修补在白边上只会留灰补丁），插画上的字留给修补
+        if not a.prefer_art and boxes:
+            orig, boxes = whiten_flat_boxes(orig, boxes)
+            orig_img = Image.fromarray(orig)
+            work_img = pdir / "_work_page.png"
+            orig_img.save(work_img)
+            img_path = work_img
 
         blocks_json = pdir / "text_boxes.json"
         blocks_json.write_text(
@@ -445,6 +504,44 @@ def main() -> int:
                     break
             mask_png.unlink(missing_ok=True)
 
+        # ---- 整帧文字闸门（2026-11-24）----
+        # 只看已知文本框会自证清白：页脚（汉字源流／阅读指导）、页码、半透明水印都不在框里，
+        # 判 PASS 之后它们会被 Seedance 原样动起来 —— 这就是"成片里穿插原书页"的根因。
+        # 这里改成：整帧读不出字才算干净，读得出来就再补几轮掩膜，仍读得出就判 FAIL（不许往下游走）。
+        text_gate = {"passed": None, "count": None, "sample": [], "engine": "rapidocr", "rounds": []}
+        if not a.prefer_art:
+            hits = full_frame_text_hits(out)
+            for round_no in range(3):
+                if not hits:
+                    break
+                m = np.zeros((h0, w0), dtype=np.uint8) if mask_used is None else np.array(mask_used, copy=True)
+                for h in hits:
+                    x0, y0, x1, y1 = [int(round(v)) for v in h["box"]]
+                    x0, y0 = max(0, x0 - 5), max(0, y0 - 5)
+                    x1, y1 = min(w0, x1 + 5), min(h0, y1 + 5)
+                    m[y0:y1, x0:x1] = 255
+                    # 页脚/页码落在白边里：修补会把白边涂成灰补丁，直接补成纸白更干净
+                    g = np.asarray(Image.fromarray(out).convert("L")) if isinstance(out, np.ndarray) else out
+                    pad = 8
+                    ry0, ry1 = max(0, y0 - pad), min(h0, y1 + pad)
+                    rx0, rx1 = max(0, x0 - pad), min(w0, x1 + pad)
+                    ring = g[ry0:ry1, rx0:rx1].copy()
+                    ring[max(0, y0 - ry0):max(0, y1 - ry0), max(0, x0 - rx0):max(0, x1 - rx0)] = 0
+                    vals = ring[ring > 0]
+                    if vals.size and float(np.median(vals)) >= 238 and float(np.std(vals)) <= 8:
+                        out[y0:y1, x0:x1] = int(np.median(vals))
+                out = inpaint_clean(out, m, radius=5 + round_no)
+                mask_used = m
+                hits = full_frame_text_hits(out)
+                text_gate["rounds"].append({"round": round_no + 1, "left": len(hits)})
+            kf = finalize(out)
+            kf.save(pdir / "clean_keyframe.png", format="PNG")
+            text_gate.update({
+                "passed": len(hits) == 0,
+                "count": len(hits),
+                "sample": [h["text"][:20] for h in hits[:5]],
+            })
+
         # 指标：用最终结果重算，不用中间轮次的
         res_count = 0
         if boxes:
@@ -475,6 +572,11 @@ def main() -> int:
             problems.append("文字框越界")
         if src_tag == "page" and not boxes:
             problems.append("页图带字但没有文字框，无法判定是否清干净")
+        if text_gate.get("passed") is False:
+            problems.append(
+                f"整帧仍能读出 {text_gate['count']} 处文字："
+                + " / ".join(text_gate.get("sample") or [])[:80]
+            )
 
         qa = {
             "qa_verdict": "PASS" if not problems else "FAIL",
@@ -483,7 +585,8 @@ def main() -> int:
             "protected_zone_intrusion_px": intrusion,
             "checks": {
                 "keyframe_size": list(kf.size),
-                "source_size": [w0, h0],
+                "source_size": [src_w, src_h],
+                "crop_box": list(crop),
                 "text_box_count": len(boxes),
                 "faint_text_boxes": len(faint),
                 "faint_text_after_clean": len(faint_left),
@@ -495,6 +598,7 @@ def main() -> int:
                 "mask": "s1_stroke_mask" if boxes and mask.any() else ("fallback_box_mask" if boxes else "none"),
             },
             "problems": problems,
+            "text_gate": text_gate,
         }
         (pdir / "qa_report.json").write_text(json.dumps(qa, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
