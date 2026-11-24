@@ -29,12 +29,14 @@
 | S1 | `picturebook-to-seedance` | 单页扫描图 + 文字块坐标 | `clean_keyframe.png` / `page_manifest.json` / `qa_report.json` / `seedance_prompt.txt` | 把文字从画面里"拿走"，同时保证其它像素不变 |
 | S2 | `picturebook-scene-director` | `pages/` 目录 | `scene_plan.json` / `bridge/T_*.png` / `prompts/seg_###_prompt.txt` | 决定切段、合并、接缝类型、锚点 |
 | S3 | `seedance-relay-producer` | `scene_plan.json`（`--plan`） | `seg_###/clip.mp4` / `qc.json` / `final_movie.mp4` / `concat_audit.json` | 调 Ark Seedance、逐段门禁（zoom/时长/文字/水印/接缝）、拼成一条 |
-| **总装** | `picturebook-pipeline` | `pages/` | 全程门禁 + `final_movie.mp4` | **唯一编排入口**：只管顺序、交接契约、花钱闸门与失败回退，三棒逻辑一行不复制 |
+| **总装（固定机位）** | `picturebook-pipeline` | `pages/` | 全程门禁 + `final_movie.mp4` | 三棒固定机位入口：只管顺序、交接契约、花钱闸门与失败回退 |
+| **总装（物理运镜 + 连续长镜头）** | `picturebook-one-take` | `books/<id>` | `final_movie.mp4` / `shot_script.json` / `gate_report.json` | 2026-11-25 新增：Seedream 全幅场景板 → Seedance 首帧 + extension 链 → 无损接带；物理机位、禁数字 zoom、原生旁白对白 |
 | S0 可选 | `picturebook-scene-grouper` | `books/<id>/reader/book.json` | `scene_plan.json` / `prompts.json` / `audio_plan.json` | **按文本**先把页聚成场景（官方 Q33），并出旁白计划 |
 | 旁路 | `ai-video-prompt-architect` | 交互层提示词需求 | 提示词参考 | 只服务交互层，不参与视频链路 |
 
-`picturebook-pipeline` 是唯一的编排入口：它固定 S1→S2→S3，在每个门禁处停下确认，不新增处理层。
-旁路的 `ai-video-prompt-architect` 只服务交互层提示词，不进这条链。
+`picturebook-pipeline` 是三棒固定机位入口：它固定 S1→S2→S3，在每个门禁处停下确认。
+`picturebook-one-take` 是 2026-11-25 新增的连续长镜头入口：需要"镜头按情节移动、但不许 zoom 画面整体缩放"时走它；两者都只吃 `books/<id>`，产物分别在 `runs/<id>/one_take` 与 `book_out/`。
+旁路的 `ai-video-prompt-architect` 只服务交互层提示词，不进这两条链。
 
 ## 3. 怎么跑
 

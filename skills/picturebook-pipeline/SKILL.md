@@ -28,6 +28,8 @@ pages/page_###/ 四件套      book_out/scene_plan.json        book_out/relay/fi
 （7）成片验收五条硬门，缺一条不算交付：① `qc.json` 的 `zoom_check` PASS（无推近/拉远，元素屏上尺寸恒定）；② `text_zero_check` 与 `watermark_check` PASS，且逐页 `read_image` 复核无普通字/艺术字/页码/水印/淡字，S1 的水印 mask 检查（`watermark_removed`）也要过；③ `page_duration` PASS，每页屏上时长 ≥1s；④ `motion_check` PASS（动作是完整可见的，不是微动/慢动作/定格幻灯片）；⑤ `concat_audit.json` 的 `transition_audit_ok == true` 且不是全硬切——S2 的 `transition_gate` 必须 PASS。
 （8）**这就是官方交付路径**：成片只能由本链的 Seedance 生成；`book2real/storyfilm.py` 的 2.5D 成片不得提交（见 `docs/CONSTRAINTS.md`）。
 （9）**机位严格静态**：`zoom_check` 阈值 4%；提示词里不许出现推近/拉远/横摇/俯仰/换机位，段尾固定 `[Camera Lock]`。相机锁死不等于动作锁死——人物动作必须完整可见（`[Motion]` + `motion_check`）。
+
+> 2026-11-25 补充：本链是**固定机位**路径。需要"镜头按情节物理移动、但不许 zoom 画面整体缩放"时，走 `picturebook-one-take`（见 `docs/CONSTRAINTS.md` §0.1），不要在本链里松开 `[Camera Lock]`。
 （10）**成片必须带旁白**：静音轨（anullsrc −91 dB）不算交付，见 §6.1。
 
 ## 2. 目录与产物
