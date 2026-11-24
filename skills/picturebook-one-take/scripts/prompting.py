@@ -25,7 +25,7 @@ CAMERA_LOCK = """[Camera Lock]
 不要用连续推拉从特写拉到全景；近景/特写一律用切镜。
 """
 
-def _props_lines(chunk: dict, bible: dict) -> str:
+def _props_lines(chunk: dict, bible: dict, prop_map: dict[str, int] | None = None) -> str:
     ids = set(chunk.get("props") or [])
     pages = set(chunk.get("pages") or [])
     props = []
@@ -40,7 +40,9 @@ def _props_lines(chunk: dict, bible: dict) -> str:
                      "禁止把绿色长方体变成红色三角，禁止替换/新增道具。"
                      "所有屏幕、包装、招牌、海报上不得出现任何文字、字母、数字。")
         for p in props:
-            lines.append(f"- {p['name']}：{p['look']}")
+            idx = (prop_map or {}).get(p["id"])
+            tag = f"（参考图片{idx}）" if idx else ""
+            lines.append(f"- {p['name']}{tag}：{p['look']}")
     return "\n".join(lines)
 
 
@@ -60,7 +62,7 @@ def _voice_lock(chunk: dict, bible: dict) -> str:
 
 AUDIO_CONTINUITY = """[Audio Continuity]
 每个镜头的旁白/对白必须说完完整一句；段尾说完后留 0.4–0.6 秒静音或环境音，不要在半句时切断；下一段从完整句子开始。
-段尾不要淡出/黑场，最后一帧保持正常亮度；下一段开头直接接这一帧。"""
+最后一句在本段第 27 秒前说完，27–30 秒只留环境音/静音，不要再说话；段尾不要淡出/黑场，最后一帧保持正常亮度；下一段开头直接接这一帧。"""
 
 
 
@@ -126,7 +128,8 @@ def _self_check(chunk: dict, bible: dict) -> str:
 
 def build_prompt(chunk: dict, bible: dict, image_map: dict[str, int] | None = None,
                  previous_failures: list[dict] | None = None,
-                 location_ref: int | None = None) -> str:
+                 location_ref: int | None = None,
+                 prop_map: dict[str, int] | None = None) -> str:
     image_map = image_map or {}
     style = bible.get("style") or {}
     parts: list[str] = ["画面无任何字幕、文字、水印、logo。"]
@@ -136,7 +139,7 @@ def build_prompt(chunk: dict, bible: dict, image_map: dict[str, int] | None = No
     parts.append(IRON_RULES)
     parts.append(f"[Style]\n{style.get('prompt', '')}\n负向：{style.get('negative', '')}")
     parts.append(_cast_lines(chunk, bible, image_map))
-    parts.append(_props_lines(chunk, bible))
+    parts.append(_props_lines(chunk, bible, prop_map))
     scene = [f"地点：{chunk.get('location_name') or chunk.get('location') or ''}",
              f"页：{'、'.join(chunk.get('pages') or [])}"]
     if chunk.get("scene_note"):
@@ -158,7 +161,8 @@ def build_prompt(chunk: dict, bible: dict, image_map: dict[str, int] | None = No
 
 def write_prompts(script: dict, bible: dict, out_dir: str | Path,
                   image_maps: dict[str, dict[str, int]] | None = None,
-                  location_refs: dict[str, int] | None = None) -> dict:
+                  location_refs: dict[str, int] | None = None,
+                  prop_maps: dict[str, dict[str, int]] | None = None) -> dict:
     out = Path(out_dir) / "prompts"
     out.mkdir(parents=True, exist_ok=True)
     chars = {c["id"]: c for c in bible.get("characters", [])}
@@ -168,7 +172,8 @@ def write_prompts(script: dict, bible: dict, out_dir: str | Path,
         c["_names"] = {cid: ch["name"] for cid, ch in chars.items()}
         c["_voices"] = {cid: ch.get("voice", "") for cid, ch in chars.items()}
         prompt = build_prompt(c, bible, image_map=(image_maps or {}).get(c["id"], {}),
-                              location_ref=(location_refs or {}).get(c["id"]))
+                              location_ref=(location_refs or {}).get(c["id"]),
+                              prop_map=(prop_maps or {}).get(c["id"], {}))
         p = out / f"{c['id']}.txt"
         p.write_text(prompt, encoding="utf-8")
         written[c["id"]] = str(p)

@@ -35,6 +35,21 @@ def _cast_images(chunk: dict, out: Path, manifest: dict) -> tuple[list[Path], di
     return paths, mapping
 
 
+
+
+def _prop_images(chunk: dict, out: Path, bible: dict) -> tuple[list[Path], dict[str, int]]:
+    props = {p["id"]: p for p in bible.get("props") or []}
+    paths, mapping = [], {}
+    pids = list(chunk.get("props") or []) or [p["id"] for p in (bible.get("props") or [])
+            if set(chunk.get("pages") or []).intersection(p.get("pages") or [])]
+    for pid in pids:
+        ref = (props.get(pid) or {}).get("ref")
+        if ref and (out / ref).exists() and (out / ref) not in paths:
+            mapping[pid] = len(paths) + 1
+            paths.append(out / ref)
+    return paths, mapping
+
+
 def _create(payload: dict) -> dict:
     status, data = ark_post("/contents/generations/tasks", payload, timeout=90)
     if status != 200 or not data.get("id"):
@@ -61,6 +76,8 @@ def generate_chunk(chunk: dict, bible: dict, out: Path, manifest: dict,
                    prev: Path | None, prev_url: str | None, resolution: str,
                    failures: list[dict] | None = None, attempt: int = 1) -> dict:
     cast_imgs, image_map = _cast_images(chunk, out, manifest)
+    prop_imgs, prop_map_rel = _prop_images(chunk, out, bible)
+    prop_map = {k: len(cast_imgs) + v for k, v in prop_map_rel.items()}
     plate = None
     if chunk.get("first_frame"):
         plate = _asset_path(out, manifest, chunk["first_frame"])
@@ -68,8 +85,8 @@ def generate_chunk(chunk: dict, bible: dict, out: Path, manifest: dict,
     location_img = None
     if chunk.get("location_ref"):
         location_img = _asset_path(out, manifest, chunk["location_ref"])
-        location_ref = len(cast_imgs) + 1
-    prompt = build_prompt(chunk, bible, image_map, failures, location_ref)
+        location_ref = len(cast_imgs) + len(prop_imgs) + 1
+    prompt = build_prompt(chunk, bible, image_map, failures, location_ref, prop_map)
     # write the exact prompt used for audit + lint
     pdir = out / "prompts"; pdir.mkdir(parents=True, exist_ok=True)
     (pdir / f"{chunk['id']}_attempt{attempt}.txt").write_text(prompt, encoding="utf-8")
@@ -84,6 +101,8 @@ def generate_chunk(chunk: dict, bible: dict, out: Path, manifest: dict,
             raise RuntimeError("extension needs previous video URL; previous result has no URL")
         content.append({"type": "video_url", "video_url": {"url": prev_url}, "role": "reference_video"})
         for p in cast_imgs:
+            content.append({"type": "image_url", "image_url": {"url": data_url(p)}, "role": "reference_image"})
+        for p in prop_imgs:
             content.append({"type": "image_url", "image_url": {"url": data_url(p)}, "role": "reference_image"})
         if location_img is not None:
             content.append({"type": "image_url", "image_url": {"url": data_url(location_img)}, "role": "reference_image"})

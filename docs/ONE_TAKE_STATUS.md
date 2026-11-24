@@ -84,7 +84,7 @@ python -m book2real cloud --check
 
 ## 10. 当前阻塞
 
-火山 Ark 账号返回 `403 AccountOverdueError`；Seedance/Seedream 都不能再发。需要充值（≥100 元留余量）后只重跑 chunk_05，再 assemble + verify。
+~~火山 Ark 账号返回 `403 AccountOverdueError`~~ → 2026-11-25 已充值并完成 cn01 / en01 两条片。
 ## 11. 2026-11-25 新口径：训练一律 480p
 
 - 训练/排练/提示词验证：`--resolution 480p`（Seedance 2.5 flash 输出 854×480；约半价）。
@@ -121,3 +121,9 @@ python -m book2real cloud --check
 | 风格误报 | 单帧 `style_min` 太低（ popcorn 特写） | 改为只看 `style_mean < 0.22`；单帧只记录不判失败 |
 | 自动返修烧钱 | `--attempts` 默认 3 | 默认 **1**；`--max-cny` 从 `cost.csv` 累计已花，超了直接停 |
 | 人物张冠李戴 | 视觉模型把 Kuan/Dad 认反 | 视觉只提供画风/道具/地点；角色身份/声线以 `book.json` 为准，视觉不改名不加人 |
+## 15. 2026-11-25 cn01 完成（720p / 150.08s）
+
+- `runs/cn01/one_take/final_movie.mp4`：5 段全部 PASS，1280×720 / 24 fps / 有声 / 150.08s；
+- chunk_05 的返修根因：① 音频 10 句太密，段尾还在说话 → 减到 8 句 + "第 27 秒前说完"；② 积木城堡道具漂移 → **道具参考图**。
+- 通用修改：`bible.props[].ref` 指定道具参考图，`generate.py` 把它作为 `reference_image` 发给 Seedance，`[Props]` 里标"参考图片N"；不是只对积木有效，en01 的爆米花/机器人/座椅也走同一机制。
+- 两条片状态：cn01 720p 交付 PASS；en01 480p 训练 PASS（180.08s）。

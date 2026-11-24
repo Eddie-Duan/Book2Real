@@ -107,9 +107,10 @@ def cmd_preflight(args):
 
 def _prompt_maps(script, bible, out):
     manifest = jread(out / "assets" / "assets.json")
-    maps, locs = {}, {}
+    maps, locs, pmaps = {}, {}, {}
+    props = {p["id"]: p for p in bible.get("props") or []}
     for c in script["chunks"]:
-        m = {}
+        m, pm = {}, {}
         n = 0
         # first-frame chunks do not send character reference images
         if not c.get("first_frame"):
@@ -117,17 +118,27 @@ def _prompt_maps(script, bible, out):
                 if (out / f"assets/head_{cid}.png").exists():
                     n += 1
                     m[cid] = n
+            seen_refs = set()
+            pids = list(c.get("props") or []) or [p["id"] for p in (bible.get("props") or [])
+                    if set(c.get("pages") or []).intersection(p.get("pages") or [])]
+            for pid in pids:
+                ref = (props.get(pid) or {}).get("ref")
+                refp = (out / ref) if ref else None
+                if refp is not None and refp.exists() and str(refp) not in seen_refs:
+                    pm[pid] = n + len(pm) + 1
+                    seen_refs.add(str(refp))
         maps[c["id"]] = m
-        if c.get("location_ref") and n >= 0:
-            locs[c["id"]] = n + 1
-    return manifest, maps, locs
+        pmaps[c["id"]] = pm
+        if c.get("location_ref"):
+            locs[c["id"]] = n + len(pm) + 1
+    return manifest, maps, locs, pmaps
 
 
 def cmd_prompts(args):
     out, bible, script = _paths(args)
     if not bible or not script:
         print("need bible.json + shot_script.json"); return 1
-    manifest, maps, locs = _prompt_maps(script, bible, out)
+    manifest, maps, locs, pmaps = _prompt_maps(script, bible, out)
     # replace logical first_frame with the real plate path for prompt readability
     for c in script["chunks"]:
         ff = c.get("first_frame")
@@ -135,7 +146,7 @@ def cmd_prompts(args):
             entry = manifest.get(f"plate_{ff}") or {}
             if entry.get("plate"):
                 c["first_frame"] = entry["plate"]
-    write_prompts(script, bible, out, maps, locs)
+    write_prompts(script, bible, out, maps, locs, pmaps)
     lint = lint_all(out / "prompts", script, bible)
     jwrite(out / "prompt_lint.json", lint)
     print(f"prompts: {len(script['chunks'])} written; lint {'PASS' if lint['passed'] else 'FAIL'}")
