@@ -82,12 +82,15 @@ python skills/seedance-relay-producer/scripts/poll_download.py \
 ```bash
 python skills/picturebook-scene-grouper/scripts/group_scenes.py \
   --book books/cn01 --out .tmp/scene_plan_cn01.json --pages-dir .tmp/skill_pages
+python skills/picturebook-scene-director/scripts/plan_scenes.py \
+  --pages-dir .tmp/skill_pages --out-dir book_out \
+  --scene-groups .tmp/scene_plan_cn01.json   # 文本分场只约束“同场才许合并”
 python skills/picturebook-scene-grouper/scripts/build_prompts.py \
   --book books/cn01 --scene-plan .tmp/scene_plan_cn01.json \
   --pages-dir .tmp/skill_pages --out .tmp/prompts_cn01.json
 ```
 
-输出写 `.tmp/`，不要覆盖 S2 的 `book_out/scene_plan.json`（同名不同 schema）。分组规则：续页不切 / 时间地点词切 / 角色全换切 / 场长 ≤3 页；镜头机位恒为固定（不推拉摇移），人物动作要求完整可见、正常速度。段生成后的 QC 由 `seedance-relay-producer/qc.py` 逐段产出。
+scene_plan 写 `.tmp/`，不要覆盖 S2 的 `book_out/scene_plan.json`（同名不同 schema）；S2 用 `--scene-groups` 吃它，只取场边界，不接管分镜。分组规则：续页不切 / 时间地点词切 / 角色全换切 / 场长 ≤3 页；镜头机位恒为固定（不推拉摇移），人物动作要求完整可见、正常速度。段生成后的 QC 由 `seedance-relay-producer/qc.py` 逐段产出。
 
 ## 4. 测试
 

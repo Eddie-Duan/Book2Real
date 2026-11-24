@@ -323,11 +323,39 @@ def write_segment_prompt(prompts_dir: Path, seg_id: str, base_prompt: str, lock:
 # ------------------------------------------------------------------- plan
 
 
-def build_plan(pages_dir: Path, out_dir: Path) -> dict:
+def load_scene_groups(path) -> dict:
+    """读取 S0 grouper 的 scene_plan.json（按文本分场），返回 {页码数字: scene_id}。
+
+    只用于给页设 scene_id（scene_id 不同 => classify_pair 不会判 CONTINUOUS，
+    跨场页因此不会被合并进一个镜头）；分镜的其它判断仍由 S2 自己做。
+    """
+    if not path:
+        return {}
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    groups = {}
+    for seg in data.get("segments") or data.get("scenes") or []:
+        sid = seg.get("segment_id") or seg.get("scene_id")
+        for pid in seg.get("pages") or []:
+            digits = "".join(ch for ch in str(pid) if ch.isdigit()).lstrip("0") or "0"
+            groups[digits] = sid
+    return groups
+
+
+def build_plan(pages_dir: Path, out_dir: Path, scene_groups=None) -> dict:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     prompts_dir = out_dir / "prompts"
     pages = load_pages(Path(pages_dir))
+    groups = load_scene_groups(scene_groups)
+    if groups:
+        for p in pages:
+            digits = "".join(ch for ch in p["page_id"] if ch.isdigit()).lstrip("0") or "0"
+            if digits in groups:
+                p["scene_id"] = groups[digits]  # 文本分场是场景边界的唯一事实源
+        missing = [p["page_id"] for p in pages
+                   if ("".join(ch for ch in p["page_id"] if ch.isdigit()).lstrip("0") or "0") not in groups]
+        if missing:
+            raise SystemExit(f"[director] --scene-groups 缺少这些页的分场: {missing}")
 
     pair_evals = []
     for i in range(len(pages) - 1):
@@ -648,6 +676,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Picturebook scene director / seam planner")
     ap.add_argument("--pages-dir", type=Path, required=True, help="上游 pages/page_### 目录")
     ap.add_argument("--out-dir", type=Path, default=Path("director_out"))
+    ap.add_argument("--scene-groups", type=Path, default=None,
+                    help="S0 grouper 的 scene_plan.json；用它覆盖页的 scene_id，跨场页不会被合并")
     ap.add_argument("--calibrate", action="store_true", help="只打印指标分布，不生成计划")
     args = ap.parse_args(argv)
 
@@ -655,7 +685,7 @@ def main(argv=None) -> int:
         calibrate(args.pages_dir)
         return 0
 
-    plan = build_plan(args.pages_dir, args.out_dir)
+    plan = build_plan(args.pages_dir, args.out_dir, args.scene_groups)
     print(
         f"[OK] {len(plan['pages'])} 页 -> {len(plan['segments'])} 段，"
         f"{len(plan['seams'])} 条接缝，预估 ¥{plan['cost_estimate_cny']}"
