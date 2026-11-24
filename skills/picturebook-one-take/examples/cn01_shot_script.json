@@ -1,0 +1,147 @@
+{
+ "book_id": "cn01",
+ "title": "一起搭积木吧",
+ "target_seconds": 150,
+ "language": "zh",
+ "chunks": [
+  {
+   "id": "chunk_01",
+   "duration": 30,
+   "pages": ["p02", "p03"],
+   "cast": ["huahua", "xiaoman"],
+   "location": "room_rain",
+   "location_name": "下雨天的儿童房",
+   "scene_note": "浅色木地板，窗上有雨滴，彩色积木城堡和散落的积木；暖色水彩，柔和自然光。",
+   "first_frame": "room",
+   "shots": [
+    {"id": "s1", "duration": 10, "camera": "低机位，镜头沿木地板从左向右平稳横移（物理跟拍）", "action": "雨滴顺着窗玻璃往下流；花花把一块绿色积木放到城堡左侧，小满伸手扶住，两人相视一笑", "space": "城堡在画面中央偏右，两人一左一右", "sound": "<窗外雨声> <积木轻碰的咔哒声>"},
+    {"id": "s2", "duration": 10, "camera": "切到中景（从城堡背后），镜头跟拍两人的手", "action": "一块、一块、一块，积木往上叠；小满小声数着，花花屏住呼吸", "space": "镜头贴近积木塔，人物只露出手和半张脸", "sound": "<积木一块块落下的咔哒声>"},
+    {"id": "s3", "duration": 10, "camera": "切到城堡顶端的近景，镜头沿桌面横移", "action": "花花把一块紫色拱形积木放上去，城堡轻轻晃了一下，又稳住；两人同时松一口气", "space": "城堡顶端在画面中央，背景是虚化的窗户", "sound": "<积木晃动的吱呀声> <两人轻轻的呼气声>"}
+   ],
+   "narration": [
+    {"text": "下雨了，小满和花花只好在家里玩。"},
+    {"text": "三块、四块、五块，积木城堡没有倒。"},
+    {"text": "六块、七块、八块、九块……"}
+   ],
+   "dialogue": [
+    {"speaker": "huahua", "text": "我们一起搭城堡，搭高高，还不倒。", "tone": "开心、认真"}
+   ],
+   "sfx": ["窗外雨声", "积木轻碰声"],
+   "music": "none",
+   "transition_out": {"type": "continuous_action", "element": "城堡轻轻晃动", "note": "下一段从同一次晃动继续"}
+  },
+  {
+   "id": "chunk_02",
+   "duration": 30,
+   "pages": ["p04", "p05"],
+   "cast": ["huahua", "xiaoman"],
+   "location": "room_rain",
+   "location_name": "下雨天的儿童房",
+   "scene_note": "同一间屋子、同一座城堡、同一束窗光；人物和积木位置承接上一段。",
+   "shots": [
+    {"id": "s1", "duration": 12, "camera": "中景，镜头跟拍花花的手", "action": "花花把一块小木门形状的积木放到城堡正面；城堡动了动；小满赶紧把小木窗积木放上去，城堡晃了三晃；两人肩膀绷紧", "space": "城堡正面朝镜头，两人从左右入画", "sound": "<积木吱呀声>"},
+    {"id": "s2", "duration": 8, "camera": "切到城堡正面近景，镜头轻微横移", "action": "塔身左右轻摆，两人的手同时从两侧扶住，指尖用力，谁也不敢呼吸", "space": "画面只留城堡和四只手", "sound": "<积木摩擦声> <心跳般的低频>"},
+    {"id": "s3", "duration": 10, "camera": "切到全景，固定机位", "action": "城堡轰然倒塌，彩色积木朝镜头飞来，越飞越近，最后占满画面；花花和小满愣在原地", "space": "积木从画面中央向四周炸开，最前面的一块遮住镜头", "sound": "<积木哗啦倒塌声> <两人惊呼>"}
+   ],
+   "narration": [
+    {"text": "花花放上小木门，高高积木动了动。"},
+    {"text": "小满放上小木窗，高高积木晃三晃。"},
+    {"text": "积木城堡一倒，积木满地跑。"}
+   ],
+   "dialogue": [
+    {"speaker": "xiaoman", "text": "小心，小心，要小心。", "tone": "压低声音、紧张"},
+    {"speaker": "huahua", "text": "不好！不好！", "tone": "惊叫"}
+   ],
+   "sfx": ["积木倒塌", "两人惊呼"],
+   "music": "none",
+   "transition_out": {"type": "object_into_lens", "element": "飞向镜头的彩色积木", "note": "下一段从积木落地、滚开开始"}
+  },
+  {
+   "id": "chunk_03",
+   "duration": 30,
+   "pages": ["p06", "p07"],
+   "cast": ["huahua", "xiaoman"],
+   "location": "room_rain then meadow",
+   "location_name": "儿童房 → 春天的草地",
+   "scene_note": "前半段是儿童房，后半段是草地；两处都是同一套水彩画风，草地更亮更暖。",
+   "shots": [
+    {"id": "s1", "duration": 10, "camera": "固定机位，轻微手持感", "action": "积木滚了一地；花花站起来，气得跺脚；小满后退半步，低下头；两人都红了眼眶", "space": "两人隔着满地积木对视", "sound": "<积木滚动声> <跺脚声>"},
+    {"id": "s2", "duration": 10, "camera": "切到花花家，镜头从地板上方缓慢横移", "action": "花花一个人坐在地板上搭小塔，搭一块倒一块，她托着腮叹气，望向门口", "space": "空荡荡的房间，只有她和一小堆积木", "sound": "<一块积木倒下> <轻轻的叹气>"},
+    {"id": "s3", "duration": 10, "camera": "切到草地，镜头缓慢环绕（物理移动，小幅度），保持主体在画面中心", "action": "小满蹲在草坡上，看叶片上的一只红黑小瓢虫；她伸出手指，瓢虫爬到指尖，忽然振翅飞起，冲向镜头，越飞越大，最后占满画面", "space": "草坡、小黄花、蒲公英；瓢虫从画面中心飞向镜头", "sound": "<草叶沙沙声> <瓢虫振翅的嗡嗡声>"}
+   ],
+   "narration": [
+    {"text": "高高积木倒一地，花花很生气。"},
+    {"text": "花花在家玩积木。"},
+    {"text": "小满来到草地上。"}
+   ],
+   "dialogue": [
+    {"speaker": "huahua", "text": "小满，都怪你！", "tone": "生气"},
+    {"speaker": "huahua", "text": "我不要和小满玩！", "tone": "赌气"},
+    {"speaker": "xiaoman", "text": "我也不和花花玩！", "tone": "委屈、赌气"},
+    {"speaker": "huahua", "text": "一个人，不好玩，真想出去找小满。", "tone": "小声、失落"},
+    {"speaker": "xiaoman", "text": "小虫子，真好看，想和花花一起玩。", "tone": "轻声、想念"}
+   ],
+   "sfx": ["积木滚动", "草叶沙沙", "瓢虫振翅"],
+   "music": "none",
+   "transition_out": {"type": "object_into_lens", "element": "飞向镜头的红黑小瓢虫", "note": "下一段从瓢虫掠过镜头、露出生日房间开始"}
+  },
+  {
+   "id": "chunk_04",
+   "duration": 30,
+   "pages": ["p08", "p09"],
+   "cast": ["huahua", "xiaoman", "huangmituan"],
+   "location": "birthday_room",
+   "location_name": "生日房间 → 小满家桌前",
+   "scene_note": "生日房间有气球和蛋糕，午后暖光；小满家桌前有彩笔和卡片。",
+   "location_ref": "birthday",
+   "shots": [
+    {"id": "s1", "duration": 10, "camera": "中景，镜头从桌上的蛋糕平稳横移到花花的脸", "action": "小虫子掠过镜头后，画面显出彩色气球和蛋糕；画面里只有花花一个人，没有狗；花花坐在窗边，双手托腮，眼睛红红的，望着窗外", "space": "蛋糕在左前景，花花在右中景", "sound": "<窗外鸟叫> <气球轻轻晃动>"},
+    {"id": "s2", "duration": 10, "camera": "切到小满家桌前，镜头跟拍她握蜡笔的手", "action": "小满趴在桌上画生日卡片，画上两个小女孩和一座积木城堡；画面里只有小满一个人，没有狗；她停下笔，歪头想了想", "space": "卡片在画面中央，彩笔散在四周", "sound": "<蜡笔沙沙声>"},
+    {"id": "s3", "duration": 10, "camera": "镜头跟拍黄米团跑向镜头", "action": "小满把卡片放进小信封，朝门口喊；黄米团从门外跑进来，叼起信封，撒腿跑出门，越跑越近，最后狗头和信封占满画面", "space": "狗从画面深处跑向镜头，穿过门框", "sound": "<狗爪哒哒声> <信封纸响>"}
+   ],
+   "narration": [
+    {"text": "花花的生日到了，可是花花一点儿也不开心。"},
+    {"text": "小满画好了生日卡片。"}
+   ],
+   "dialogue": [
+    {"speaker": "huahua", "text": "想和小满一起过生日。", "tone": "小声、难过"},
+    {"speaker": "xiaoman", "text": "花花会不会喜欢我的卡片？", "tone": "自言自语、期待"},
+    {"speaker": "xiaoman", "text": "黄米团，你去哪儿？", "tone": "着急"}
+   ],
+   "sfx": ["鸟叫", "蜡笔沙沙", "狗爪哒哒"],
+   "music": "none",
+   "transition_out": {"type": "object_into_lens", "element": "叼着信封跑向镜头的黄米团", "note": "下一段从狗穿过镜头、花花开门开始"}
+  },
+  {
+   "id": "chunk_05",
+   "duration": 30,
+   "pages": ["p10", "p11", "p12"],
+   "cast": ["huahua", "xiaoman", "huangmituan"],
+   "location": "door then birthday_room",
+   "location_name": "门口 → 生日房间/重建的城堡",
+   "scene_note": "从门口回到生日房间，气球、蛋糕、积木都在；结尾光线变暖，画面边缘有水彩晕染。",
+   "shots": [
+    {"id": "s1", "duration": 10, "camera": "固定机位，轻微手持感", "action": "黄米团穿过镜头，花花打开门；狗把信封放在她脚边，摇尾巴；小满从后面小跑过来，手里还攥着一支蜡笔；花花蹲下捡起卡片", "space": "门口在画面左侧，狗在中间，小满从右侧入画", "sound": "<开门声> <狗喘气声> <信封纸响>"},
+    {"id": "s2", "duration": 10, "camera": "切到两人中景，镜头轻微横移", "action": "花花低头，小满搓着衣角；小满先开口道歉，花花摇头，伸手抱住她；黄米团在旁边转圈", "space": "两人坐在门口台阶上，狗在脚边", "sound": "<轻轻的抽泣声> <狗尾巴扫地的沙沙声>"},
+    {"id": "s3", "duration": 10, "camera": "镜头固定机位，最后极缓慢横移，不缩放", "action": "两人回到房间，一起把积木一块块搭高；城堡比之前更高；花花和小满击掌，黄米团趴在旁边；画面边缘颜色像水彩一样慢慢晕开", "space": "城堡在画面中央，两人一左一右，狗在右下角", "sound": "<积木一块块落下的咔哒声> <两人的笑声>"}
+   ],
+   "narration": [
+    {"text": "小满、花花见了面。"},
+    {"text": "花花好开心。"},
+    {"text": "一块、两块、三块、四块、五块、六块、七块、八块、九块……"}
+   ],
+   "dialogue": [
+    {"speaker": "huahua", "text": "黄米团，你怎么来了？你咬的是什么？", "tone": "惊讶"},
+    {"speaker": "xiaoman", "text": "花花，生日快乐！", "tone": "大声、开心"},
+    {"speaker": "huahua", "text": "生日卡片真好看！", "tone": "惊喜"},
+    {"speaker": "xiaoman", "text": "花花，对不起！", "tone": "认真、愧疚"},
+    {"speaker": "huahua", "text": "小满，我们一起过生日，好不好？", "tone": "软下来、期待"},
+    {"speaker": "huahua", "text": "我早就不生气了。", "tone": "笑"},
+    {"speaker": "huahua", "text": "我们一起搭城堡，搭高高，还不倒。", "tone": "开心、一起说"}
+   ],
+   "sfx": ["开门", "狗喘气", "积木咔哒", "笑声"],
+   "music": "none",
+   "transition_out": {"type": "watercolor_bleed", "element": "画面边缘的水彩晕染", "note": "结尾收束"}
+  }
+ ]
+}

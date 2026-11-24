@@ -65,16 +65,23 @@ def plan_camera(n_shots: int, scene_no: int) -> list[dict]:
     return out
 
 
-def subject_action(has_characters: bool) -> str:
-    return ("人物自然动作：呼吸、眨眼、轻微重心转移；表情克制，不做夸张形变"
-            if has_characters else
-            "环境微动：雨丝、光影、纸张纹理缓慢变化；主体轮廓保持稳定")
+def subject_action(has_characters: bool, action: str = "") -> str:
+    """Plot-driven action. Never fall back to breathing/blinking only: the old
+    generic clause produced near-static videos (team feedback 2026-11-25)."""
+    if has_characters:
+        base = ("人物主动作：必须有看得见的肢体动作和表情变化（伸手、拿起、放下、搭、"
+                "转身、走向、蹲下、抱起、推、拉等）")
+        if action:
+            base += f"；本镜动作：{action}"
+        base += "；可以配合呼吸/眨眼，但不要只眨眼或只呼吸；动作幅度要看得见。"
+        return base
+    return "环境微动：雨丝、光影、纸张纹理缓慢变化；主体轮廓保持稳定"
 
 
-def camera_sentence(cam: dict, has_characters: bool) -> str:
+def camera_sentence(cam: dict, has_characters: bool, action: str = "") -> str:
     return (f"镜头：{SHOT_SIZE_TEXT[cam['shot_size']]}、{ANGLE_TEXT[cam['angle']]}、"
             f"{MOVE_TEXT[cam['move']]}（{SPEED_TEXT[cam['speed']]}）；"
-            f"{subject_action(has_characters)}；不做剪辑、不换机位。")
+            f"{subject_action(has_characters, action)}；不做剪辑、不换机位。")
 
 
 def enrich(prompts: dict, scene_characters: dict | None = None) -> dict:
@@ -91,7 +98,8 @@ def enrich(prompts: dict, scene_characters: dict | None = None) -> dict:
         lines = []
         for k, shot in enumerate(shots):
             shot["camera"] = cams[k]
-            lines.append(f"[镜头 {k + 1}] {camera_sentence(cams[k], has_chars)}")
+            action = shot.get("action") or seg.get("action") or ""
+            lines.append(f"[镜头 {k + 1}] {camera_sentence(cams[k], has_chars, action)}")
         seg["prompt"] = (seg.get("prompt") or "").rstrip() + "\n" + "\n".join(lines)
         seg["camera_plan"] = cams
     return prompts

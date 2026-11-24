@@ -150,6 +150,7 @@ def main() -> int:
             "shots": [{"kind": s.get("kind"), "pages": s.get("pages"),
                        "duration_sec": s.get("duration_sec")} for s in shots],
             "transition_out": tr,
+            "action": body[:120],
             "prompt": prompt,
             "negative": a.negative,
         })

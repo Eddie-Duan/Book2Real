@@ -61,7 +61,7 @@
 | angle | eye 平视 / low 仰拍 / high 俯拍 |
 | move | static / push_in / pull_out / pan_left / pan_right / tilt_up / tilt_down / follow |
 | speed | slow / medium / fast |
-| subject | 人物自然动作 或 环境微动 |
+| subject | 人物主动作（必须看得见）或环境微动 |
 
 规则：场首镜 = LS + push_in（建立镜头），场末镜 = CU + pull_out（交出去），
 场中镜在 pan/tilt/follow 里轮换，**相邻两镜不重复运镜**。
