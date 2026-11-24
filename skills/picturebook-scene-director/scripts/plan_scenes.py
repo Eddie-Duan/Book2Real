@@ -56,8 +56,15 @@ MIN_PAGE_SCREEN_SEC = 1.0
 CAMERA_LOCK_LINE = (
     "[Camera Lock]: locked-off static camera. No zoom in/out, no dolly, no push-in or "
     "pull-out, no pan, no tilt, no framing change; every character and prop keeps a "
-    "constant on-screen size and position. Only subtle in-place motion is allowed "
-    "(breathing, blink, cloth, hair, light)."
+    "constant on-screen size and position. The camera is locked, the action is not."
+)
+
+# 镜头锁只管机位，不管动作。Seedance 在没有动作指令时会给"微动"保平安，
+# 成片看起来像 AI 偷懒；这条明确要求动作幅度与正常节奏。
+MOTION_CLAUSE = (
+    "[Motion]: full, clearly visible action at normal human pace — characters move limbs, "
+    "torso and expression with obvious amplitude over the clip, and the action progresses "
+    "to completion; no frozen pose, no micro-motion-only, no slow motion."
 )
 
 # 上游运动提示词里的推/拉/摇镜短语必须剥离，否则"镜头缓缓推近"会盖过末尾的 Camera Lock。
@@ -303,6 +310,11 @@ def classify_pair(p1: dict, p2: dict, m: dict) -> dict:
 def strip_camera_moves(text: str) -> str:
     """剥掉上游提示词里的推/拉/摇镜短语，只删运镜词本身，不重写其余描述。"""
     cleaned = CAMERA_MOVE_REGEX.sub("", text)
+    # 运镜短语删掉后常留下"at eye level"/"from a low angle"这类镜头视角残句，
+    # 以及多余的分隔逗号；镜头已锁死，这些残句会和新锁冲突。
+    cleaned = re.sub(r"[,\s]*\b(?:at|from)\s+(?:eye|low|high|ground|bird'?s[- ]eye|worm'?s[- ]eye) level\b", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"[,\s]*\b(?:at|from)\s+a\s+(?:low|high|ground|bird'?s[- ]eye|worm'?s[- ]eye)\s+angle\b", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+([，,。；;])", r"\1", cleaned)
     cleaned = re.sub(r"([，,。；;])\s*(?:[，,。；;]\s*)+", r"\1", cleaned)
     return cleaned.strip(" ，,；;、\n")
 
@@ -310,12 +322,12 @@ def strip_camera_moves(text: str) -> str:
 def write_segment_prompt(prompts_dir: Path, seg_id: str, base_prompt: str, lock: str) -> str:
     prompts_dir.mkdir(parents=True, exist_ok=True)
     lock_line = f"[Director Continuity Lock]: {lock}"
-    budget = SAFE_PROMPT_BUDGET - len(lock_line) - len(CAMERA_LOCK_LINE) - 2
+    budget = SAFE_PROMPT_BUDGET - len(lock_line) - len(CAMERA_LOCK_LINE) - len(MOTION_CLAUSE) - 3
     head = strip_camera_moves(base_prompt).strip()
     if len(head) > budget:
         cut = head.rfind(" ", 0, budget)
         head = head[: cut if cut > 200 else budget].rstrip()
-    text = f"{head}\n{lock_line}\n{CAMERA_LOCK_LINE}\n"
+    text = f"{head}\n{lock_line}\n{CAMERA_LOCK_LINE}\n{MOTION_CLAUSE}\n"
     (prompts_dir / f"{seg_id}_prompt.txt").write_text(text, encoding="utf-8")
     return f"prompts/{seg_id}_prompt.txt"
 
@@ -492,13 +504,31 @@ def build_plan(pages_dir: Path, out_dir: Path, scene_groups=None) -> dict:
             flags.append("TRANSITION_TARGET_MERGED")
 
         if dec["realization"] == "SHARED_T":
-            # 2026-11-24：桥接帧本身是「压暗 + 模糊的原页」，成片里表现为"原书页闪一下"，
-            # 既生硬、又会被当成原书图片插进片子。改为真实后期交叉溶解，不再生成/使用桥接帧。
-            dec["decision"] = "DESIGNED_TRANSITION"
-            dec["subtype"] = "CROSS_DISSOLVE"
-            dec["realization"] = "POST"
-            dec["rationale"] += " （改用后期 0.6s 交叉溶解；取消压暗模糊桥接帧）"
-            flags.append("BRIDGE_REPLACED_BY_XFADE")
+            bkind = dec["bridge_kind"]
+            t_rel = f"bridge/T_{k + 1:03d}_{bkind}.png"
+            cur["last_frame"] = {
+                "source": t_rel,
+                "kind": "bridge_frame",
+                "bridge_kind": bkind,
+            }
+            nxt["first_frame"] = {
+                "source": t_rel,
+                "kind": "bridge_frame",
+                "bridge_kind": bkind,
+            }
+            nxt["last_frame"] = {
+                "source": pages[segments_meta[k + 1]["start"]]["keyframe_rel"],
+                "kind": "keyframe",
+            }
+            nxt["fallback_if_no_last_frame"] = {
+                "last_frame": None,
+                "duration_sec": 5,
+                "transition_out": {
+                    "type": "DESIGNED_TRANSITION",
+                    "subtype": "CROSS_DISSOLVE",
+                    "realization": "POST",
+                },
+            }
 
         cur["transition_out"] = {
             "type": dec["decision"],
@@ -554,6 +584,23 @@ def build_plan(pages_dir: Path, out_dir: Path, scene_groups=None) -> dict:
     transition_summary["hard_cut_ratio"] = round(
         transition_summary["hard_cut_in_clip"] / max(1, len(segments) - 1), 3
     )
+    # 有效转场覆盖率：SHARED_T / POST / 独立桥接都算"观众看得见的转场"。
+    # 全片 0 覆盖 = 分镜退化成幻灯片，直接标红，别让 S3 花完钱才发现。
+    seam_total = max(1, len(segments) - 1)
+    effective = (
+        transition_summary["shared_t_bridge"]
+        + transition_summary["post_xfade"]
+        + sum(1 for s in segments[:-1] if s["transition_out"]["realization"] == "BRIDGE_CLIP")
+    )
+    transition_summary["effective_transition_count"] = effective
+    transition_summary["effective_transition_ratio"] = round(effective / seam_total, 3)
+    transition_gate = "PASS" if effective > 0 or len(segments) <= 1 else "FAIL"
+    if transition_gate == "FAIL":
+        print(
+            "[WARN] 所有接缝都是 0s 硬切（effective_transition_ratio=0）："
+            "分镜/桥接没有生效，成片会变成简单切屏。回 S2 补 SHARED_T 或 POST 叠化。",
+            file=sys.stderr,
+        )
 
     master_ratio = pages[0]["legal_ratio"]
     cost = sum(COST_1080P[s["duration_sec"]] for s in segments)
@@ -566,6 +613,7 @@ def build_plan(pages_dir: Path, out_dir: Path, scene_groups=None) -> dict:
         "min_page_screen_sec": MIN_PAGE_SCREEN_SEC,
         "short_page_segments": short_pages,
         "transition_summary": transition_summary,
+        "transition_gate": transition_gate,
         "pages": [
             {
                 "page_id": p["page_id"],

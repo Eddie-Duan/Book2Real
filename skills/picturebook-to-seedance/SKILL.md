@@ -22,6 +22,7 @@ description: 把绘本单页（或多页）扫描图转换成「零文字、按�
 8. **存疑即熔断**：置信度不足或触及阻断条件 → `NEEDS_HUMAN_REVIEW` + 诊断报告，禁止猜测推进。
 9. **补全可溯源**：每个新增元素必须对应一段 `source_text_span`；原文没写的不许加。
 10. **关键帧禁运镜 + 文字人工复核**：`seedance_prompt.txt` 不得含推近/拉远/摇移/环绕/ken burns 等运镜词（含中英文），下游会强制剥离并追加镜头锁；`qa_check.py` 的 `text_removed`/`text_residual_edges` 只是辅助，交付前必须用 `read_image` 逐页复核普通字、艺术字、页码、水印、半透明淡字，`qa_report.json` 的 `ocr_residual_count` 必须为 0。
+11. **水印按块清除、动态按"人眼看得见"写**：水印/角标必须单独落 `watermark_mask` 并跑 `qa_check.py --watermark-mask`（`watermark_removed` ≥ 90%、`watermark_residual_edges` 通过），不允许"变淡/半透明"式处理；`seedance_prompt.txt` 的 `[Subject Motion]` 必须是完整、可见、正常速度的动作（不许只写眨眼、呼吸、轻微摆动这类微动），否则下游只会生成"几乎不动的幻灯片"。
 
 ## 2. 流水线
 

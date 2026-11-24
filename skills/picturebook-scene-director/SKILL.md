@@ -33,8 +33,8 @@ description: |
 6. **固定锚点，单段返修隔离。** 每段的 `first_frame`/`last_frame` 只能是静态资产（`clean_keyframe.png` 或桥接帧 `T`）。**严禁把上一段生成视频的尾帧回灌成下一段首帧**——那会把一次失败级联成整片。
 7. **不覆盖上游原稿。** `seedance_prompt.txt` 只读；增量指令写到独立的 `prompts/seg_###_prompt.txt`，≤ 1000 字符，锁定词置顶，超长先删形容词。
 8. **存疑即熔断。** 置信度 < 0.70、元数据缺失且代理信号互相矛盾、或上游 `qa_report` 非 PASS 时，标 `needs_human_review: true` / `BLOCKED`，不自动推进。
-9. **镜头锁死、禁 zoom。** 每段 prompt 先剥离上游运镜词，再由脚本强制追加 `[Camera Lock]`（禁推近/拉远/摇移/构图变化，元素屏上尺寸与位置恒定）；生成后 QC 报 `ZOOM_DRIFT` 即返修，不能靠 prompt 自觉。
-10. **每页屏上 ≥1s，转场必须可验收。** `short_page_segments` 必须为空（`page_screen_sec < 1.0` 不许放行）；`transition_summary.hard_cut_ratio` 过高、或 `concat_audit.json` 报全硬切时视为分镜失效，必须补 SHARED_T 桥接或 POST 叠化；转场类型与接缝必须逐条过 `qa_seams.py`。
+9. **镜头锁死、禁 zoom、动作不许微动。** 每段 prompt 先剥离上游运镜词，再由脚本强制追加 `[Camera Lock]`（禁推近/拉远/摇移/构图变化，元素屏上尺寸与位置恒定）与 `[Motion]`（完整、可见、正常速度的动作，动作在段内推进到完成；禁定格、禁微动、禁慢动作）。"镜头锁死"锁的是相机，不是人物——把动态绘本做成几乎静止的画面同样是失败；生成后 QC 报 `ZOOM_DRIFT` 或 `MOTION_TOO_SMALL` 即返修，不能靠 prompt 自觉。
+10. **每页屏上 ≥1s，转场必须可验收。** `short_page_segments` 必须为空（`page_screen_sec < 1.0` 不许放行）；`transition_gate` 必须为 `PASS`、`transition_summary.effective_transition_ratio` 不得为 0（全是 0s 硬切就是分镜失效），必须补 SHARED_T 桥接或 POST 叠化；成片后以 `concat_audit.json` 的 `transition_audit_ok` 复核，转场类型与接缝必须逐条过 `qa_seams.py`。
 
 ---
 

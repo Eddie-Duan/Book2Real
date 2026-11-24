@@ -38,6 +38,25 @@ def compute_phash_distance(img_a: np.ndarray, img_b: np.ndarray) -> int:
     return int(imagehash.phash(pil_a) - imagehash.phash(pil_b))
 
 
+def compute_motion_flow(frames_bgr: List[np.ndarray], max_width: int = 480) -> List[float]:
+    """相邻抽样帧之间的 Farneback 平均光流（px），用来量"动作幅度/节奏够不够"。
+
+    SSIM/DINO 对"几乎不动"同样不敏感；但一条全是微动的片子，逐帧光流会明显偏低。
+    统一缩到 480 宽再算，避免分辨率不同导致阈值失真。
+    """
+    grays: List[np.ndarray] = []
+    for img in frames_bgr:
+        h, w = img.shape[:2]
+        scale = min(1.0, max_width / float(w))
+        small = cv2.resize(img, (max(1, int(w * scale)), max(1, int(h * scale))), interpolation=cv2.INTER_AREA)
+        grays.append(cv2.cvtColor(small, cv2.COLOR_BGR2GRAY))
+    flows: List[float] = []
+    for prev, cur in zip(grays[:-1], grays[1:]):
+        flow = cv2.calcOpticalFlowFarneback(prev, cur, None, 0.5, 3, 21, 3, 5, 1.2, 0)
+        flows.append(float(np.mean(np.sqrt(flow[..., 0] ** 2 + flow[..., 1] ** 2))))
+    return flows
+
+
 def compute_zoom_ratio(ref_bgr: np.ndarray, other_bgr: np.ndarray) -> Optional[float]:
     """用 ORB 特征 + 局部仿射估计 other 相对 ref 的整体尺度比（>1 = 被放大/推近）。
 
@@ -341,6 +360,38 @@ def inspect_single_page(
                 }
             )
 
+    # 2.1b 动作幅度：动态绘本的主体必须"真的在动"。SSIM/DINO 对微动不敏感，
+    #      逐帧光流量化"动作幅度是否够大、是否全片都在动"。
+    motion_flows = compute_motion_flow([f for _, _, f in sampled])
+    motion_threshold = float(thresh.get("motion_min_mean_flow_px", 0.8))
+    motion_median = float(np.median(motion_flows)) if motion_flows else 0.0
+    motion_moving_ratio = (
+        sum(1 for v in motion_flows if v >= motion_threshold * 0.6) / len(motion_flows) if motion_flows else 0.0
+    )
+    enforce_motion = bool(thresh.get("enforce_motion_check", False))
+    motion_check = {
+        "applicable": bool(motion_flows),
+        "enforced": enforce_motion,
+        "flows_px": [round(v, 3) for v in motion_flows],
+        "median_flow_px": round(motion_median, 3),
+        "max_flow_px": round(max(motion_flows), 3) if motion_flows else 0.0,
+        "threshold_px": motion_threshold,
+        "moving_ratio": round(motion_moving_ratio, 3),
+        "passed": (not enforce_motion) or (motion_median >= motion_threshold and motion_moving_ratio >= 0.5),
+    }
+    if motion_check["applicable"] and not motion_check["passed"]:
+        defects.append(
+            {
+                "code": "MOTION_TOO_SMALL",
+                "detail": (
+                    f"动作过小/过慢：逐帧光流中位数 {motion_median:.2f}px < {motion_threshold:.2f}px，"
+                    f"且仅 {motion_moving_ratio:.0%} 的抽样间隔达到可感知运动；"
+                    "主体应有完整、可见、正常速度的动作，静止画面是单页图的失职，不是动态绘本"
+                ),
+                "frame": -1,
+            }
+        )
+
     # 2.2 每页屏上时长：合并段用 5s 装两页时每页只剩 2.5s；<1s 就是"刷一下"。
     seg_pages = list((pf.get("segment") or {}).get("pages") or [])
     min_page_sec = float(thresh.get("min_page_screen_sec", 1.0))
@@ -563,6 +614,7 @@ def inspect_single_page(
             "seam": seam_check,
             "temporal_consistency": temporal_check,
             "zoom_check": zoom_check,
+            "motion_check": motion_check,
             "page_duration": page_duration_check,
             "text_zero_check": {"passed": len(ocr_hits) == 0, "hits": ocr_hits},
             "watermark_check": {"passed": len(watermark_hits) == 0, "hits": watermark_hits},
@@ -645,6 +697,11 @@ def decide_repair_or_escalate(
         repair_notes.append("TEMPORAL_DRIFT -> 非长接力页时长由 10s 降至 5s 抑制累积漂移")
     elif "ZOOM_DRIFT" in defect_codes:
         repair_notes.append("ZOOM_DRIFT -> 保持静态构图，重组 prompt_override 中的 Camera Lock 后换 seed 重生成")
+    elif "MOTION_TOO_SMALL" in defect_codes:
+        plan["motion_boost"] = True
+        repair_notes.append("MOTION_TOO_SMALL -> 追加 [Motion] 完整动作子句（幅度/速度/动作完成度）后换 seed 重生成")
+    elif "PAGE_TOO_SHORT" in defect_codes:
+        repair_notes.append("PAGE_TOO_SHORT -> 增加该段时长或减少合并页数，保证每页屏上 ≥1s 后重生成")
     else:
         repair_notes.append(f"缺陷 {sorted(defect_codes)} -> 递增 seed 重新生成")
 
