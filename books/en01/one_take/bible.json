@@ -1,0 +1,149 @@
+{
+  "book_id": "en01",
+  "note": "one-take 的 per-book 配置；字段缺省时走通用推导（curation + reader）",
+  "char_look": {
+    "kuan": {
+      "look": "七八岁男孩，红色刺猬头，蓝色T恤，黄色领结，抱着爆米花桶",
+      "voice": "七八岁男孩，清亮，语速中等，情绪外放"
+    },
+    "dad": {
+      "look": "成年男性，红色卷发，戴眼镜，绿色开衫，温和",
+      "voice": "成年男性，低沉温和，语速慢"
+    }
+  },
+  "char_extra": [
+    {
+      "id": "dog",
+      "name": "斑点狗",
+      "role": "宠物",
+      "desc": "Kuan 家的白底黑斑大狗，垂耳，红舌头，出现在家里的餐桌旁。",
+      "look": "白底黑斑大狗，垂耳，红舌头，体型大",
+      "voice": "只发出汪汪/呜呜声，不说话",
+      "first_page": "p26",
+      "pages": [
+        "p26"
+      ],
+      "portrait": ""
+    }
+  ],
+  "char_first_page": {
+    "dad": "p01"
+  },
+  "props": [
+    {
+      "id": "popcorn",
+      "name": "爆米花",
+      "pages": [
+        "p07",
+        "p08",
+        "p13",
+        "p14",
+        "p22"
+      ],
+      "ref": "assets/plate_lobby_1280x720.png",
+      "look": "红白条纹爆米花桶，装满黄色爆米花"
+    },
+    {
+      "id": "robot",
+      "name": "蓝色机器人",
+      "pages": [
+        "p07",
+        "p08",
+        "p17"
+      ],
+      "ref": "assets/plate_lobby_1280x720.png",
+      "look": "大号浅蓝色圆头机器人玩具，圆眼睛，短腿，抱在 Kuan 怀里"
+    },
+    {
+      "id": "coins",
+      "name": "硬币",
+      "pages": [
+        "p16",
+        "p18"
+      ],
+      "look": "几枚金色硬币，放在手心/柜台上"
+    },
+    {
+      "id": "seats",
+      "name": "影院座椅",
+      "pages": [
+        "p01",
+        "p07",
+        "p20",
+        "p23"
+      ],
+      "ref": "assets/plate_auditorium_1280x720.png",
+      "look": "深红色绒面影院座椅，成排，靠背高"
+    },
+    {
+      "id": "posters",
+      "name": "电影海报",
+      "pages": [
+        "p02",
+        "p03"
+      ],
+      "look": "墙上的三张抽象电影海报：几何色块、光晕、无真人、无汽车品牌、无可读文字"
+    },
+    {
+      "id": "snacks",
+      "name": "零食",
+      "pages": [
+        "p10",
+        "p13",
+        "p18"
+      ],
+      "look": "薯片、糖果、爆米花、彩色包装，摆在柜台/腿上"
+    }
+  ],
+  "locations": [
+    {
+      "id": "cinema_front",
+      "name": "电影院门厅/海报墙",
+      "pages": [
+        "p01",
+        "p02",
+        "p03"
+      ]
+    },
+    {
+      "id": "auditorium",
+      "name": "影院放映厅",
+      "pages": [
+        "p07",
+        "p08",
+        "p20",
+        "p23"
+      ]
+    },
+    {
+      "id": "lobby",
+      "name": "影院大堂/零食柜台",
+      "pages": [
+        "p10",
+        "p13",
+        "p14",
+        "p18"
+      ]
+    },
+    {
+      "id": "screen",
+      "name": "银幕里的电影世界",
+      "pages": [
+        "p04",
+        "p05",
+        "p24",
+        "p25"
+      ]
+    },
+    {
+      "id": "home_table",
+      "name": "家里的餐桌",
+      "pages": [
+        "p26",
+        "p27",
+        "p28"
+      ]
+    }
+  ],
+  "target_seconds": 180
+}

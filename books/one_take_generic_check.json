@@ -1,0 +1,99 @@
+{
+  "books": [
+    {
+      "book": "cn01",
+      "ok": true,
+      "notes": [],
+      "pages": 12,
+      "characters": 3,
+      "locations": 6,
+      "props": 6,
+      "target": 150,
+      "configured": true,
+      "plates": 3,
+      "style": 210,
+      "prompt_chars": 962
+    },
+    {
+      "book": "cn02",
+      "ok": true,
+      "notes": [
+        "无角色（数据缺口：reader 缺 characters.json / curation 无 spots）"
+      ],
+      "pages": 12,
+      "characters": 0,
+      "locations": 1,
+      "props": 0,
+      "target": 150,
+      "configured": false,
+      "plates": 1,
+      "style": 205,
+      "prompt_chars": 883
+    },
+    {
+      "book": "cn03",
+      "ok": true,
+      "notes": [
+        "无角色（数据缺口：reader 缺 characters.json / curation 无 spots）"
+      ],
+      "pages": 15,
+      "characters": 0,
+      "locations": 1,
+      "props": 0,
+      "target": 150,
+      "configured": false,
+      "plates": 1,
+      "style": 210,
+      "prompt_chars": 976
+    },
+    {
+      "book": "en01",
+      "ok": true,
+      "notes": [],
+      "pages": 28,
+      "characters": 3,
+      "locations": 5,
+      "props": 6,
+      "target": 180,
+      "configured": true,
+      "plates": 4,
+      "style": 321,
+      "prompt_chars": 2161
+    },
+    {
+      "book": "en02",
+      "ok": true,
+      "notes": [
+        "无角色（数据缺口：reader 缺 characters.json / curation 无 spots）"
+      ],
+      "pages": 28,
+      "characters": 0,
+      "locations": 1,
+      "props": 0,
+      "target": 180,
+      "configured": false,
+      "plates": 1,
+      "style": 232,
+      "prompt_chars": 1868
+    },
+    {
+      "book": "en03",
+      "ok": true,
+      "notes": [
+        "无角色（数据缺口：reader 缺 characters.json / curation 无 spots）"
+      ],
+      "pages": 28,
+      "characters": 0,
+      "locations": 1,
+      "props": 0,
+      "target": 180,
+      "configured": false,
+      "plates": 1,
+      "style": 332,
+      "prompt_chars": 2124
+    }
+  ],
+  "code_problems": [],
+  "default_uses_llm": true,
+  "all_ok": true
+}

@@ -25,6 +25,8 @@
 |---|---|
 | **唯一入口** | `skills/picturebook-pipeline`（三棒：去字 → 分镜 → 生成拼接）。它的四道硬门（zoom / 时长 / 文字 / 转场审计）就是交付门禁。旁白由调用方 TTS 合成后 `concat --audio` 铺轨；页时间码不在本链交付范围 |
 | **机位政策** | **严格静态**：`qc.py` 的 `zoom_check` 阈值 4%，尺度偏差超了判 `ZOOM_DRIFT` 打回重生成。提示词里只许写静态锁定 + `[Camera Lock]`，**不许出现推近/拉远/横摇/俯仰/换机位**（电影语言那版已作废） |
+| **通用性（2026-11-25）** | `skills/` 下任何脚本**不得按书名写死分支或数据表**。per-book 的一切进 `books/<id>/one_take/{bible.json, plates.json}`；缺配置必须能降级推导，不许"只有 cn01/en01 能跑"。验收：`python scripts/one_take_generic_check.py` 六本全 PASS |
+| **产线分工（待队内确认）** | 交付片由 `picturebook-one-take` 出（已出 150 s 成片、覆盖旁白/对白）；`picturebook-pipeline` 的三棒与 `picturebook-scene-grouper` 的旁白/时间码只作工具库，不再单独出片 |
 
 ## 1. 一句话
 

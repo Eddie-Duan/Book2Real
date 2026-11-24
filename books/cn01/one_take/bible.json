@@ -1,0 +1,139 @@
+{
+  "book_id": "cn01",
+  "note": "one-take 的 per-book 配置；字段缺省时走通用推导（curation + reader）",
+  "char_look": {
+    "huahua": {
+      "look": "圆脸，两个小丸子头，红色小花发卡，粉色上衣，粉白条纹短裤，五六岁",
+      "voice": "五六岁女孩，音调偏高，活泼，句尾上扬"
+    },
+    "xiaoman": {
+      "look": "圆脸，小马尾，蘑菇发夹，橙色背带裤，五六岁",
+      "voice": "五六岁女孩，音调稍低，软糯，慢半拍"
+    },
+    "huangmituan": {
+      "look": "小黄狗，红项圈，短腿，尾巴卷起",
+      "voice": "只发出汪汪/呜呜声，不说话"
+    }
+  },
+  "char_extra": [],
+  "char_first_page": {},
+  "props": [
+    {
+      "id": "blocks",
+      "name": "积木",
+      "pages": [
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06",
+        "p12"
+      ],
+      "ref": "assets/plate_room_1280x720.png",
+      "look": "彩色木制积木：红/黄/绿/蓝，长方体、三角、拱形、小门、小窗，约二十块"
+    },
+    {
+      "id": "castle",
+      "name": "积木城堡",
+      "pages": [
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p12"
+      ],
+      "ref": "assets/plate_room_1280x720.png",
+      "look": "红黄绿蓝积木搭成的城堡，红色三角屋顶，紫色拱形门，绿色拱形墙"
+    },
+    {
+      "id": "cake",
+      "name": "生日蛋糕",
+      "pages": [
+        "p08",
+        "p09",
+        "p11"
+      ],
+      "ref": "assets/plate_birthday_1280x720.png",
+      "look": "白色奶油蛋糕，粉色花边，红色草莓，放在木桌上"
+    },
+    {
+      "id": "card",
+      "name": "生日卡片",
+      "pages": [
+        "p09",
+        "p10",
+        "p11"
+      ],
+      "look": "对折的彩色手工卡片，画着两个小女孩和积木城堡"
+    },
+    {
+      "id": "envelope",
+      "name": "小信封",
+      "pages": [
+        "p09",
+        "p10"
+      ],
+      "look": "浅色小信封，被小狗叼在嘴里"
+    },
+    {
+      "id": "ladybug",
+      "name": "小瓢虫",
+      "pages": [
+        "p07"
+      ],
+      "look": "红黑小瓢虫，圆点，停在绿叶上"
+    }
+  ],
+  "locations": [
+    {
+      "id": "room_rain",
+      "name": "下雨天的儿童房",
+      "pages": [
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06"
+      ]
+    },
+    {
+      "id": "room_home",
+      "name": "花花家的房间",
+      "pages": [
+        "p07",
+        "p08"
+      ]
+    },
+    {
+      "id": "meadow",
+      "name": "春天的草地",
+      "pages": [
+        "p07"
+      ]
+    },
+    {
+      "id": "birthday_room",
+      "name": "生日房间",
+      "pages": [
+        "p08",
+        "p09"
+      ]
+    },
+    {
+      "id": "door",
+      "name": "门口/院子里",
+      "pages": [
+        "p10",
+        "p11"
+      ]
+    },
+    {
+      "id": "final",
+      "name": "草地上/重建的城堡",
+      "pages": [
+        "p12"
+      ]
+    }
+  ],
+  "target_seconds": 150
+}

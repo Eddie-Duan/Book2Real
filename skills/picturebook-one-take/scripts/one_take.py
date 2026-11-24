@@ -79,8 +79,10 @@ def cmd_plan(args):
     out, bible, _ = _paths(args)
     bible = bible or build_bible(args.book)
     jwrite(out / "bible.json", bible)
-    script = plan_fn(args.book, bible, out, args.target_seconds, args.llm, args.script,
-                     getattr(args, "style", None))
+    script = plan_fn(args.book, bible, out, args.target_seconds, True, args.script,
+                     getattr(args, "style", None),
+                     getattr(args, "from_example", False),
+                     getattr(args, "max_attempts", 2))
     result = validate_script(script, bible)
     print(f"plan: {len(script['chunks'])} chunks / {result['total_seconds']}s / "
           f"{len(result['pages_covered'])} pages")
@@ -225,8 +227,10 @@ def cmd_run(args):
         print("run spends money; pass --yes"); return 2
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     bible = build_bible(args.book); jwrite(out / "bible.json", bible)
-    script = plan_fn(args.book, bible, out, args.target_seconds, args.llm, args.script,
-                     getattr(args, "style", None))
+    script = plan_fn(args.book, bible, out, args.target_seconds, True, args.script,
+                     getattr(args, "style", None),
+                     getattr(args, "from_example", False),
+                     getattr(args, "max_attempts", 2))
     if validate_script(script, bible)["passed"] is False:
         return 1
     if args.assets:
@@ -256,6 +260,8 @@ def main(argv=None):
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
     p.add_argument("--script", default=None)
     p.add_argument("--style", default=None, help="books/<id>/style_card.json (skill4 叙述声音)")
+    p.add_argument("--from-example", action="store_true", help="用预写示例分镜（回归基线，不调 LLM）")
+    p.add_argument("--max-attempts", type=int, default=2, help="LLM 分镜最多尝试次数（含首次）")
     p.set_defaults(fn=cmd_plan)
     p = sub.add_parser("preflight"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_preflight)
     p = sub.add_parser("assets"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
@@ -272,6 +278,8 @@ def main(argv=None):
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
     p.add_argument("--script", default=None)
     p.add_argument("--style", default=None, help="books/<id>/style_card.json (skill4 叙述声音)")
+    p.add_argument("--from-example", action="store_true", help="用预写示例分镜（回归基线，不调 LLM）")
+    p.add_argument("--max-attempts", type=int, default=2, help="LLM 分镜最多尝试次数（含首次）")
     p.add_argument("--assets", default="room,meadow,birthday")
     p.add_argument("--prompts", action="store_true"); p.add_argument("--resolution", default="480p")
     p.add_argument("--max-cny", type=float, default=200.0); p.add_argument("--attempts", type=int, default=1)

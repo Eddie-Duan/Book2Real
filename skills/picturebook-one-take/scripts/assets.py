@@ -15,79 +15,55 @@ import cv2
 from common import (ARK, PRICE_IMAGE_CNY, ROOT, SEEDREAM_MODEL, ark_post, data_url,
                     download, jwrite, ledger_append, now)
 
-# cn01-specific, hand-tuned plate specs. Other books fall back to one generic plate
-# per location built from the pages that mention it.
-CN01_SPECS = {
-    "room": {
-        "refs": ["books/cn01/reader/art/p02.jpg", "books/cn01/reader/art/p12.jpg"],
-        "chars": ["huahua", "xiaoman"],
-        "prompt": ("16:9横构图，儿童绘本水彩插画。严格沿用参考图1、参考图2的手绘画风：水彩+彩铅勾线，"
-                   "纸纹，柔和晕染，暖色调。画面：下雨天，温馨的儿童房，浅色木地板，窗户上有雨滴。"
-                   "扎两个小丸子头、戴红色小花发卡、穿粉色上衣的花花，梳小马尾、戴蘑菇发夹、"
-                   "穿橙色背带裤的小满，两人坐在地板上，中间是一座用彩色积木搭成的城堡，地上散落积木。"
-                   "两人正开心地搭积木。中景，低机位，柔和自然光。画面无文字、无水印、无边框、无页码。"
-                   "不要3D，不要写实照片，不要动漫赛璐璐。"),
-    },
-    "meadow": {
-        "refs": ["books/cn01/reader/art/p07.jpg", "books/cn01/reader/art/p12.jpg"],
-        "chars": ["xiaoman"],
-        "prompt": ("16:9横构图，儿童绘本水彩插画。严格沿用参考图1、参考图2的手绘画风：水彩+彩铅勾线，"
-                   "纸纹，柔和晕染，春天嫩绿。画面：春天的草地，草坡柔软，点缀小黄花和蒲公英，"
-                   "梳小马尾、戴蘑菇发夹、穿橙色背带裤的小满蹲在草地上，好奇地看着叶片上的一只红黑小瓢虫。"
-                   "远景是淡蓝天空和白云，光线温暖。中景，低机位，柔和自然光。画面无文字、无水印、无边框、无页码。"
-                   "不要3D，不要写实照片，不要动漫赛璐璐。"),
-    },
-    "birthday": {
-        "refs": ["books/cn01/reader/art/p08.jpg", "books/cn01/reader/art/p09.jpg",
-                 "books/cn01/reader/art/p11.jpg"],
-        "chars": ["huahua"],
-        "prompt": ("16:9横构图，儿童绘本水彩插画。严格沿用参考图1、参考图2、参考图3的手绘画风：水彩+彩铅勾线，"
-                   "纸纹，柔和晕染，暖色。画面：温馨的生日房间，窗边飘着彩色气球，桌上放着一个小生日蛋糕，"
-                   "扎两个小丸子头、戴红色小花发卡、穿粉色上衣的花花坐在窗边，双手托腮，神情有点失落，"
-                   "望着窗外。午后柔光。中景，平视。画面无文字、无水印、无边框、无页码。"
-                   "不要3D，不要写实照片，不要动漫赛璐璐。"),
-    },
-}
+def _book_dir_of(bible: dict) -> Path | None:
+    for rel in ((bible.get("source") or {}).get("book_json") or "", ):
+        if rel:
+            cand = ROOT / rel
+            if cand.is_file():
+                return cand.parent.parent
+    bid = bible.get("book_id")
+    cand = ROOT / "books" / str(bid) if bid else None
+    return cand if cand and cand.is_dir() else None
 
 
+def plate_specs(bible: dict) -> dict:
+    """plate 规格：优先 books/<id>/one_take/plates.json；否则按 locations 合成通用 plate。
 
-EN01_SPECS = {
-    "cinema_front": {
-        "refs": ["books/en01/reader/art/p01.jpg"],
-        "chars": ["kuan", "dad"],
-        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
-                   "水彩/彩铅上色，纸纹，暖棕橙红灰蓝配色。画面：夜晚电影院门厅，墙上三张无字电影海报"
-                   "（功夫、卓别林、赛车，只有图形没有可读文字），暖黄灯。红色刺猬头、蓝T恤、黄领结的 Kuan "
-                   "和红卷发、戴眼镜、绿开衫的 Dad 站在海报前。中景，平视，柔和灯光。"
-                   "画面无文字、无水印、无边框、无页码。不要3D，不要写实照片，不要日漫赛璐璐。"),
-    },
-    "lobby": {
-        "refs": ["books/en01/reader/art/p10.jpg", "books/en01/reader/art/p13.jpg"],
-        "chars": ["kuan", "dad"],
-        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
-                   "水彩/彩铅上色，纸纹，暖色。画面：明亮电影院大堂，一台街机、糖果柜台、爆米花机、"
-                   "彩色零食；Kuan 抱着浅蓝色圆头机器人玩具，Dad 在旁边微笑。中景，平视，暖黄灯。"
-                   "画面无文字、无水印、无边框、无页码。不要3D，不要写实照片，不要日漫赛璐璐。"),
-    },
-    "auditorium": {
-        "refs": ["books/en01/reader/art/p07.jpg", "books/en01/reader/art/p23.jpg"],
-        "chars": ["kuan", "dad"],
-        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
-                   "水彩/彩铅上色，纸纹，暗色影院。画面：黑暗的电影放映厅，深红色绒面座椅成排，"
-                   "前方银幕发光；Kuan 抱着红白条纹爆米花桶坐在 Dad 旁边，Dad 戴眼镜穿绿开衫。"
-                   "中景，平视，银幕冷光打在脸上。画面无文字、无水印、无边框、无页码。"
-                   "不要3D，不要写实照片，不要日漫赛璐璐。"),
-    },
-    "home_table": {
-        "refs": ["books/en01/reader/art/p26.jpg"],
-        "chars": ["kuan", "dad"],
-        "prompt": ("16:9横构图，欧美儿童绘本手绘插画。严格沿用参考图的画风：粗黑马克笔勾线，"
-                   "水彩/彩铅上色，纸纹，暖色。画面：温暖的家里的餐桌，Dad 戴眼镜、红卷发、绿开衫，"
-                   "看着报纸；Kuan 红色刺猬头、蓝T恤，手里举着一辆蓝色玩具车；桌上有晚餐和茶杯，"
-                   "暖黄吊灯。中景，平视。画面无文字、无水印、无边框、无页码。"
-                   "不要3D，不要写实照片，不要日漫赛璐璐。"),
-    },
-}
+    以前 plate 规格按书名写死在代码里，只有那两本能出图；现在缺配置也能跑
+    （用该场景首现页的 reader 原图当参考 + 通用风格提示词），换新书不用改代码。
+    """
+    book_dir = _book_dir_of(bible)
+    if book_dir is not None:
+        p = book_dir / "one_take" / "plates.json"
+        if p.is_file():
+            try:
+                doc = json.loads(p.read_text(encoding="utf-8"))
+                plates = doc.get("plates") or {}
+                if plates:
+                    return plates
+            except Exception:
+                pass
+
+    style = (bible.get("style") or {}).get("prompt") or "儿童绘本手绘水彩风格，柔和配色，纸纹"
+    negative = (bible.get("style") or {}).get("negative") or "文字, 水印, logo, 边框"
+    pages = bible.get("pages") or []
+    specs: dict = {}
+    for loc in bible.get("locations") or []:
+        lid = loc.get("id")
+        if not lid:
+            continue
+        first = next((p for p in pages if p.get("id") in (loc.get("pages") or [])), None)
+        refs = []
+        if first and first.get("id"):
+            refs = [f"books/{bible.get('book_id')}/reader/art/{first['id']}.jpg"]
+        specs[lid] = {
+            "refs": refs,
+            "chars": [c["id"] for c in (bible.get("characters") or []) if c.get("id")],
+            "prompt": (f"16:9横构图。{style} 画面：{loc.get('name') or lid}，"
+                       f"保持参考图的手绘质感与配色；中景，平视，柔和自然光。"
+                       f"画面无文字、无水印、无边框、无页码。不要3D，不要写实照片。负向：{negative}"),
+        }
+    return specs
 
 
 def _resize(src: Path, out: Path, w: int = 1280, h: int = 720) -> Path:
@@ -159,12 +135,7 @@ def build_assets(bible: dict, out: str | Path, which: list[str] | None = None) -
             cv2.imwrite(str(dest), img)
         manifest[c["id"]] = {"head": str(dest.relative_to(out))}
 
-    if bible.get("book_id") == "cn01":
-        specs = CN01_SPECS
-    elif bible.get("book_id") == "en01":
-        specs = EN01_SPECS
-    else:
-        specs = {}
+    specs = plate_specs(bible)
     which = which or list(specs.keys())
     for name in which:
         spec = specs.get(name)

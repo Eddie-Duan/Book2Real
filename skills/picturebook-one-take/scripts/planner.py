@@ -72,6 +72,8 @@ def llm_plan(bible: dict, target_seconds: int = 150, retries: int = 2,
         msg = _user_prompt(bible, target_seconds, style_text)
         if failures:
             msg += "\n\n上一版被门禁打回，必须修正：\n" + "\n".join("- " + f.get("message", "") for f in failures)
+        if not DEEPSEEK_KEY:
+            raise RuntimeError("没有 DEEPSEEK_API_KEY：要么配 key 走 LLM 分镜，要么用 --script/--from-example")
         status, data = http_json("POST", DEEPSEEK + "/v1/chat/completions", {
             "model": DEEPSEEK_MODEL, "messages": [
                 {"role": "system", "content": SYSTEM},
@@ -94,8 +96,15 @@ def llm_plan(bible: dict, target_seconds: int = 150, retries: int = 2,
 
 
 def plan(book: str, bible: dict, out: str | Path, target_seconds: int = 150,
-         use_llm: bool = False, script_in: str | None = None,
-         style: str | None = None) -> dict:
+         use_llm: bool = True, script_in: str | None = None,
+         style: str | None = None, from_example: bool = False,
+         max_attempts: int = 2) -> dict:
+    """分镜：默认**现场调 LLM**；预写脚本必须显式 --script 或 --from-example。
+
+    以前对 cn01 有一条默认捷径（直接读 examples/cn01_shot_script.json），
+    导致"看代码像通用 skill、跑起来只有那一本书能用"。现在默认走 LLM，
+    示例只作回归基线，且必须显式点名。
+    """
     out = Path(out)
     style_text = ""
     if style:
@@ -103,12 +112,14 @@ def plan(book: str, bible: dict, out: str | Path, target_seconds: int = 150,
         style_text = _style_block(card)
     if script_in:
         script = jread(script_in)
-    elif use_llm:
-        script = llm_plan(bible, target_seconds, style_text=style_text)
-    elif book.endswith("cn01"):
-        script = jread(Path(__file__).resolve().parents[1] / "examples" / "cn01_shot_script.json")
+    elif from_example:
+        ex = Path(__file__).resolve().parents[1] / "examples" / f"{Path(book).name}_shot_script.json"
+        if not ex.is_file():
+            raise RuntimeError(f"没有 {ex.name} 这份示例；请改用 --script 或默认的 LLM 分镜")
+        script = jread(ex)
     else:
-        raise RuntimeError("没有现成分镜；请加 --llm 或 --script")
+        script = llm_plan(bible, target_seconds,
+                          retries=max(0, int(max_attempts) - 1), style_text=style_text)
     script["target_seconds"] = float(script.get("target_seconds") or target_seconds)
     result = validate_script(script, bible)
     jwrite(out / "shot_script.json", script)

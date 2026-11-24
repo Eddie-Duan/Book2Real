@@ -18,6 +18,28 @@ Seedance 2.5 单次最多 30 秒，且"视频延长"只返回新增段（实测�
 
 > 2026-11-25 实测：第一段末帧与延长段首帧 SSIM≈0.99，帧内容几乎逐像素一致；延长段会严格从上一段末帧继续。
 
+## 0.1 通用化（2026-11-25）：不再"只有 cn01/en01 能跑"
+
+之前分镜对 `cn01` 有一条默认捷径（直接读 `examples/cn01_shot_script.json`），plate 规格与角色补充
+也按书名写在代码里，所以"看代码像通用 skill、跑起来只有那两本能用"。现在：
+
+| 以前 | 现在 |
+|---|---|
+| `planner.plan()` 对 cn01 直接读人工示例 | **默认现场调 LLM**；预写脚本必须显式 `--script` 或 `--from-example`（回归基线） |
+| `CN01_SPECS`/`EN01_SPECS` 写在 `assets.py` | `books/<id>/one_take/plates.json`；没配置就按 `locations` 合成通用 plate |
+| `PROPS_BY_BOOK`/`LOCATIONS_BY_BOOK`/`CHAR_EXTRA_BY_BOOK`/`CHAR_DEFAULTS` 写在 `bible.py` | `books/<id>/one_take/bible.json`（`char_look`/`char_extra`/`char_first_page`/`props`/`locations`/`target_seconds`）；缺配置走 curation+reader 推导 |
+| 分镜没有声口控制 | `--style books/<id>/style_card.json`（skill4 蒸馏的叙述声音，见 `docs/HANDOVER_INTERACTION.md` 同批产物） |
+| LLM 重试次数写死 | `--max-attempts`（默认 2，含首次） |
+
+**泛化验收（零 API 成本）**：
+
+```powershell
+python scripts/one_take_generic_check.py
+```
+
+六本书逐本检查：bible 页/角色/场景/道具、plate 规格、user prompt 覆盖全部页、风格卡注入、
+代码里无按书名写死的分支、默认路径必须是 LLM。产物 `books/one_take_generic_check.json`。
+
 ## 1. 七条铁律（由代码注入 + 门禁检查，不靠提示词自觉）
 
 | # | 铁律 | 代码怎么保证 |

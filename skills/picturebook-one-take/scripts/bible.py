@@ -28,76 +28,40 @@ NARRATOR = {
     "voice": "成年女性，幼儿园老师，温暖亲切，慢速，讲故事腔；不要儿童音",
 }
 
-CHAR_DEFAULTS = {
-    "huahua": {"look": "圆脸，两个小丸子头，红色小花发卡，粉色上衣，粉白条纹短裤，五六岁",
-               "voice": "五六岁女孩，音调偏高，活泼，句尾上扬"},
-    "xiaoman": {"look": "圆脸，小马尾，蘑菇发夹，橙色背带裤，五六岁",
-                "voice": "五六岁女孩，音调稍低，软糯，慢半拍"},
-    "huangmituan": {"look": "小黄狗，红项圈，短腿，尾巴卷起",
-                    "voice": "只发出汪汪/呜呜声，不说话"},
-    "kuan": {"look": "七八岁男孩，红色刺猬头，蓝色T恤，黄色领结，抱着爆米花桶",
-             "voice": "七八岁男孩，清亮，语速中等，情绪外放"},
-    "dad": {"look": "成年男性，红色卷发，戴眼镜，绿色开衫，温和",
-            "voice": "成年男性，低沉温和，语速慢"},
-}
+def _derive_locations(pages: list, curation: dict, title: str) -> list:
+    """没有 per-book 配置时，从 curation 的 scene/地点词推场景；推不出来就整本一个场景。
 
-CHAR_EXTRA_BY_BOOK = {
-    "en01": [
-        {"id": "dog", "name": "斑点狗", "role": "宠物",
-         "desc": "Kuan 家的白底黑斑大狗，垂耳，红舌头，出现在家里的餐桌旁。",
-         "look": "白底黑斑大狗，垂耳，红舌头，体型大", "voice": "只发出汪汪/呜呜声，不说话",
-         "first_page": "p26", "pages": ["p26"], "portrait": ""},
-    ],
-}
+    这样任何一本新书至少有一个 plate 可生成，不会因为缺配置直接空转。
+    """
+    groups: dict = {}
+    for p in pages:
+        pid = p.get("id")
+        cur = (curation.get("pages") or {}).get(pid, {}) or {}
+        key = str(cur.get("scene") or cur.get("location") or cur.get("location_name") or "").strip()
+        if not key:
+            continue
+        groups.setdefault(key, []).append(pid)
+    if groups:
+        return [{"id": f"loc{i + 1}", "name": name, "pages": pids}
+                for i, (name, pids) in enumerate(groups.items())]
+    return [{"id": "main", "name": title or "主场景",
+             "pages": [p.get("id") for p in pages if p.get("id")]}]
 
-PROPS_BY_BOOK = {
-    "cn01": [
-        {"id": "blocks", "name": "积木", "pages": ["p02", "p03", "p04", "p05", "p06", "p12"],
-         "ref": "assets/plate_room_1280x720.png", "look": "彩色木制积木：红/黄/绿/蓝，长方体、三角、拱形、小门、小窗，约二十块"},
-        {"id": "castle", "name": "积木城堡", "pages": ["p02", "p03", "p04", "p05", "p12"],
-         "ref": "assets/plate_room_1280x720.png", "look": "红黄绿蓝积木搭成的城堡，红色三角屋顶，紫色拱形门，绿色拱形墙"},
-        {"id": "cake", "name": "生日蛋糕", "pages": ["p08", "p09", "p11"],
-         "ref": "assets/plate_birthday_1280x720.png", "look": "白色奶油蛋糕，粉色花边，红色草莓，放在木桌上"},
-        {"id": "card", "name": "生日卡片", "pages": ["p09", "p10", "p11"],
-         "look": "对折的彩色手工卡片，画着两个小女孩和积木城堡"},
-        {"id": "envelope", "name": "小信封", "pages": ["p09", "p10"],
-         "look": "浅色小信封，被小狗叼在嘴里"},
-        {"id": "ladybug", "name": "小瓢虫", "pages": ["p07"],
-         "look": "红黑小瓢虫，圆点，停在绿叶上"},
-    ],
-    "en01": [
-        {"id": "popcorn", "name": "爆米花", "pages": ["p07", "p08", "p13", "p14", "p22"],
-         "ref": "assets/plate_lobby_1280x720.png", "look": "红白条纹爆米花桶，装满黄色爆米花"},
-        {"id": "robot", "name": "蓝色机器人", "pages": ["p07", "p08", "p17"],
-         "ref": "assets/plate_lobby_1280x720.png", "look": "大号浅蓝色圆头机器人玩具，圆眼睛，短腿，抱在 Kuan 怀里"},
-        {"id": "coins", "name": "硬币", "pages": ["p16", "p18"],
-         "look": "几枚金色硬币，放在手心/柜台上"},
-        {"id": "seats", "name": "影院座椅", "pages": ["p01", "p07", "p20", "p23"],
-         "ref": "assets/plate_auditorium_1280x720.png", "look": "深红色绒面影院座椅，成排，靠背高"},
-        {"id": "posters", "name": "电影海报", "pages": ["p02", "p03"],
-         "look": "墙上的三张抽象电影海报：几何色块、光晕、无真人、无汽车品牌、无可读文字"},
-        {"id": "snacks", "name": "零食", "pages": ["p10", "p13", "p18"],
-         "look": "薯片、糖果、爆米花、彩色包装，摆在柜台/腿上"},
-    ],
-}
 
-LOCATIONS_BY_BOOK = {
-    "cn01": [
-        {"id": "room_rain", "name": "下雨天的儿童房", "pages": ["p02", "p03", "p04", "p05", "p06"]},
-        {"id": "room_home", "name": "花花家的房间", "pages": ["p07", "p08"]},
-        {"id": "meadow", "name": "春天的草地", "pages": ["p07"]},
-        {"id": "birthday_room", "name": "生日房间", "pages": ["p08", "p09"]},
-        {"id": "door", "name": "门口/院子里", "pages": ["p10", "p11"]},
-        {"id": "final", "name": "草地上/重建的城堡", "pages": ["p12"]},
-    ],
-    "en01": [
-        {"id": "cinema_front", "name": "电影院门厅/海报墙", "pages": ["p01", "p02", "p03"]},
-        {"id": "auditorium", "name": "影院放映厅", "pages": ["p07", "p08", "p20", "p23"]},
-        {"id": "lobby", "name": "影院大堂/零食柜台", "pages": ["p10", "p13", "p14", "p18"]},
-        {"id": "screen", "name": "银幕里的电影世界", "pages": ["p04", "p05", "p24", "p25"]},
-        {"id": "home_table", "name": "家里的餐桌", "pages": ["p26", "p27", "p28"]},
-    ],
-}
+def _overrides(book_dir: Path) -> dict:
+    """per-book 配置：books/<id>/one_take/bible.json（缺省则全走通用推导）。
+
+    以前这些表（角色外观/补充角色/道具/场景）是写死在代码里的，只有 cn01/en01 能跑；
+    现在一律从书目录读，代码只保留语言级的通用默认（STYLE_DEFAULT/STYLE_EN）。
+    """
+    for name in ("bible.json", "cast.json"):
+        p = book_dir / "one_take" / name
+        if p.is_file():
+            try:
+                return json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                return {}
+    return {}
 
 
 def _load(path: Path, default=None):
@@ -114,6 +78,7 @@ def build_bible(book_dir: str | Path) -> dict:
     if not chars_doc.get("characters") and reader.get("characters"):
         chars_doc = {"characters": reader["characters"]}
     curation = _load(book_dir / "curation.json", {})
+    ov = _overrides(book_dir)
 
     pages = []
     name_to_id = {}
@@ -142,7 +107,7 @@ def build_bible(book_dir: str | Path) -> dict:
         name = c.get("name") or cid
         pages_with = [p["id"] for p in pages if cid in (p.get("cast") or [])]
         first_page = min(pages_with) if pages_with else (min(c.get("pages") or ["p99"]))
-        default = CHAR_DEFAULTS.get(cid, {})
+        default = (ov.get("char_look") or {}).get(cid, {})
         portrait_rel = c.get("portrait") or c.get("image") or ""
         portrait_full = (book_dir / "reader" / portrait_rel).resolve() if portrait_rel else None
         if portrait_full and portrait_full.exists():
@@ -162,13 +127,15 @@ def build_bible(book_dir: str | Path) -> dict:
             "portrait": portrait_rel,
         })
 
-    for extra in CHAR_EXTRA_BY_BOOK.get(bid, []):
+    for extra in ov.get("char_extra") or []:
         if not any(c["id"] == extra["id"] for c in characters):
             characters.append({**extra, "ref": f"assets/head_{extra['id']}.png"})
     for c in characters:
-        if bid == "en01" and c["id"] == "dad":
-            c["first_page"] = "p01"
-    characters = [c for c in characters if c.get("role") or c["id"] in CHAR_DEFAULTS]
+        override_first = (ov.get("char_first_page") or {}).get(c["id"])
+        if override_first:
+            c["first_page"] = override_first
+    characters = [c for c in characters
+                  if c.get("role") or c["id"] in (ov.get("char_look") or {})]
     if not characters:
         seen = {}
         for p in pages:
@@ -186,8 +153,10 @@ def build_bible(book_dir: str | Path) -> dict:
 
     title = curation.get("title") or reader.get("title") or bid
     language = reader.get("language") or "zh"
-    style = STYLE_EN if str(language).lower().startswith("en") or bid.startswith("en") else STYLE_DEFAULT
-    props = PROPS_BY_BOOK.get(bid)
+    style = (ov.get("style")
+             or (STYLE_EN if str(language).lower().startswith("en") or bid.startswith("en")
+                 else STYLE_DEFAULT))
+    props = ov.get("props")
     if not props:
         props, seen = [], set()
         for p in pages:
@@ -213,8 +182,9 @@ def build_bible(book_dir: str | Path) -> dict:
         "characters": characters,
         "props": props,
         "pages": pages,
-        "locations": LOCATIONS_BY_BOOK.get(bid, []),
-        "target_seconds": 180 if bid.startswith("en") else 150,
+        "locations": ov.get("locations") or _derive_locations(pages, curation, title),
+        "target_seconds": ov.get("target_seconds")
+        or (180 if str(language).lower().startswith("en") else 150),
         "source": {
             "book_json": str((book_dir / "reader" / "book.json").relative_to(ROOT)),
             "curation": str((book_dir / "curation.json").relative_to(ROOT)),
