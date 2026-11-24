@@ -13,7 +13,7 @@
 
 ```
 输入：books/<id>/reader/book.json      # 每页 text / characters / scene
-可选：page 目录（prepare_from_book 的产物）——给了就把 scene_tag 写回 page_manifest.json
+可选：page 目录（S1 产出的四件套）——给了就把 scene_tag 写回 page_manifest.json
 
 输出：scene_plan.json
   {
