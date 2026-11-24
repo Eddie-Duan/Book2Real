@@ -48,6 +48,35 @@ TIME_JUMP_REGEX = re.compile(
 PROMPT_CHAR_LIMIT = 1000
 SAFE_PROMPT_BUDGET = 950  # leave room for the parameter suffix the executor appends
 
+# 每页在成片里至少停留这么久；低于它观众只会看到"刷一下"，属于分镜失败。
+MIN_PAGE_SCREEN_SEC = 1.0
+
+# 全片硬锁：Seedance 默认会自作主张地做 Ken-Burns 式推近，元素越拉越大。
+# 这条锁每段都必须带，且放在提示词末尾（模型对末尾指令更敏感）。
+CAMERA_LOCK_LINE = (
+    "[Camera Lock]: locked-off static camera. No zoom in/out, no dolly, no push-in or "
+    "pull-out, no pan, no tilt, no framing change; every character and prop keeps a "
+    "constant on-screen size and position. The camera is locked, the action is not."
+)
+
+# 镜头锁只管机位，不管动作。Seedance 在没有动作指令时会给"微动"保平安，
+# 成片看起来像 AI 偷懒；这条明确要求动作幅度与正常节奏。
+MOTION_CLAUSE = (
+    "[Motion]: full, clearly visible action at normal human pace — characters move limbs, "
+    "torso and expression with obvious amplitude over the clip, and the action progresses "
+    "to completion; no frozen pose, no micro-motion-only, no slow motion."
+)
+
+# 上游运动提示词里的推/拉/摇镜短语必须剥离，否则"镜头缓缓推近"会盖过末尾的 Camera Lock。
+CAMERA_MOVE_REGEX = re.compile(
+    r"(?:缓慢|慢慢|缓缓|轻轻|逐渐)?\s*(?:镜头|摄像机|相机)\s*(?:缓慢|慢慢|缓缓|轻轻|逐渐)?\s*"
+    r"(?:推近|推进|拉远|后拉|推镜|拉镜|摇镜|移镜|环绕|旋转)"
+    r"|(?:slowly|slow|smooth|smoothly|gentle|gently|ultra-slow)?\s*"
+    r"(?:zoom|dolly|push|pull)[- ]?(?:in|out)\b"
+    r"|\bken\s*burns\b",
+    re.IGNORECASE,
+)
+
 # 1080p list prices of doubao-seedance-1-0-pro (CNY), used only for a rough estimate
 COST_1080P = {5: 1.60, 10: 3.20}
 
@@ -278,15 +307,27 @@ def classify_pair(p1: dict, p2: dict, m: dict) -> dict:
     }
 
 
+def strip_camera_moves(text: str) -> str:
+    """剥掉上游提示词里的推/拉/摇镜短语，只删运镜词本身，不重写其余描述。"""
+    cleaned = CAMERA_MOVE_REGEX.sub("", text)
+    # 运镜短语删掉后常留下"at eye level"/"from a low angle"这类镜头视角残句，
+    # 以及多余的分隔逗号；镜头已锁死，这些残句会和新锁冲突。
+    cleaned = re.sub(r"[,\s]*\b(?:at|from)\s+(?:eye|low|high|ground|bird'?s[- ]eye|worm'?s[- ]eye) level\b", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"[,\s]*\b(?:at|from)\s+a\s+(?:low|high|ground|bird'?s[- ]eye|worm'?s[- ]eye)\s+angle\b", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+([，,。；;])", r"\1", cleaned)
+    cleaned = re.sub(r"([，,。；;])\s*(?:[，,。；;]\s*)+", r"\1", cleaned)
+    return cleaned.strip(" ，,；;、\n")
+
+
 def write_segment_prompt(prompts_dir: Path, seg_id: str, base_prompt: str, lock: str) -> str:
     prompts_dir.mkdir(parents=True, exist_ok=True)
     lock_line = f"[Director Continuity Lock]: {lock}"
-    budget = SAFE_PROMPT_BUDGET - len(lock_line) - 1
-    head = base_prompt.strip()
+    budget = SAFE_PROMPT_BUDGET - len(lock_line) - len(CAMERA_LOCK_LINE) - len(MOTION_CLAUSE) - 3
+    head = strip_camera_moves(base_prompt).strip()
     if len(head) > budget:
         cut = head.rfind(" ", 0, budget)
         head = head[: cut if cut > 200 else budget].rstrip()
-    text = f"{head}\n{lock_line}\n"
+    text = f"{head}\n{lock_line}\n{CAMERA_LOCK_LINE}\n{MOTION_CLAUSE}\n"
     (prompts_dir / f"{seg_id}_prompt.txt").write_text(text, encoding="utf-8")
     return f"prompts/{seg_id}_prompt.txt"
 
@@ -426,10 +467,12 @@ def build_plan(pages_dir: Path, out_dir: Path) -> dict:
         if dec["realization"] == "SHARED_T" and (
             cur["segment_kind"] != "SINGLE_PAGE" or nxt["segment_kind"] != "SINGLE_PAGE"
         ):
-            dec["decision"] = "HARD_CUT"
-            dec["subtype"] = "CUT_ON_ACTION"
-            dec["realization"] = "IN_CLIP"
-            dec["rationale"] += " （桥接帧目标为合并段，保守降级为动作切）"
+            # T 只能挂在两段单页段之间；合并段吞掉一页就不能再挂 T。
+            # 但直接降成 0s 硬切正是"转场生硬"的来源，所以改由后期 0.6s 交叉溶解实现。
+            dec["decision"] = "DESIGNED_TRANSITION"
+            dec["subtype"] = "CROSS_DISSOLVE"
+            dec["realization"] = "POST"
+            dec["rationale"] += " （桥接帧目标为合并段，改由后期 0.6s 交叉溶解实现，不再纯硬切）"
             flags.append("TRANSITION_TARGET_MERGED")
 
         if dec["realization"] == "SHARED_T":
@@ -490,6 +533,47 @@ def build_plan(pages_dir: Path, out_dir: Path) -> dict:
             "realization": "NONE",
         }
 
+    # 每页屏上时长与转场覆盖度：成片质检要能一眼看出"页码刷过去"和"全是硬切"
+    for seg in segments:
+        seg["page_screen_sec"] = round(seg["duration_sec"] / max(1, len(seg["pages"])), 2)
+    short_pages = [s["segment_id"] for s in segments if s["page_screen_sec"] < MIN_PAGE_SCREEN_SEC]
+    if short_pages:
+        print(
+            f"[WARN] 段 {short_pages} 每页屏上时长 < {MIN_PAGE_SCREEN_SEC}s，"
+            "请拆开合并页或换 10s 时长；否则成片会'刷一下'就切页。",
+            file=sys.stderr,
+        )
+    transition_summary = {
+        "shared_t_bridge": sum(
+            1 for s in segments[:-1] if s["transition_out"]["realization"] == "SHARED_T"
+        ),
+        "post_xfade": sum(1 for s in segments[:-1] if s["transition_out"]["realization"] == "POST"),
+        "hard_cut_in_clip": sum(
+            1 for s in segments[:-1] if s["transition_out"]["realization"] == "IN_CLIP"
+        ),
+        "min_page_screen_sec": min((s["page_screen_sec"] for s in segments), default=0.0),
+    }
+    transition_summary["hard_cut_ratio"] = round(
+        transition_summary["hard_cut_in_clip"] / max(1, len(segments) - 1), 3
+    )
+    # 有效转场覆盖率：SHARED_T / POST / 独立桥接都算"观众看得见的转场"。
+    # 全片 0 覆盖 = 分镜退化成幻灯片，直接标红，别让 S3 花完钱才发现。
+    seam_total = max(1, len(segments) - 1)
+    effective = (
+        transition_summary["shared_t_bridge"]
+        + transition_summary["post_xfade"]
+        + sum(1 for s in segments[:-1] if s["transition_out"]["realization"] == "BRIDGE_CLIP")
+    )
+    transition_summary["effective_transition_count"] = effective
+    transition_summary["effective_transition_ratio"] = round(effective / seam_total, 3)
+    transition_gate = "PASS" if effective > 0 or len(segments) <= 1 else "FAIL"
+    if transition_gate == "FAIL":
+        print(
+            "[WARN] 所有接缝都是 0s 硬切（effective_transition_ratio=0）："
+            "分镜/桥接没有生效，成片会变成简单切屏。回 S2 补 SHARED_T 或 POST 叠化。",
+            file=sys.stderr,
+        )
+
     master_ratio = pages[0]["legal_ratio"]
     cost = sum(COST_1080P[s["duration_sec"]] for s in segments)
     plan = {
@@ -498,6 +582,10 @@ def build_plan(pages_dir: Path, out_dir: Path) -> dict:
         "master_ratio": master_ratio,
         "page_turn_transition_enabled": False,
         "cost_estimate_cny": round(cost, 2),
+        "min_page_screen_sec": MIN_PAGE_SCREEN_SEC,
+        "short_page_segments": short_pages,
+        "transition_summary": transition_summary,
+        "transition_gate": transition_gate,
         "pages": [
             {
                 "page_id": p["page_id"],
@@ -599,6 +687,12 @@ def calibrate(pages_dir: Path) -> None:
 
 
 def main(argv=None) -> int:
+    # Windows 控制台默认 GBK，预估费用里的 ¥ 会直接抛 UnicodeEncodeError。
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(description="Picturebook scene director / seam planner")
     ap.add_argument("--pages-dir", type=Path, required=True, help="上游 pages/page_### 目录")
     ap.add_argument("--out-dir", type=Path, default=Path("director_out"))

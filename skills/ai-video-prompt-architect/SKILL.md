@@ -157,7 +157,7 @@ when a reader pauses and taps it. It is deliberately **not** part of the video p
 
 - Do **not** route page or segment video generation through this skill. That belongs to
   `seedance-relay-producer` (generation) and `picturebook-scene-director` (shot planning).
-- Do **not** expect this skill to be triggered by the pipeline. The pipeline hands over exactly two
-  artifacts — a frozen `final_movie.mp4` and `page_timeline.json` — and stops there.
+- Do **not** expect this skill to be triggered by the pipeline. The pipeline hands over exactly one
+  artifact — a frozen `final_movie.mp4` — and stops there.
 - If a request is about "make this page move" / "generate the transition", it is the wrong skill:
-  load `living-picturebook` instead, which owns the entry point.
+  load `picturebook-pipeline` instead, which owns the entry point.

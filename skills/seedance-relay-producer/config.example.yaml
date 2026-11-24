@@ -22,7 +22,9 @@ ark:
 
 pricing:
   currency: "RMB"
-  budget_guard_limit: 20.0
+  # 2026-11-23 由 20.0 调到 40.0：720p 整本 120s 估算约 21.6 元，原阈值会把整本直接拦死；
+  # 40 元仍低于本仓库 CLOUD_MAX_SPEND_CNY=50 的硬护栏（累计口径）。
+  budget_guard_limit: 40.0
   # 单条生成单价表（按分辨率与时长，单位：RMB/条，可按实际账户折扣修改）
   unit_cost:
     "480p_5s": 0.40
@@ -64,6 +66,15 @@ thresholds:
   # 环境动效大的项目（角落持续树叶/雨丝摆动）可调高这两项以降低误判
   watermark_corner_changed_frac_min: 0.35
   watermark_corner_changed_edge_min: 0.10
+  # 画面尺度漂移：首帧 vs 中/尾帧的外圈特征点仿射尺度偏离，≥2 帧超过该比例判 ZOOM_DRIFT。
+  zoom_max_scale_deviation: 0.04
+  # 每页屏上时长下限（秒）：合并段用 seconds_per_page 校验，低于此值判 PAGE_TOO_SHORT。
+  min_page_screen_sec: 1.0
+  # 动作幅度门禁：动态绘本主体必须"真的在动"。抽样帧 Farneback 平均光流中位数低于
+  # motion_min_mean_flow_px，或超过半数抽样间隔没有可感知运动，判 MOTION_TOO_SMALL。
+  # 真实生成建议 true；离线测试夹具是静态合成片，代码内默认关闭。
+  enforce_motion_check: true
+  motion_min_mean_flow_px: 0.8
 
 repair:
   max_retries_per_page: 3
