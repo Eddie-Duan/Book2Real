@@ -91,3 +91,16 @@ python -m book2real cloud --check
 - 正式交付：`--resolution 720p`，`verify --delivery` 必须过 1280×720。
 - 不要在一条 extension 链中途换分辨率；480p 排练通过后，整条重跑 720p 正式版。
 - 360p 不在 API 档位里（只有 480p/720p），不要试。
+## 12. 2026-11-25 英文绘本 en01（480p）中途状态
+
+- 已过门禁：chunk_01–04（4×30s = 120.08s，854×480/24fps/有声），预览 `runs/en01/one_take/preview_120s.mp4`。
+- 未生成：chunk_05–06（还差 60s 到 180s）；再充值约 40–60 元即可跑完。
+- 英文实测花费：**14 次调用，217.38 元（上限估算）**；账号再次 `AccountOverdueError`。
+- 钱花在哪：chunk_03 因"包装文字 / 黑场 / 数字 zoom"连续返修 8 次；chunk_01 因 style 误报 3 次。
+- 已改：
+  - `generate --attempts` 默认 **1**（不再自动 3 连跑）；
+  - `--max-cny` 改为**累计预算**，从 `cost.csv` 读已花，超了就停；
+  - `style_cast` 只在 `style_mean < 0.22` 判漂移，单帧 `style_min` 不再误杀；
+  - 深色眼睛特写/闭眼接开眼允许 `dark_match_cut`（prev_mean<15 且 seam≥0.70），不再当硬切。
+- 已加：`[Props]` 道具锁、`[Voice Lock]` 声线锁、`[Audio Continuity]` 段尾静音；`check_audio_cut` 在段尾语音 >-20 dB 时打回。
+- DeepSeek 视觉（实测可用）：`one_take.py vision` 把页图发给 `deepseek-flash`，产出画风/角色/道具/地点；en01 的画风 DNA 就是它写的。角色身份仍以 `book.json` 为准，不让视觉模型改名（否则 Kuan/Dad 会张冠李戴）。
