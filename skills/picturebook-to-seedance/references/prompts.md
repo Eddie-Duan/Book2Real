@@ -134,8 +134,8 @@ Strictly adhere to the original illustration's visual DNA:
 ### 中文对照版
 
 ```text
-【镜头运动】：{camera_movement}（例如：极缓慢的微推镜头，保持原绘本构图与画幅稳定）。
-【主体微动作】：{subject_micro_action}（描述首帧已有角色的自然呼吸、眨眼、肢体微动）。
+【镜头运动】：固定机位，全程不推近、不拉远、不摇、不移、不变焦（locked-off static camera, no zoom / dolly / pan / tilt）；构图与画幅保持稳定。
+【主体动作】：{subject_action}（描述首帧已有角色完整、可见、按正常速度完成的动作：肢体位移、姿态变化、表情变化；不许只写呼吸、眨眼或轻微摆动）。
 【环境与新增元素动态】：{environment_and_added_motion}（描述环境氛围及 Stage 5 补全元素的细腻动态）。
 【画风与质感锁定】：严格保持首帧的手绘媒介质感与纸张纹理静止稳定，色彩与光影柔和连贯，呈现细腻的绘本动态感。
 【负向约束】：画面中严禁出现任何文字、字幕、页码、水印或对话框；角色面部与肢体结构保持稳定不变形，无闪烁伪影，无画面裁切或比例跳变。
@@ -144,8 +144,8 @@ Strictly adhere to the original illustration's visual DNA:
 ### 英文生产版（送入 Seedance I2V）
 
 ```text
-[Camera]: {camera_movement} (e.g., Ultra-slow, gentle push-in, maintaining steady original picture book framing).
-[Subject Motion]: {subject_micro_action} (e.g., Subtle natural breathing, gentle blinking, and slight posture shift of the main character).
+[Camera]: Locked-off static camera: absolutely no zoom, dolly, push-in/pull-out, pan or tilt; framing fixed on the original picture-book composition.
+[Subject Motion]: {subject_action} (e.g., the character reaches for an object, turns their body, and finishes the gesture at normal human pace with clearly visible amplitude; no micro-motion-only, no breathing/blinking-only, no slow motion).
 [Environment & Added Elements]: {environment_and_added_motion} (e.g., Delicate ambient motion of background foliage, soft light particles, and newly added narrative elements).
 [Style Lock]: Strictly preserve the hand-crafted artistic medium, brushwork, and static paper grain of the first frame, keeping lighting and colors cohesive with gentle picture-book pacing.
 [Negative Constraints]: NO text, NO subtitles, NO captions, NO page numbers, NO watermarks, NO speech bubbles; no facial distortion, no limb morphing, no flickering artifacts, no sudden crop or aspect ratio jump.
@@ -153,7 +153,7 @@ Strictly adhere to the original illustration's visual DNA:
 
 ### 填参规则（很重要）
 
-- `{camera_movement}`：优先"极缓慢推/移"，别写快切、甩镜——绘本首帧一动就崩。
-- `{subject_micro_action}`：只写首帧里**已经存在**的角色。
+- `{camera_movement}`：固定写"locked-off static camera / 固定机位"——推近、拉远、摇移、甩镜一律不写；下游也会剥离运镜词并强制追加镜头锁。
+- `{subject_action}`：只写首帧里**已经存在**的角色；动作必须完整、可见、按正常速度在段内完成，不写呼吸/眨眼/微动这类"幻灯片式"动作。
 - `{environment_and_added_motion}`：**只给会自然运动的东西写动态**（鸟、风、水、光、烟）；路牌、房子、桌椅这类静物只写"光影与氛围微动"，否则模型会把结构扭变形。
 - 提交前按平台实际可选版本核对时长（5s/10s）与分辨率上限；不要把版本号写进提示词。

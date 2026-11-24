@@ -1,6 +1,6 @@
 # skills/ — 绘本动态化技能包
 
-把一本绘本 PDF 变成一条不可二次编辑的动态片，封装成三个执行 skill + 一个总装 skill。
+把一本绘本 PDF 变成一条不可二次编辑的动态片，封装成三个执行 skill + 一个可选 S0 分组 skill + 一个总装 skill。
 
 > **先读这一段：本目录就是交付路径。**
 > 2026-11-23 定：非交互成片**只能用 Seedance 生成**（见 [`docs/CONSTRAINTS.md`](../docs/CONSTRAINTS.md)），
@@ -16,7 +16,7 @@
 | 拼接 | 不拼（单趟编码） | `concat.py` 拼成一条（可选 xfade） |
 | 可重生成粒度 | 整本 | 单段 |
 | 成本 | 本地算力 | 按条计费（flash 实测 **1.8 元 / 10s @720p** → 120s ≈ 21.6 元/本） |
-| 交付物 | 成片 + `timeline.json` | 成片 `final_movie.mp4` + `final_movie.json`（规格自检）+ `page_timeline.json`（页级契约） |
+| 交付物 | 成片 + `timeline.json` | 成片 `final_movie.mp4` + `final_movie.json`（规格自检）+ `qc_report.md/json` + `cost.csv` |
 
 **口径提示**：Q43 原文只说"必须一次生成，不能二次编辑"。"同一任务内分段生成再拼接不算二次编辑"
 是**队内判断，待官方澄清**（[`docs/答疑/答疑总结.md`](../docs/答疑/答疑总结.md) §3.3 的解读相反）。
@@ -55,11 +55,17 @@ python skills/seedance-relay-producer/scripts/preflight.py \
   --plan book_out/scene_plan.json --pages-dir pages \
   --out-dir book_out/relay --resolution 1080p --dry-run
 
-# 3) S3 真跑（会按条计费；先 480p 样片，再 1080p）
+# 3) S3 真跑（会按条计费；480p 样片必须用独立 out-dir，否则升 1080p 不会重生成）
 set ARK_API_KEY=...            # PowerShell: $env:ARK_API_KEY="..."
 python skills/seedance-relay-producer/scripts/generate.py \
   --config skills/seedance-relay-producer/config.yaml \
-  --out-dir book_out/relay --resolution 480p --yes
+  --out-dir book_out/relay_sample --resolution 480p --page-id seg_001 --yes
+python skills/seedance-relay-producer/scripts/poll_download.py \
+  --config skills/seedance-relay-producer/config.yaml --out-dir book_out/relay_sample
+# 样片确认后，正式目录一次跑 1080p
+python skills/seedance-relay-producer/scripts/generate.py \
+  --config skills/seedance-relay-producer/config.yaml \
+  --out-dir book_out/relay --resolution 1080p --yes
 python skills/seedance-relay-producer/scripts/poll_download.py \
   --config skills/seedance-relay-producer/config.yaml --out-dir book_out/relay
 ```
