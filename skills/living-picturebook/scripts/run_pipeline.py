@@ -128,6 +128,33 @@ def run(ctx: Ctx, label: str, argv: list[str], cwd: Path) -> None:
 
 
 # --------------------------------------------------------------------------- steps
+def gate_keyframe_text(pages_dir: Path) -> None:
+    """S1 出口硬门：关键帧整帧读不出字才算过关。
+
+    只看原始文本框会自证清白（页脚/页码/水印不在框里），这些字会被 Seedance 原样动起来，
+    成片看起来就是"原书页在动"。
+    """
+    bad: list[str] = []
+    for pdir in sorted(pages_dir.iterdir()):
+        qa = pdir / "qa_report.json"
+        if not qa.is_file():
+            continue
+        try:
+            data = read_json(qa)
+        except Exception:
+            continue
+        gate = data.get("text_gate") or {}
+        if gate.get("passed") is False:
+            sample = " / ".join(gate.get("sample") or [])[:60]
+            bad.append(f"{pdir.name}({gate.get('count')} 处：{sample})")
+    if bad:
+        raise SystemExit(
+            "[pipeline] 关键帧仍能读出文字，禁止送进 Seedance（会把原书页原样动起来）："
+            + "; ".join(bad[:6])
+        )
+    print("    [gate] 关键帧整帧无字（text_gate 全 PASS）")
+
+
 def step_plan(ctx: Ctx) -> None:
     run(ctx, "S3 分镜（plan_scenes）", [
         sys.executable, ctx.scene_scripts / "plan_scenes.py",
@@ -495,6 +522,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"[pipeline] 页目录不存在: {pages_dir}")
     if not any(p.is_dir() and (p / "clean_keyframe.png").is_file() for p in pages_dir.iterdir()):
         raise SystemExit(f"[pipeline] {pages_dir} 下没有 page_###/clean_keyframe.png，先跑 S1/S2。")
+    gate_keyframe_text(pages_dir)
 
     out_dir = args.out_dir.expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)

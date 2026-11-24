@@ -464,31 +464,13 @@ def build_plan(pages_dir: Path, out_dir: Path) -> dict:
             flags.append("TRANSITION_TARGET_MERGED")
 
         if dec["realization"] == "SHARED_T":
-            bkind = dec["bridge_kind"]
-            t_rel = f"bridge/T_{k + 1:03d}_{bkind}.png"
-            cur["last_frame"] = {
-                "source": t_rel,
-                "kind": "bridge_frame",
-                "bridge_kind": bkind,
-            }
-            nxt["first_frame"] = {
-                "source": t_rel,
-                "kind": "bridge_frame",
-                "bridge_kind": bkind,
-            }
-            nxt["last_frame"] = {
-                "source": pages[segments_meta[k + 1]["start"]]["keyframe_rel"],
-                "kind": "keyframe",
-            }
-            nxt["fallback_if_no_last_frame"] = {
-                "last_frame": None,
-                "duration_sec": 5,
-                "transition_out": {
-                    "type": "DESIGNED_TRANSITION",
-                    "subtype": "CROSS_DISSOLVE",
-                    "realization": "POST",
-                },
-            }
+            # 2026-11-24：桥接帧本身是「压暗 + 模糊的原页」，成片里表现为"原书页闪一下"，
+            # 既生硬、又会被当成原书图片插进片子。改为真实后期交叉溶解，不再生成/使用桥接帧。
+            dec["decision"] = "DESIGNED_TRANSITION"
+            dec["subtype"] = "CROSS_DISSOLVE"
+            dec["realization"] = "POST"
+            dec["rationale"] += " （改用后期 0.6s 交叉溶解；取消压暗模糊桥接帧）"
+            flags.append("BRIDGE_REPLACED_BY_XFADE")
 
         cur["transition_out"] = {
             "type": dec["decision"],

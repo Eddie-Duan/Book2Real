@@ -31,9 +31,10 @@
 
 | 要素 | 必须做到 | 验收 |
 |---|---|---|
+| 关键帧（新增） | **整帧读不出字**才算干净；页脚/页码/水印一律不许留 | `qa_report.text_gate.passed = true`；`run_pipeline` 在 S1 出口直接拦 |
 | 场景判定 | 每页都被分进某段；跨 2–3 页连续情节合并；段时长只能是 5/10 s | `scene_plan.json` 段数 = 页覆盖，`needs_human_review` 为空 |
-| 场景转换 | 每条接缝有明确判定（CONTINUOUS / MATCH_CUT / HARD_CUT / DESIGNED_TRANSITION），要转场就给共享桥接帧 | `seam_decisions.json` 无空判定；成片接缝 SSIM ≥ 0.88 |
-| 人物与背景一致性 | ① 提示词带**角色锚点**（姓名/身份/外观，整段不许换人改龄）② 双锚定锁首尾帧 ③ 段内一致性要有量化值，无模型时必须显式标 `DEGRADED`，不许静默 PASS | `prompts/seg_###_prompt.txt` 含 `[Transition/Continuity Lock]` + 角色锚点；`qc.json` 的 `temporal_consistency` 不是"跳过即通过" |
+| 场景转换 | **禁止压暗/模糊的"桥接帧"**（成片里就是原书页闪一下）；一律改成后期 0.6s 交叉溶解 + 动作切 | `scene_plan.concat_plan` 里该接缝 `cut=xfade`；`concat_audit.json` 的 `hard_cut_ratio` < 1 |
+| 人物与背景一致性 | ① 提示词带**角色锚点** + `[Cast Lock]`（只许首帧里的角色，不许新增）② `[Scene Lock]`（不换场景/时间/光线）③ 段内一致性要有量化值，无模型时必须显式标 `DEGRADED`，不许静默 PASS | `prompts/seg_###_prompt.txt` 含 `[Cast Lock]` / `[Scene Lock]` / 尾部 `[Camera Lock]`；`qc.json` 的 `temporal_consistency` 不是"跳过即通过" |
 | 旁白 | 由 `build_audio_plan → build_narration` 出轨，`concat` 铺进成片；音轨必须非静音 | `ffprobe` 有 aac 流；`volumedetect` 峰值 > −6 dB（不能是 anullsrc 的 −91 dB） |
 
 ## 4. 已知代价（算过账，接受）

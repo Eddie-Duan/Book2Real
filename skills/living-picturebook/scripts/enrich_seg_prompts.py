@@ -29,8 +29,8 @@ DEFAULT_STYLE_DNA = (
     "构图、主体比例与背景布局沿用首帧参考图。"
 )
 DEFAULT_NEGATIVE = (
-    "文字, 字幕, 音效字, 手写字, 水印, logo, 台标, 边框, 多余人物, 多余动物, "
-    "现代物品, 写实照片, 3D 渲染感, 变形, 扭曲, 闪烁, 缺肢"
+    "文字, 字幕, 音效字, 手写字, 页码, 水印, logo, 台标, 边框, 纸张, 书页, 翻页, "
+    "拍摄反光, 折痕, 多余人物, 多余动物, 现代物品, 写实照片, 3D 渲染感, 变形, 扭曲, 闪烁, 缺肢"
 )
 
 # 机位政策（2026-11-24，见 docs/CONSTRAINTS.md）：严格静态锁定。
@@ -142,7 +142,14 @@ def build_prompt(seg: dict, scene_no: int, text: str, anchors: list[str], style_
     sections.append(f"[Subject Motion] {subject}")
 
     sections.append(f"[Environment & Style] {style_dna}背景与本段首帧一致，"
-                    "不随意更换地点、季节、天气与家具摆位。")
+                    "不随意更换地点、季节、天气与家具摆位。"
+                    "场景锁定：全段只发生在首帧这一处场景内，不切换房间/地点/时间/光线方向。")
+
+    cast = ("[Cast Lock] 出场角色仅限首帧里已经出现的人物与动物，数量、位置、朝向不变；"
+            "不得新增任何人物、动物、车辆或现代物品，不得出现第二处场景。")
+    if anchors:
+        cast += "本段锁定：" + "、".join(a.split("（")[0] for a in anchors) + f"（共 {len(anchors)} 个）。"
+    sections.append(cast)
 
     lock = "严格从给定首帧参考图开始，不淡入、不改构图；"
     if last.get("source"):
