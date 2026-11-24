@@ -102,7 +102,7 @@
   },
   {
    "id": "chunk_06", "duration": 30, "pages": ["p25","p26","p27","p28"],
-   "cast": ["kuan","dad","dog"], "props": ["seats"],
+   "cast": ["kuan","dad","dog"], "props": [],
    "location": "home_table", "location_name": "home dinner table",
    "scene_note": "At home, Kuan and the narrator laugh about the film at the dinner table; Dad is already snoring.",
    "location_ref": "home_table",

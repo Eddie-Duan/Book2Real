@@ -134,9 +134,12 @@ class Settings:
     vad_energy_ratio: float = field(default_factory=lambda: _f("VAD_ENERGY_RATIO", 3.2))
     vad_min_rms: float = field(default_factory=lambda: _f("VAD_MIN_RMS", 0.006))
     filler_enabled: bool = field(default_factory=lambda: _b("FILLER_ENABLED", True))
-    filler_deadline_ms: int = field(default_factory=lambda: _i("FILLER_DEADLINE_MS", 1700))
+    filler_deadline_ms: int = field(default_factory=lambda: _i("FILLER_DEADLINE_MS", 1500))
     filler_zh: str = field(default_factory=lambda: _s("FILLER_ZH", "嗯，我看看。"))
     filler_en: str = field(default_factory=lambda: _s("FILLER_EN", "Hmm, let me see."))
+    # 每语言预合成句数；用掉一句后台补一句，避免 warmup 一次打 33 句触发 TTS 限流
+    ack_prewarm_lines: int = field(default_factory=lambda: _i("ACK_PREWARM_LINES", 5))
+    ack_refill: bool = field(default_factory=lambda: _b("ACK_REFILL", True))
     latency_budget_ms: int = field(default_factory=lambda: _i("LATENCY_BUDGET_MS", 2000))
     warmup_on_start: bool = field(default_factory=lambda: _b("WARMUP_ON_START", True))
 
@@ -154,6 +157,9 @@ class Settings:
     session_history_turns: int = field(default_factory=lambda: _i("SESSION_HISTORY_TURNS", 8))
     moderation_enabled: bool = field(default_factory=lambda: _b("MODERATION_ENABLED", True))
     fast_answer: bool = field(default_factory=lambda: _b("FAST_ANSWER", False))
+    # 人物/关系类问题：先垫话，再校验答案；校验不过就拖/澄清，绝不播错答案。
+    verified_answers: bool = field(default_factory=lambda: _b("VERIFIED_ANSWERS", True))
+    answer_verify_timeout_s: float = field(default_factory=lambda: _f("ANSWER_VERIFY_TIMEOUT_S", 6.0))
     chitchat_cache: bool = field(default_factory=lambda: _b("CHITCHAT_CACHE", True))
 
     # Skill 4：点击回答默认复用预存卡片（零延迟）；打开后走同一套文风 prompt

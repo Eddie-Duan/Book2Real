@@ -262,6 +262,9 @@ class OpenAICompatLLM(LLMProvider):
         }
         if "minimax" in self.settings.llm_base_url:
             payload["enable_thinking"] = False
+            # M2.7 实测：enable_thinking=false 首字约 1.0s；thinking.type=disabled 约 0.6s，
+            # 且不产生 <think> 块，缩短“真答案”前的等待。
+            payload["thinking"] = {"type": "disabled"}
         import time
 
         t0 = time.perf_counter()

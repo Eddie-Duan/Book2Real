@@ -21,7 +21,8 @@ R7 一次任务链、无人工后期
 """
 
 CAMERA_LOCK = """[Camera Lock]
-只做物理机位：横移/跟拍/摇摄/环绕/升降/真实推拉/切镜；禁止变焦、数字缩放、整幅等比放大缩小；近景用切镜。
+只做物理机位：横移/跟拍/摇摄/环绕/升降/真实推拉/切镜；禁止变焦、数字缩放、整幅等比放大缩小；
+不要用连续推拉从特写拉到全景；近景/特写一律用切镜。
 """
 
 def _props_lines(chunk: dict, bible: dict) -> str:
@@ -58,7 +59,8 @@ def _voice_lock(chunk: dict, bible: dict) -> str:
 
 
 AUDIO_CONTINUITY = """[Audio Continuity]
-每个镜头的旁白/对白必须说完完整一句；段尾说完后留 0.4–0.6 秒静音或环境音，不要在半句时切断；下一段从完整句子开始。"""
+每个镜头的旁白/对白必须说完完整一句；段尾说完后留 0.4–0.6 秒静音或环境音，不要在半句时切断；下一段从完整句子开始。
+段尾不要淡出/黑场，最后一帧保持正常亮度；下一段开头直接接这一帧。"""
 
 
 
@@ -76,6 +78,10 @@ def _cast_lines(chunk: dict, bible: dict, image_map: dict[str, int]) -> str:
     return "[Cast]\n" + "\n".join(lines)
 
 
+SURFACE_TERMS = ["包装", "货架", "屏幕", "招牌", "海报", "标签", "收银台",
+                 "packaging", "shelf", "screen", "sign", "poster", "label", "counter"]
+
+
 def _shots_lines(chunk: dict) -> str:
     lines = ["[Shots]"]
     for i, s in enumerate(chunk.get("shots") or [], 1):
@@ -84,6 +90,10 @@ def _shots_lines(chunk: dict) -> str:
             bits.append(s["space"])
         if s.get("sound"):
             bits.append(s["sound"])
+        text = " ".join(bits)
+        # general fix: any text-prone surface must be blank / turned away
+        if any(k in text.lower() for k in SURFACE_TERMS):
+            bits.append("该表面必须保持空白：无文字、无字母、无数字、无logo；必要时背对镜头")
         lines.append(f"镜头{i}：" + "；".join(b for b in bits if b))
     return "\n".join(lines)
 

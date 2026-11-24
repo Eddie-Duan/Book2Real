@@ -99,16 +99,31 @@ MiniMax 云端（TTS + ASR）实测：
 
 回答 prompt 要求“1–2 句、中文 ≤45 字”，从源头限制长句。
 
-### 3.3 填充音兜底（关键保险）
+### 3.3 垫话 + 答案校验（关键保险）
 
-`FILLER_DEADLINE_MS=1700`：从**真实说完**起算，1700ms 内还没有任何真音频，就先播预合成的自然垫音：
+**不再无脑垫话。** 真答案如果能在 1.5s 内起播，就直接播答案；超过 `FILLER_DEADLINE_MS=1500` 仍没有真音频，才播一句预合成垫话拖时间，2s 首音指标由它兜住。
 
-- 中文：“嗯，我看看。”
-- 英文：“Hmm, let me see.”
+1. **50 条 query 预生成**：`scripts/prewarm_queries.py` 把赛题 50 条 query 的答案 + TTS 语音写入 `data/books/<id>/query_cache.json`；命中时直接播缓存语音，不再等 LLM/TTS。
+2. **真答案生成**：严格 prompt + 人物表 + 反串规则；先缓冲，不边生成边播。
+3. **答案校验**：`app/pipeline/answer_guard.py` 检查主语/引号/谁/因果/页码等；不通过就只播澄清或继续拖，**绝不播驴头不对马嘴的答案**。
+4. **1.5s 垫话兜底**：warmup 每语言预合成 5 句，用掉一句后台补一句；只有真答案超过 1.5s 未起播时才播。指标看 `used_ack` / `answer_audio_after_speech_ms` / `cached_query` / `safety_fallback`。
 
-填充音在 warmup 时用当前 TTS 预合成，运行期零成本；播放后会继续播真实回答。指标里 `used_filler=true`、`filler_ratio` 可监控使用频率。正式答辩时应控制比例（理想 <10%），频繁触发说明 ASR/LLM/TTS 某一环偏慢。
+实测（cn01，`/api/ask`）：
 
-> 填充音是常见的对话系统 backchannel 手法，不是预置答案；但在项目说明书中应如实说明。
+| 问题 | 首音 | 真答案首音 | 命中缓存 |
+|---|---:|---:|---|
+| 这张卡片送给谁？ | 23ms | 23ms | 是 |
+| 它叫什么？ | 16ms | 16ms | 是 |
+| 结束播放 | 15ms | 15ms | 是 |
+| 小满为什么打喷嚏？ | 1.51s（垫话） | 3.46s | 否 |
+
+语音端到端命中缓存（含 ASR）：`这张卡片送给谁？` 首音 **588ms**，`花花开心吗？` 首音 **544ms**，都是真答案，不是垫话。
+
+垫话是常见的对话系统 backchannel 手法，不是预置答案；项目说明书里应如实写成“超时兜底”，不能把垫话算作答案正确率。
+
+> 预合成句数可用 `ACK_PREWARM_LINES=5` 调；`ACK_REFILL=true` 控制“用一句补一句”。MiniMax 限流时会回退 SAPI，音色可能不完全统一；优先保证首音和答案正确。
+
+> 只有人物/关系类问题走“垫话 + 校验”；播放/找画面/查文字仍直接执行，不垫话。普通事实问题仍可走 `FAST_ANSWER` 快路径。
 
 ### 3.4 热词与 VAD
 
@@ -126,6 +141,18 @@ MiniMax 云端（TTS + ASR）实测：
 ### 3.6 意图直达
 
 “找画面/查文字/播放控制/点击卡”不走 LLM，规则路由直接出答案与动作（0–5ms）；只有内容问答才走 LLM。赛题 50 条 Query 中相当一部分是导航类，这条能显著降低尾延迟。
+
+### 3.7 50 条 query 预生成缓存
+
+```bash
+# 演示书 cn01：生成 50 条答案 + TTS 语音（运行时数据，不进 Git）
+python scripts/prewarm_queries.py --book cn01 --force
+
+# 六本全做（300 条，耗时/费用更高）
+python scripts/prewarm_queries.py --all
+```
+
+产物：`data/books/<id>/query_cache.json` + `query_cache/*.pcm`。服务启动后 `QueryCache` 懒加载；命中时直接播预合成 PCM，指标 `cached_query=true`，不等 LLM/TTS。ASR 转写与脚本原文做归一化 + 相似度匹配（≥0.82），人物集合不一致时拒绝命中，防止把“小满”的问题套到“花花”上。
 
 ---
 
@@ -189,8 +216,12 @@ python tools/eval_queries.py --book cn01 --base http://127.0.0.1:8790 --out data
 | --- | --- | --- |
 | `VAD_SILENCE_MS` | 500 | 判停静音；太小会切断自然停顿，太大会增加端点等待 |
 | `VAD_MIN_SPEECH_MS` | 100 | 最短语音，防咳嗽/噪声 |
-| `FILLER_DEADLINE_MS` | 1700 | 首音保险触发点；SAPI 可降到 1400，MiniMax 建议 1700 |
-| `FILLER_ENABLED` | true | 关闭后只剩真音频，抖动时可能超 2s |
+| `FILLER_DEADLINE_MS` | 1500 | 真答案超过 1.5s 未起播才播垫话；保证 2s 首音 |
+| `FILLER_ENABLED` | true | 关闭后不预合成垫话；人物问题会失去首音保险 |
+| `ACK_PREWARM_LINES` | 5 | 每语言预合成句数；用掉一句后台补一句 |
+| `ACK_REFILL` | true | 关闭后只消耗预合成的 5 句，不再补 |
+| `VERIFIED_ANSWERS` | true | 人物/关系类问题先垫话 + 校验答案，校验不过只澄清/拖延 |
+| `ANSWER_VERIFY_TIMEOUT_S` | 6 | 校验路径等待 LLM 完整答案的上限；超时走安全澄清 |
 | `ASR_MODEL` | large-v3 | `large-v3-turbo`/`medium` 更快 |
 | `ASR_PARTIAL_MS` | 0 | >0 开启滚动部分识别（UI 字幕用） |
 | `TTS_PROVIDER` | sapi | `sapi`/`local`/`minimax` |

@@ -42,6 +42,9 @@ def test_route_playback_and_highlight():
     r = route_intent("暂停", idx)
     assert r["intent"] == "playback"
     assert r["action"]["type"] == "pause"
+    stop = route_intent("结束播放", idx)
+    assert stop["action"]["type"] == "pause"
+    assert "结束" in stop["answer"]
     r2 = route_intent("高亮“积木城堡”", idx)
     assert r2["intent"] == "find_text"
     assert r2["action"]["page"] == 1

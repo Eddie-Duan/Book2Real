@@ -132,6 +132,11 @@ def validate_script(script: dict, bible: dict) -> dict:
         for sp in {d.get("speaker") for d in (c.get("dialogue") or [])}:
             if sp and sp not in (c.get("cast") or []):
                 fail("cast.not_declared", f"{cid} 对白说话人 {sp} 未写进 cast", "补进 cast")
+        narr_all = " ".join(n.get("text", "") for n in c.get("narration") or [])
+        for d in c.get("dialogue") or []:
+            if normalize(d.get("text", "")) and normalize(d.get("text", "")) in normalize(narr_all):
+                fail("audio.duplicate", f"{cid} 同一句既当旁白又当对白：{d.get('text')}",
+                     "删掉重复的旁白或对白，只保留一条")
 
     # ---- camera / transitions
     for c in chunks:

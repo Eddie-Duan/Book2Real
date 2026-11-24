@@ -10,6 +10,10 @@
 > 麦克风增益与降噪修正）。同步时保留了本仓库的融合层 `app/frontend.py`、
 > `app/compat.py` 以及 `app/main.py` / `app/config.py` / `.env.example` 的本地改动。
 >
+> **2026-11-25 同步到 `0daa3ed`**（2 个提交：`5f3e432` ack-then-verified answers、`0daa3ed` prewarm 50 queries）。
+> 新增 `app/book/characters.py`、`app/pipeline/acks.py`、`answer_guard.py`、`query_cache.py`、`scripts/prewarm_queries.py` 及 3 个测试；
+> `app/pipeline/turn.py` 三方合并时保留本地文风钩子，并合入上游"人物一致性/引号归属"规则；`cd backend && python -m pytest -q` = **51 passed**。
+>
 > **2026-11-22 同步到 `4ef57b4`**（5 个提交：闲聊 LLM 缓存预热、情绪感知检索、barge_in ack
 > 修复、整本书问答检索快路径 + AudioWorklet 采集重写、语音测试页交接文档）。
 > 这次合并方式：上游 `54fbc62..4ef57b4` 逐文件三方合并（`git merge-file`），

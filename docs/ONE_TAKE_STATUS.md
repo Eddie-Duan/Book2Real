@@ -104,3 +104,20 @@ python -m book2real cloud --check
   - 深色眼睛特写/闭眼接开眼允许 `dark_match_cut`（prev_mean<15 且 seam≥0.70），不再当硬切。
 - 已加：`[Props]` 道具锁、`[Voice Lock]` 声线锁、`[Audio Continuity]` 段尾静音；`check_audio_cut` 在段尾语音 >-20 dB 时打回。
 - DeepSeek 视觉（实测可用）：`one_take.py vision` 把页图发给 `deepseek-flash`，产出画风/角色/道具/地点；en01 的画风 DNA 就是它写的。角色身份仍以 `book.json` 为准，不让视觉模型改名（否则 Kuan/Dad 会张冠李戴）。
+## 13. 2026-11-25 en01 完成（480p / 180.08s）
+
+- `runs/en01/one_take/final_movie.mp4`：6 段全部 PASS，854×480 / 24 fps / 有声 / 180.08s；
+- 总花费（上限估算）**249.66 元**，其中第 3 段返修 8 次是大头；
+- chunk_05/06 在加完通用修复后**各一次通过**。
+
+## 14. 返修根因 → 通用修改（不是只对 en01 有效）
+
+| 返修现象 | 根因 | 通用修改（代码级） |
+|---|---|---|
+| 包装/屏幕/招牌冒字 | 镜头拍到文字承载面 | `_shots_lines` 检测到 packaging/shelf/screen/sign/poster/label/counter 时自动追加"该表面必须空白、无字无字母无数字、必要时背对镜头"；`check_text` OCR 兜底 |
+| 段尾黑场/淡出 | 模型把段尾当淡出 | `[Audio Continuity]` 明确"段尾不要淡出/黑场，最后一帧保持正常亮度"；`check_seam` 允许闭眼→开眼的 `dark_match_cut` |
+| 数字 zoom | 用连续拉远从特写拉到全景 | `[Camera Lock]` 明确"不要用连续推拉从特写拉到全景，近景用切镜"；`check_digital_zoom` 分区光流兜底 |
+| ASR 少一句 | 同一句既写旁白又写对白，模型只说一遍 | `contract.py` 新增 `audio.duplicate`：对白文本出现在旁白里直接 FAIL |
+| 风格误报 | 单帧 `style_min` 太低（ popcorn 特写） | 改为只看 `style_mean < 0.22`；单帧只记录不判失败 |
+| 自动返修烧钱 | `--attempts` 默认 3 | 默认 **1**；`--max-cny` 从 `cost.csv` 累计已花，超了直接停 |
+| 人物张冠李戴 | 视觉模型把 Kuan/Dad 认反 | 视觉只提供画风/道具/地点；角色身份/声线以 `book.json` 为准，视觉不改名不加人 |
