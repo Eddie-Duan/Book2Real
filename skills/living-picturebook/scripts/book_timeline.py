@@ -45,6 +45,23 @@ def write_text_lf(path: Path, text: str) -> None:
         fh.write(text)
 
 
+def run_ffprobe(clip: Path) -> Dict[str, Any]:
+    """完整 ffprobe JSON（规格用）；失败返回空壳，调用方自己兜底。"""
+    exe = shutil.which("ffprobe")
+    if not exe:
+        return {}
+    try:
+        out = subprocess.run(
+            [exe, "-v", "error", "-print_format", "json",
+             "-show_streams", "-show_format", str(clip)],
+            capture_output=True, text=True, timeout=60,
+            encoding="utf-8", errors="replace",
+        )
+        return json.loads(out.stdout or "{}")
+    except Exception:
+        return {}
+
+
 def ffprobe_duration(clip: Path) -> Optional[float]:
     """返回视频时长（秒）。ffprobe 不存在或失败时返回 None。"""
     exe = shutil.which("ffprobe")
@@ -192,6 +209,191 @@ def build_timeline(plan: Dict[str, Any], clips_dir: Optional[Path]) -> Dict[str,
     }
 
 
+def _clip_spec(clips_dir: Optional[Path], segments: list) -> tuple[int, int, float]:
+    """成片规格：优先 ffprobe 第一段，否则 1920x1080/24fps（720p 也够用，坐标是归一化的）。"""
+    for seg in segments:
+        clip = find_clip(clips_dir, str(seg.get("segment_id") or ""))
+        if clip is None:
+            continue
+        try:
+            info = run_ffprobe(clip)
+        except Exception:
+            continue
+        for s in info.get("streams", []):
+            if s.get("codec_type") == "video":
+                num, _, den = str(s.get("r_frame_rate") or "24/1").partition("/")
+                try:
+                    fps = float(num) / float(den or 1)
+                except Exception:
+                    fps = 24.0
+                return int(s.get("width") or 1920), int(s.get("height") or 1080), round(fps, 3)
+    return 1920, 1080, 24.0
+
+
+def page_norm_to_frame(nb: list, qa: dict) -> list:
+    """页内归一化框 -> 成片帧归一化框。
+
+    Seedance 段的首帧就是 ``clean_keyframe.png``（机位锁死静态），所以映射是一条
+    仿射：页图 → 裁掉纸白边 → 补到目标画幅 → 缩放到关键帧。关键帧就是视频首帧，
+    因此"帧归一化"= "关键帧归一化"。
+    """
+    checks = (qa or {}).get("checks") or {}
+    crop = checks.get("crop_box")
+    src = checks.get("source_size")
+    kf = checks.get("keyframe_size")
+    x, y, w, h = [float(v) for v in (nb or [0, 0, 0, 0])]
+    if not (crop and src and kf) or len(crop) != 4 or len(src) != 2 or len(kf) != 2:
+        return [x, y, x + w, y + h]
+    sx, sy = float(src[0]), float(src[1])
+    cx0, cy0, cx1, cy1 = [float(v) for v in crop]
+    cw, ch = max(1.0, cx1 - cx0), max(1.0, cy1 - cy0)
+    kw, kh = float(kf[0]), float(kf[1])
+    ratio = kw / kh
+    if cw / ch >= ratio:
+        pw, ph = cw, cw / ratio
+    else:
+        pw, ph = ch * ratio, ch
+    offx, offy = (pw - cw) / 2.0, (ph - ch) / 2.0
+    scale = kw / pw
+
+    def one(u: float, v: float) -> tuple[float, float]:
+        px, py = u * sx - cx0 + offx, v * sy - cy0 + offy
+        return max(0.0, min(1.0, (px * scale) / kw)), max(0.0, min(1.0, (py * scale) / kh))
+
+    x0, y0 = one(x, y)
+    x1, y1 = one(x + w, y + h)
+    return [round(x0, 4), round(y0, 4), round(x1, 4), round(y1, 4)]
+
+
+def build_reader_segments(plan: dict, clips_dir: Optional[Path], book_dir: Optional[Path],
+                          pages_dir: Optional[Path]) -> list[dict]:
+    """把分镜段翻成 reader（film.js）认的段：t0/t1 + spots/text/ocr/art_rect。
+
+    没有这一步，Seedance 成片接进播放器后点选/查字/描述全是空转——不是模型问题，
+    是时间码没带几何与文本。
+    """
+    if not book_dir or not pages_dir:
+        return []
+    reader_path = book_dir / "reader" / "book.json"
+    if not reader_path.is_file():
+        reader_path = book_dir / "book.json"
+    if not reader_path.is_file():
+        return []
+    reader = load_json(reader_path)
+    pages = {str(p.get("id")): p for p in (reader.get("pages") or []) if isinstance(p, dict)}
+    book = load_json(book_dir / "book.json") if (book_dir / "book.json").is_file() else {}
+
+    out: list[dict] = []
+    cursor = 0.0
+    concat = {c.get("after_segment"): c for c in (plan.get("concat_plan") or [])}
+    for idx, seg in enumerate(plan.get("segments") or []):
+        seg_id = str(seg.get("segment_id") or f"seg_{idx + 1:03d}")
+        planned = float(seg.get("duration_sec") or 5.0)
+        clip = find_clip(clips_dir, seg_id)
+        actual = ffprobe_duration(clip) if clip else None
+        duration = float(actual) if actual is not None else planned
+        pages_in_seg = [str(p) for p in (seg.get("pages") or [])]
+        slices = split_pages_evenly(pages_in_seg, cursor, duration)
+        for row in slices:
+            pid = str(row.get("page_id"))
+            page = pages.get(pid) or {}
+            qa = {}
+            qa_path = Path(pages_dir) / pid / "qa_report.json"
+            if qa_path.is_file():
+                try:
+                    qa = load_json(qa_path)
+                except Exception:
+                    qa = {}
+            spots = []
+            for spot in page.get("spots") or []:
+                if not isinstance(spot, dict) or not isinstance(spot.get("box"), (list, tuple)):
+                    continue
+                nb = page_norm_to_frame(list(spot["box"]), qa)
+                spots.append({"name": str(spot.get("name") or ""),
+                              "desc": str(spot.get("desc") or ""),
+                              # film.js 的 spotNorm 认 [x, y, w, h]（页内归一化）
+                              "box": [round(nb[0], 4), round(nb[1], 4),
+                                      round(nb[2] - nb[0], 4), round(nb[3] - nb[1], 4)]})
+            ocr = []
+            for line in page.get("ocr_lines") or []:
+                if not isinstance(line, dict) or not isinstance(line.get("box"), (list, tuple)):
+                    continue
+                b = [float(v) for v in line["box"]]
+                # OCR 框是源图像素坐标 -> 归一化 -> 帧归一化
+                if qa.get("checks", {}).get("source_size"):
+                    sw, sh = [float(v) for v in qa["checks"]["source_size"]]
+                else:
+                    sw, sh = float(page.get("source_w") or 1), float(page.get("source_h") or 1)
+                nb = page_norm_to_frame([b[0] / sw, b[1] / sh, (b[2] - b[0]) / sw, (b[3] - b[1]) / sh], qa)
+                # film.js 的 ocrNorm 认 [x0,y0,x1,y1] 源图像素；这里给归一化框 + source=1
+                ocr.append({"text": str(line.get("text") or ""), "score": line.get("score"),
+                            "box": [round(nb[0], 4), round(nb[1], 4),
+                                    round(nb[2], 4), round(nb[3], 4)]})
+            out.append({
+                "kind": "page",
+                "id": pid,
+                "source_page": page.get("source_page"),
+                "segment_id": seg_id,
+                "t0": round(row.get("start_sec", 0.0), 3),
+                "t1": round(row.get("end_sec", 0.0), 3),
+                "art_rect": [0, 0, 0, 0],       # 下面按成片规格填
+                "source_w": 1, "source_h": 1,   # OCR 框已归一化：normBox 除 1 即通过
+                "art": page.get("art") or "",
+                "art_w": page.get("art_w"),
+                "art_h": page.get("art_h"),
+                "text": str(page.get("text") or ""),
+                "scene": str(page.get("scene") or ""),
+                "spots": spots,
+                "characters": page.get("characters") or [],
+                "ocr_lines": ocr,
+            })
+        nxt = concat.get(seg_id) or {}
+        xfade = float(nxt.get("xfade_sec") or 0.0) if nxt.get("cut") == "xfade" else 0.0
+        cursor += duration - xfade
+
+    width, height, fps = _clip_spec(clips_dir, plan.get("segments") or [])
+    # 叠化段在成片里是两段重叠 0.6s：播放器只认 [t0,t1) 单一归属，所以把上一页的
+    # 结束时间贴到下一页的起点。交叉溶解期间的归属取后一页（观众看到的是新画面浮出）。
+    for a, b in zip(out, out[1:]):
+        if b["t0"] >= a["t0"]:
+            a["t1"] = b["t0"]
+    for row in out:
+        row["art_rect"] = [0, 0, width, height]
+    total = round(out[-1]["t1"] if out else 0.0, 3)
+    return [{"book_id": str(book.get("book_id") or (book_dir.name if book_dir else "")),
+             "video": "film.mp4", "width": width, "height": height, "fps": fps,
+             "duration": total, "language": (book.get("language") or "zh"),
+             "title": book.get("title") or book.get("book_id") or "",
+             "segments": out}]
+
+
+def validate_reader_timeline(items: list[dict]) -> list[str]:
+    """film.js 契约校验：时间不重叠、box 归一到 [0,1] 且非零、art_rect 有尺寸。"""
+    problems: list[str] = []
+    if not items:
+        return ["没有生成任何 reader 段（缺 --book/--pages-dir，或 book 里没有 pages）"]
+    tl = items[0]
+    if not (tl.get("width") and tl.get("height")):
+        problems.append("缺成片规格 width/height")
+    prev_end = -1.0
+    for seg in tl["segments"]:
+        if seg["t1"] <= seg["t0"]:
+            problems.append(f"{seg['id']} 时间区间非正：{seg['t0']}~{seg['t1']}")
+        if seg["t0"] < prev_end - 0.001:
+            problems.append(f"{seg['id']} 与前一段时间重叠")
+        prev_end = max(prev_end, seg["t1"])
+        rect = seg.get("art_rect") or []
+        if len(rect) != 4 or not rect[2] or not rect[3]:
+            problems.append(f"{seg['id']} art_rect 无效")
+        for spot in seg.get("spots") or []:
+            x, y, w, h = spot["box"]
+            if w <= 0 or h <= 0:
+                problems.append(f"{seg['id']} spot {spot['name']!r} 框宽高为 0")
+            if any(v < -0.001 or v > 1.001 for v in (x, y, x + w, y + h)):
+                problems.append(f"{seg['id']} spot {spot['name']!r} 越界 {spot['box']}")
+    return problems
+
+
 def page_at(timeline: Dict[str, Any], t: float) -> Optional[Dict[str, Any]]:
     hit = None
     for row in timeline["pages"]:
@@ -245,7 +447,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="把 scene_plan 转成交互层用的 page_timeline.json")
     ap.add_argument("--plan", required=True, type=Path, help="scene_plan.json")
     ap.add_argument("--clips-dir", type=Path, default=None, help="out/ 目录（含 seg_###/clip.mp4），可缺")
+    ap.add_argument("--book", type=Path, default=None,
+                    help="书目录（books/<id>）；给了就额外产出 reader 版时间码（spots/text/ocr）")
+    ap.add_argument("--pages-dir", type=Path, default=None,
+                    help="页目录（含 page_###/qa_report.json 的 crop_box），坐标换算用")
     ap.add_argument("--out-dir", type=Path, default=Path("book_out"), help="输出目录")
+    ap.add_argument("--movie", type=Path, default=None,
+                    help="Seedance 成片（final_movie.mp4）；配合 --publish-root 落成播放器可读的一档")
+    ap.add_argument("--publish-root", type=Path, default=None,
+                    help="发布根目录，如 runs/cn01/seedance_film；会新建 <时间戳>/ 放 film.mp4 + timeline.json")
     ap.add_argument("--at", type=float, default=None, help="查询某个时刻属于哪一页，然后退出")
     args = ap.parse_args(argv)
 
@@ -277,6 +487,37 @@ def main(argv: Optional[List[str]] = None) -> int:
     for w in timeline["checks"]["warnings"]:
         print(f"  [warn] {w}")
     print(f"[book_timeline] -> {args.out_dir / 'page_timeline.json'}")
+
+    # reader 版（Seedance 成片接播放器要的那份：t0/t1 + spots/text/ocr + art_rect）
+    if args.book or args.pages_dir:
+        items = build_reader_segments(plan, args.clips_dir, args.book, args.pages_dir)
+        problems = validate_reader_timeline(items)
+        if items:
+            write_text_lf(args.out_dir / "reader_timeline.json",
+                          json.dumps(items[0], ensure_ascii=False, indent=2) + "\n")
+            tl = items[0]
+            spot_n = sum(len(s.get("spots") or []) for s in tl["segments"])
+            print(f"[book_timeline] reader 时间码：{len(tl['segments'])} 段 / "
+                  f"{spot_n} 个可点元素 / {tl['width']}x{tl['height']} @{tl['fps']}fps")
+        for p in problems:
+            print(f"  [reader-warn] {p}")
+        if problems:
+            return 1
+        if args.publish_root:
+            if not args.movie or not args.movie.is_file():
+                print("[book_timeline] --publish-root 需要 --movie 指向真实成片", file=sys.stderr)
+                return 2
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            run_dir = args.publish_root / stamp
+            run_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(args.movie, run_dir / "film.mp4")
+            (run_dir / "timeline.json").write_text(
+                json.dumps(items[0], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            (run_dir / "meta.json").write_text(json.dumps({
+                "source": "seedance", "movie": str(args.movie), "plan": str(args.plan),
+                "published_at": stamp,
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"[book_timeline] 已发布 -> {run_dir}（film.mp4 + timeline.json）")
     return 0
 
 

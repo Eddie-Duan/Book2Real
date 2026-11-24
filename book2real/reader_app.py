@@ -18,6 +18,7 @@ import json
 import re
 import socket
 import threading
+import os
 import time
 import uuid
 import webbrowser
@@ -184,18 +185,25 @@ def _film_dir(book_id: str) -> Path | None:
     base = _within(RUNS, bid)
     if base is None:
         return None
-    films = base / "reader_film"
-    if not films.is_dir():
-        return None
-    try:
-        cands = [p for p in films.iterdir()
-                 if p.is_dir()
-                 and (p / "timeline.json").is_file()
-                 and (p / "film.mp4").is_file()]
-    except OSError:
-        return None
-    # run names are ``YYYYmmdd-HHMMSS``, so the lexical max is the newest run
-    return max(cands, key=lambda p: p.name) if cands else None
+    # Seedance 成片发布在 runs/<id>/seedance_film/<stamp>/；设 B2R_FILM_SEEDANCE=1 优先读它，
+    # 否则仍读 2.5D 的 reader_film/（两套互不覆盖，切换只需一个环境变量）。
+    sources = ["seedance_film", "reader_film"] if os.environ.get("B2R_FILM_SEEDANCE") == "1" \
+        else ["reader_film", "seedance_film"]
+    for source in sources:
+        films = base / source
+        if not films.is_dir():
+            continue
+        try:
+            cands = [p for p in films.iterdir()
+                     if p.is_dir()
+                     and (p / "timeline.json").is_file()
+                     and (p / "film.mp4").is_file()]
+        except OSError:
+            continue
+        # run names are ``YYYYmmdd-HHMMSS``, so the lexical max is the newest run
+        if cands:
+            return max(cands, key=lambda p: p.name)
+    return None
 
 
 def _int_or_none(value) -> int | None:

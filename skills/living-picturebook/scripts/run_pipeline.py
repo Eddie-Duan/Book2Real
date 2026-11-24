@@ -456,6 +456,9 @@ def step_timeline(ctx: Ctx) -> None:
     ]
     if not ctx.dry_run:
         argv += ["--clips-dir", ctx.relay_out]
+    book_dir = infer_book_dir(ctx)
+    if book_dir:
+        argv += ["--book", str(book_dir), "--pages-dir", str(ctx.pages_dir)]
     run(ctx, "S5b 页时间码（book_timeline）", argv, cwd=REPO)
     for name in ("page_timeline.json", "page_timeline.md"):
         p = ctx.out_dir / name
