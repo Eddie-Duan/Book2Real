@@ -1,0 +1,163 @@
+{
+  "book_id": "cn03",
+  "script": "纸书智伴企业预选赛绘本素材\\绘本素材\\中文绘本03.txt",
+  "note": "官方底线：只点这些固定元素；圆圈只画在播放器 UI 层，不进成片。",
+  "needs_spots": false,
+  "items": [
+    {
+      "n": 7,
+      "kind": "click",
+      "target": "兔子",
+      "required": true,
+      "matched": true,
+      "page": "p03",
+      "spot": "兔子",
+      "box": [
+        0.1181,
+        0.0726,
+        0.2577,
+        0.0399
+      ],
+      "pages": [
+        "p03"
+      ],
+      "desc": "兔子！"
+    },
+    {
+      "n": 10,
+      "kind": "highlight",
+      "target": "兔子妈妈",
+      "required": true,
+      "matched": true,
+      "page": "p03",
+      "spot": "兔子",
+      "box": [
+        0.1181,
+        0.0726,
+        0.2577,
+        0.0399
+      ],
+      "pages": [
+        "p03"
+      ],
+      "desc": "兔子！"
+    },
+    {
+      "n": 11,
+      "kind": "click",
+      "target": "大象",
+      "required": false,
+      "matched": true,
+      "page": "p04",
+      "spot": "大象",
+      "box": [
+        0.0428,
+        0.6856,
+        0.1472,
+        0.04
+      ],
+      "pages": [
+        "p04"
+      ],
+      "desc": "天鹅游，大象叫，动物园里真热闹。"
+    },
+    {
+      "n": 18,
+      "kind": "click",
+      "target": "河马",
+      "required": false,
+      "matched": true,
+      "page": "p05",
+      "spot": "河马",
+      "box": [
+        0.0435,
+        0.0868,
+        0.2577,
+        0.04
+      ],
+      "pages": [
+        "p05"
+      ],
+      "desc": "河马！"
+    },
+    {
+      "n": 21,
+      "kind": "highlight",
+      "target": "河马妈妈",
+      "required": false,
+      "matched": true,
+      "page": "p05",
+      "spot": "河马",
+      "box": [
+        0.0435,
+        0.0868,
+        0.2577,
+        0.04
+      ],
+      "pages": [
+        "p05"
+      ],
+      "desc": "河马！"
+    },
+    {
+      "n": 26,
+      "kind": "click",
+      "target": "企鹅",
+      "required": true,
+      "matched": true,
+      "page": "p07-1",
+      "spot": "企鹅",
+      "box": [
+        0.0435,
+        0.0552,
+        0.2577,
+        0.04
+      ],
+      "pages": [
+        "p07-1"
+      ],
+      "desc": "企鹅！"
+    },
+    {
+      "n": 35,
+      "kind": "click",
+      "target": "天鹅",
+      "required": false,
+      "matched": true,
+      "page": "p09-1",
+      "spot": "天鹅",
+      "box": [
+        0.1033,
+        0.7749,
+        0.2945,
+        0.0399
+      ],
+      "pages": [
+        "p09-1",
+        "p09-2"
+      ],
+      "desc": "天鹅游，大象叫，动物园里真热闹。"
+    },
+    {
+      "n": 38,
+      "kind": "highlight_text",
+      "target": "亲亲",
+      "required": false,
+      "matched": true,
+      "page": "p09-1",
+      "spot": "不能给我一个甜甜的亲亲。",
+      "box": [
+        2269.223,
+        260.26,
+        2949.0661999999998,
+        321.86
+      ],
+      "pages": [
+        "p09-1",
+        "p09-2",
+        "p10"
+      ],
+      "desc": "OCR 行"
+    }
+  ]
+}

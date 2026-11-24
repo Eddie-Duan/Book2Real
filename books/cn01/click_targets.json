@@ -1,0 +1,153 @@
+{
+  "book_id": "cn01",
+  "script": "纸书智伴企业预选赛绘本素材\\绘本素材\\中文绘本01.txt",
+  "note": "官方底线：只点这些固定元素；圆圈只画在播放器 UI 层，不进成片。",
+  "needs_spots": false,
+  "items": [
+    {
+      "n": 5,
+      "kind": "click",
+      "target": "积木城堡",
+      "required": true,
+      "matched": true,
+      "page": "p01",
+      "spot": "积木城堡",
+      "box": [
+        0.34,
+        0.53,
+        0.32,
+        0.3
+      ],
+      "pages": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p12"
+      ],
+      "desc": "用一块块彩色积木搭起来的城堡，有三角形的屋顶。"
+    },
+    {
+      "n": 6,
+      "kind": "highlight",
+      "target": "积木城堡",
+      "required": false,
+      "matched": true,
+      "page": "p01",
+      "spot": "积木城堡",
+      "box": [
+        0.34,
+        0.53,
+        0.32,
+        0.3
+      ],
+      "pages": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p12"
+      ],
+      "desc": "用一块块彩色积木搭起来的城堡，有三角形的屋顶。"
+    },
+    {
+      "n": 19,
+      "kind": "highlight",
+      "target": "这句话",
+      "required": false,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 30,
+      "kind": "click",
+      "target": "生日卡片",
+      "required": true,
+      "matched": true,
+      "page": "p09",
+      "spot": "生日卡片",
+      "box": [
+        0.255,
+        0.61,
+        0.14,
+        0.2
+      ],
+      "pages": [
+        "p09",
+        "p10"
+      ],
+      "desc": "小满亲手画的卡片，上面画着蛋糕和花朵。"
+    },
+    {
+      "n": 35,
+      "kind": "click",
+      "target": "黄米团",
+      "required": false,
+      "matched": true,
+      "page": "p03",
+      "spot": "黄米团",
+      "box": [
+        0.535,
+        0.35,
+        0.13,
+        0.24
+      ],
+      "pages": [
+        "p03",
+        "p05",
+        "p07",
+        "p09",
+        "p10",
+        "p12"
+      ],
+      "desc": "戴红项圈的小黄狗黄米团，抬头看着积木。"
+    },
+    {
+      "n": 40,
+      "kind": "highlight_text",
+      "target": "生日快乐",
+      "required": false,
+      "matched": true,
+      "page": "p10",
+      "spot": "“花花，生日快乐！”",
+      "box": [
+        2049.3824,
+        1128.512,
+        2615.9184,
+        1190.112
+      ],
+      "pages": [
+        "p10",
+        "p11"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 45,
+      "kind": "click",
+      "target": "积木城堡",
+      "required": false,
+      "matched": true,
+      "page": "p01",
+      "spot": "积木城堡",
+      "box": [
+        0.34,
+        0.53,
+        0.32,
+        0.3
+      ],
+      "pages": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p12"
+      ],
+      "desc": "用一块块彩色积木搭起来的城堡，有三角形的屋顶。"
+    }
+  ]
+}

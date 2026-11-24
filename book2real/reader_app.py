@@ -304,6 +304,26 @@ def film_timeline(book_id: str) -> tuple[int, dict]:
     return 200, data
 
 
+def click_targets(book_id: str) -> tuple[int, dict]:
+    """官方脚本点名的固定可点元素（books/<id>/click_targets.json）。
+
+    只是播放器 UI 的提示层数据：不进成片、不改画面；缺失时 404，前端自动隐藏按钮。
+    """
+    bid = _clean_book_id(book_id)
+    if not bid:
+        return 404, {"error": "bad book id"}
+    book_dir = _within(ROOT / "books", bid)
+    if book_dir is None or not book_dir.is_dir():
+        return 404, {"error": "unknown book"}
+    path = book_dir / "click_targets.json"
+    if not path.is_file():
+        return 404, {"error": "no click targets"}
+    try:
+        return 200, json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return 500, {"error": "click targets unreadable"}
+
+
 def film_video(book_id: str) -> Path | None:
     """The ``film.mp4`` of the newest run, resolved inside ``runs/`` only."""
     film_dir = _film_dir(book_id)
@@ -555,6 +575,9 @@ class Handler(BaseHTTPRequestHandler):
                     return self._error(404, "film not found")
                 return self._video(target)
             code, payload = film_timeline(unquote(rest))
+            return self._json(payload, code)
+        if p.startswith("/api/click_targets/"):
+            code, payload = click_targets(unquote(p[len("/api/click_targets/"):]))
             return self._json(payload, code)
         if p == "/api/job":
             jid = (q.get("id") or [""])[0]

@@ -1,0 +1,129 @@
+{
+  "book_id": "en03",
+  "script": "纸书智伴企业预选赛绘本素材\\绘本素材\\英文绘本03.txt",
+  "note": "官方底线：只点这些固定元素；圆圈只画在播放器 UI 层，不进成片。",
+  "needs_spots": true,
+  "items": [
+    {
+      "n": 4,
+      "kind": "click",
+      "target": "红丝带",
+      "required": false,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 6,
+      "kind": "highlight_text",
+      "target": "文字“world",
+      "required": false,
+      "matched": true,
+      "page": "p01",
+      "spot": "Will We Save the World?",
+      "box": [
+        111.1986,
+        238.7346,
+        895.5545999999999,
+        337.9302
+      ],
+      "pages": [
+        "p01",
+        "p02",
+        "p14",
+        "p23",
+        "p24"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 10,
+      "kind": "click",
+      "target": "鸭子头部",
+      "required": true,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 21,
+      "kind": "click",
+      "target": "地球",
+      "required": false,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 23,
+      "kind": "highlight_text",
+      "target": "文字“global warming",
+      "required": false,
+      "matched": true,
+      "page": "p12",
+      "spot": "I've heard about global warming",
+      "box": [
+        129.29160000000002,
+        240.32519999999997,
+        604.5996,
+        282.2592
+      ],
+      "pages": [
+        "p12"
+      ],
+      "desc": "OCR 行"
+    },
+    {
+      "n": 33,
+      "kind": "click",
+      "target": "河流",
+      "required": true,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 41,
+      "kind": "click",
+      "target": "垃圾桶",
+      "required": true,
+      "matched": false,
+      "page": null,
+      "spot": null,
+      "box": null,
+      "pages": [],
+      "desc": ""
+    },
+    {
+      "n": 43,
+      "kind": "highlight_text",
+      "target": "文字“garbage",
+      "required": false,
+      "matched": true,
+      "page": "p20",
+      "spot": "that they might launch all of the garbage",
+      "box": [
+        150.9054,
+        199.54800000000003,
+        745.236,
+        236.8548
+      ],
+      "pages": [
+        "p20"
+      ],
+      "desc": "OCR 行"
+    }
+  ]
+}

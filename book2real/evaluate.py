@@ -298,6 +298,14 @@ _SYNONYMS = {
     "吵架": ("生气", "怪你"), "和好": ("对不起", "不生气"),
     "重逢": ("见面", "对不起"), "倒塌": ("倒", "塌"),
     "搭": ("积木",), "卡片": ("生日卡片",),
+    # English side (2026-11-24): the official scripts ask "What sport is it?",
+    # "What do they discuss?", "Is Dad awake?" — none of those words appear in
+    # the picture-book text, so the query scored 0 on every page.
+    "sport": ("karate", "poster", "football", "game"),
+    "discuss": ("talking", "talk"),
+    "awake": ("asleep", "sleep", "snoring"),
+    "snack": ("snacks", "candies", "popcorn"),
+    "buy": ("buys", "money", "saved"),
 }
 
 #: Official recording scripts are Chinese, the English sample pages are not.
@@ -307,6 +315,7 @@ _BRIDGE = {
     "机器人": ("robot",), "游戏机": ("arcade", "machine"),
     "爆米花": ("popcorn",), "汽车": ("car",), "电影": ("cinema", "film"),
     "生日卡片": ("birthday", "card"), "积木城堡": ("castle",), "城堡": ("castle",),
+    "手机": ("phone", "mobile"), "闹钟": ("alarm", "clock"),
 }
 
 
@@ -341,7 +350,8 @@ def _query_grams(query: str) -> list[str]:
     return list(dict.fromkeys(out))
 
 
-def retrieve(pages: list[dict], query: str, top_k: int = 3) -> list[dict]:
+def retrieve(pages: list[dict], query: str, top_k: int = 3,
+             char_names: tuple[str, ...] | list[str] = ()) -> list[dict]:
     """IDF-weighted bigram/word coverage over reader pages, best first.
 
     Two corrections over plain coverage:
@@ -364,29 +374,40 @@ def retrieve(pages: list[dict], query: str, top_k: int = 3) -> list[dict]:
         return []
     idf = {g: math.log(1.0 + (n + 1) / (1.0 + df[g])) for g in known}
     total = sum(idf.values()) or 1.0
-    scored: list[tuple[float, str]] = []
+    scored: list[tuple[float, int, str]] = []
+    who_intent = bool(re.search(r"\bwho\b|whose|谁", query, re.I))
+    named = [str(n).strip() for n in (char_names or []) if str(n).strip()]
+    asked = [n for n in named if re.search(rf"\b{re.escape(n)}\b", query, re.I)]
+    who_names = asked or named
     for page, doc_grams_i, doc in zip(pages, doc_grams, docs):
+        matched = sum(1 for g in known if g in doc_grams_i)
         score = sum(idf[g] for g in known if g in doc_grams_i) / total
         hit_names = [nm for nm in _spot_names(page) if len(nm) >= 2 and nm in query]
         if hit_names and any(nm in doc for nm in hit_names):
             score = max(score, 0.6)          # a named spot beats a diluted summary
+        # "Who buys snacks?" is answered by the page a *person* appears on, not by
+        # the page that merely repeats the noun "snacks".
+        if who_intent and who_names and any(
+                re.search(rf"\b{re.escape(nm)}\b", doc, re.I) for nm in who_names):
+            score += 0.12
         if str(page.get("kind") or "") == "cover":
             score *= 0.85                    # title pages repeat every name
         pid = str(page.get("id") or "")
-        scored.append((round(min(score, 1.0), 4), pid))
-    scored.sort(key=lambda pair: (-pair[0], pair[1]))
+        scored.append((round(min(score, 1.0), 4), matched, pid))
+    # More distinct query grams matched wins ties; book order is the last resort.
+    scored.sort(key=lambda t: (-t[0], -t[1], t[2]))
     # "结尾/最后" is a position, not a picture word: the last spread is the one
     # a reader means. Boost by book order, not by the worst-scoring entry.
     if pages:
         last_id = str(pages[-1].get("id") or "")
         first_id = str(pages[0].get("id") or "")
         if re.search(r"结尾|最后|最终|末尾", query):
-            scored = [(s + 0.45 if pid == last_id else s, pid) for s, pid in scored]
+            scored = [(s + 0.45 if pid == last_id else s, m, pid) for s, m, pid in scored]
         if re.search(r"开头|第一页|起初", query):
-            scored = [(s + 0.45 if pid == first_id else s, pid) for s, pid in scored]
-        scored.sort(key=lambda pair: (-pair[0], pair[1]))
-    return [{"page": pid, "score": round(min(1.0, score), 4)} for score, pid in scored[:top_k]
-            if score > 0.0]
+            scored = [(s + 0.45 if pid == first_id else s, m, pid) for s, m, pid in scored]
+        scored.sort(key=lambda t: (-t[0], -t[1], t[2]))
+    return [{"page": pid, "score": round(min(1.0, score), 4)}
+            for score, _matched, pid in scored[:top_k] if score > 0.0]
 
 
 # --------------------------------------------------------------------------- #
@@ -561,6 +582,37 @@ def _to_simplified(text: str) -> str:
     return conv.convert(text) if conv is not None else text
 
 
+def _person_names(pages: list[dict], min_df: int = 3) -> tuple[str, ...]:
+    """Recurring mid-sentence capitalised words = the people the book talks about.
+
+    Books without ``reader/characters/characters.json`` (all the English samples)
+    still need a "谁…" signal: "Who buys snacks?" must not be answered by the page
+    that merely repeats "snacks".
+    """
+    import collections
+
+    counts: collections.Counter = collections.Counter()
+    for page in pages:
+        text = f"{page.get('text') or ''} {page.get('scene') or ''}"
+        for word in re.findall(r"(?<!^)(?<![.!?]\s)\b([A-Z][a-z]{2,})\b", text):
+            counts[word] += 1
+    return tuple(w for w, n in counts.items() if n >= min_df)
+
+
+def _character_names(book_dir: Path, pages: list[dict]) -> tuple[str, ...]:
+    path = book_dir / "reader" / "characters" / "characters.json"
+    if path.is_file():
+        try:
+            data = _read_json(path, "characters.json")
+            names = tuple(str(c.get("name") or "").strip()
+                          for c in (data.get("characters") or []) if c.get("name"))
+            if names:
+                return names
+        except Exception:
+            pass
+    return _person_names(pages)
+
+
 def build_hotwords(pages: list[dict]) -> str:
     """Vocabulary the book itself uses, for whisper's ``hotwords`` bias.
 
@@ -718,6 +770,7 @@ def evaluate(book: str, audio: str, script: str | None = None,
         raise EvaluateError(f"音频目录不存在：{audio_dir}")
     audio_index = _audio_index(audio_dir)
     label_map = _labels_from(labels)
+    char_names = _character_names(book_dir, pages)
 
     selected = [r for r in rows if r.get("kind") in EVAL_KINDS]
     if limit is not None:
@@ -760,7 +813,7 @@ def evaluate(book: str, audio: str, script: str | None = None,
                     items.append(item)
                     continue
 
-                candidates = retrieve(pages, query)
+                candidates = retrieve(pages, query, char_names=char_names)
                 if not candidates:
                     # No content gram in the query exists anywhere in the book.
                     # That is a real miss, not an exception: keep it in the
