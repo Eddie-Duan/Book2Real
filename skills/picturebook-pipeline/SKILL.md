@@ -62,13 +62,25 @@ pages/page_###/ 四件套      book_out/scene_plan.json        book_out/relay/fi
 
 门禁：逐页 `qa_report.verdict == "PASS"`。任一页不是 PASS，修该页重跑，禁止交接。
 
+## 4.5 S0（可选）— 文本分场（picturebook-scene-grouper）
+
+只有当 `<proj>/books/<id>/reader/book.json` 每页都有正文时才跑；没有正文直接跳过，S2 按像素自行判断。
+
+```bash
+python "$SKILLS/picturebook-scene-grouper/scripts/group_scenes.py" \
+  --book books/<id> --out .tmp/scene_groups.json --pages-dir pages
+```
+
+产物必须写 `.tmp/`：grouper 的 `scene_plan.json` 与 S2 的 `book_out/scene_plan.json` 同名不同 schema，覆盖正式 plan 会让 relay 直接解析失败，也不要拿它喂 relay。接缝、时长、转场仍由 S2 决定；grouper 只提供「哪些页属于同一场」这一个约束。
+
 ## 5. S2 — 分镜（picturebook-scene-director）
 
 先加载 `picturebook-scene-director`。
 
 ```bash
 python "$SKILLS/picturebook-scene-director/scripts/plan_scenes.py" \
-  --pages-dir pages --out-dir book_out
+  --pages-dir pages --out-dir book_out \
+  [--scene-groups .tmp/scene_groups.json]   # 有 S0 分场时带上
 ```
 
 （1）读 `book_out/scene_plan.md`，把页数 N、段数 M、接缝类型分布、`cost_estimate_cny`、`needs_human_review` 项报给用户。
@@ -87,7 +99,8 @@ python "$SKILLS/picturebook-scene-director/scripts/build_bridge_frames.py" \
 （4）没有 `needs_human_review: true` 的段或接缝，没有 `confidence < 0.70` 自动定案；
 （5）计划不是「M == N 且全是 HARD_CUT」——那说明分镜没真正执行（S2 铁律 3）。
 （6）`short_page_segments` 为空：每段 `page_screen_sec ≥ 1.0`，不能有"一秒不到就刷过去"的页。
-（7）`transition_gate == "PASS"` 且 `transition_summary.effective_transition_ratio > 0`（全是 0s 硬切就是没执行转场）；逐段 prompt 尾部都有 `[Camera Lock]` 与 `[Motion]`，正文没有 dolly/zoom/推拉/摇移，`[Motion]` 写的是完整可见动作。
+（7）带 `--scene-groups` 时，`pages[].scene_id` 必须等于 S0 的场号，同一 `segments[].pages` 里的页 `scene_id` 必须相同（跨场页不许被合并进一个镜头）。
+（8）`transition_gate == "PASS"` 且 `transition_summary.effective_transition_ratio > 0`（全是 0s 硬切就是没执行转场）；逐段 prompt 尾部都有 `[Camera Lock]` 与 `[Motion]`，正文没有 dolly/zoom/推拉/摇移，`[Motion]` 写的是完整可见动作。
 
 分镜本身免费，但它是花钱前最后一道人工闸门：把上面摘要给用户确认后再进 S3。
 
@@ -141,7 +154,7 @@ python "$R/scripts/report.py" --out-dir book_out/relay
 
 提示词增强不单独跑：S2 的 `write_segment_prompt` 已剥离运镜词并强制追加 `[Camera Lock]` 与 `[Motion]`，S1 的 `seedance_prompt.txt` 自带 `[Camera]/[Subject Motion]/[Environment]/[Negative Constraints]` 段；`preflight` 对缺段落只告警、不拦截。
 
-成片必须带旁白（静音轨 −91 dB 不算交付）。本链不内置 TTS，用你已有的 TTS 按 `audio_plan.json` 合成 `narration.mp3` 即可：
+成片必须带旁白（静音轨 −91 dB 不算交付）。本链不内置 TTS，用你已有的 TTS 按 `audio_plan.json` 合成 `narration.mp3` 即可（`start_sec/end_sec` 是整条成片的全局时间轴，已跨段累加，直接照它铺音轨）：
 
 ```bash
 # 1) 声音计划（旁白 + 对白，带起止秒、音色、情绪）

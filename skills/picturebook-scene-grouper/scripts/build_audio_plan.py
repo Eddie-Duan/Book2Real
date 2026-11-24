@@ -136,6 +136,7 @@ def build(book: dict, plan: dict, book_dir: Path | None = None) -> dict:
     cards = voice_card(lang, chars)
 
     lines = []
+    offset = 0.0  # 全局时间轴：多段成片是一条连续音轨，每段必须累加，不能重置
     for seg in plan.get("segments") or []:
         pids = seg.get("pages") or []
         dur = int(seg.get("duration_sec") or 0)
@@ -174,8 +175,8 @@ def build(book: dict, plan: dict, book_dir: Path | None = None) -> dict:
                 lines.append({
                     "scene_id": seg.get("segment_id"),
                     "page_id": pid,
-                    "start_sec": round(cursor, 2),
-                    "end_sec": round(min(cursor + share, t + page_dur), 2),
+                    "start_sec": round(offset + cursor, 2),
+                    "end_sec": round(min(offset + cursor + share, offset + t + page_dur), 2),
                     "speaker": item["speaker"],
                     "kind": item["kind"],
                     "text": item["text"],
@@ -186,13 +187,14 @@ def build(book: dict, plan: dict, book_dir: Path | None = None) -> dict:
                 })
                 cursor += share
             t += page_dur
+        offset += dur
 
     return {
         "book_id": book.get("book_id"),
         "lang": lang,
-        "total_sec": int(plan.get("estimated_total_sec")
-                         or sum(int(s.get("duration_sec") or 0)
-                                for s in (plan.get("segments") or []))),
+        # 成片时长由各段实际时长决定，estimated_total_sec 只作估算不参与对齐
+        "total_sec": int(sum(int(s.get("duration_sec") or 0)
+                             for s in (plan.get("segments") or []))),
         "voices": cards,
         "lines": lines,
         "channels": {
