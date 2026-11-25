@@ -118,9 +118,35 @@ async function loadFilm(book) {
   $("#segLabel").textContent = segLabel(state.segs[0]);
 
   wire();
+  showCoverCard(title);
   if (data.mapping === "fallback") {
     toast("这一版时间轴没有源页尺寸，框的位置按 art 尺寸估算。", 4200);
   }
+}
+
+
+
+function showCoverCard(title) {
+  // UI-layer cover card: not baked into the film, so Q43 "no re-edit" is intact.
+  const d = document.createElement("div");
+  d.id = "coverCard";
+  d.style.cssText = [
+    "position:fixed", "inset:0", "z-index:9999", "pointer-events:none",
+    "display:flex", "flex-direction:column", "align-items:center",
+    "justify-content:center", "gap:14px",
+    "background:radial-gradient(circle at 50% 35%,#fffaf0 0%,#f3e6d2 70%,#e6d3b8 100%)",
+    "color:#5b4636", "font-family:inherit", "transition:opacity .5s ease",
+  ].join(";");
+  const h = document.createElement("div");
+  h.textContent = title || "绘本影片";
+  h.style.cssText = "font-size:clamp(28px,5vw,56px);font-weight:800;letter-spacing:.08em;text-align:center;padding:0 6vw";
+  const s = document.createElement("div");
+  s.textContent = "纸书智伴 · 绘本影片";
+  s.style.cssText = "font-size:clamp(12px,1.8vw,18px);letter-spacing:.28em;opacity:.7";
+  d.appendChild(h); d.appendChild(s); document.body.appendChild(d);
+  const kill = () => { d.style.opacity = "0"; setTimeout(() => d.remove(), 520); };
+  setTimeout(kill, 2400);
+  video.addEventListener("play", kill, { once: true });
 }
 
 function dead(title, note) {
