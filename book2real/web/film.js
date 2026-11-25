@@ -128,10 +128,11 @@ async function loadFilm(book) {
 
 function showCoverCard(title) {
   // UI-layer cover card: not baked into the film, so Q43 "no re-edit" is intact.
+  // Hold 4.4s (2s longer than before); the button reads the title aloud.
   const d = document.createElement("div");
   d.id = "coverCard";
   d.style.cssText = [
-    "position:fixed", "inset:0", "z-index:9999", "pointer-events:none",
+    "position:fixed", "inset:0", "z-index:9999",
     "display:flex", "flex-direction:column", "align-items:center",
     "justify-content:center", "gap:14px",
     "background:radial-gradient(circle at 50% 35%,#fffaf0 0%,#f3e6d2 70%,#e6d3b8 100%)",
@@ -143,12 +144,35 @@ function showCoverCard(title) {
   const s = document.createElement("div");
   s.textContent = "纸书智伴 · 绘本影片";
   s.style.cssText = "font-size:clamp(12px,1.8vw,18px);letter-spacing:.28em;opacity:.7";
-  d.appendChild(h); d.appendChild(s); document.body.appendChild(d);
-  const kill = () => { d.style.opacity = "0"; setTimeout(() => d.remove(), 520); };
-  setTimeout(kill, 2400);
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = "▶ 开始 · 朗读书名";
+  b.style.cssText = [
+    "margin-top:10px", "padding:10px 20px", "border:1px solid #b99a72",
+    "border-radius:999px", "background:#fff7e8", "color:#5b4636",
+    "font-size:clamp(14px,2vw,18px)", "cursor:pointer", "pointer-events:auto",
+  ].join(";");
+  d.appendChild(h); d.appendChild(s); d.appendChild(b);
+  document.body.appendChild(d);
+  let done = false;
+  const kill = () => {
+    if (done) return; done = true;
+    try { speechSynthesis.cancel(); } catch (_e) {}
+    d.style.opacity = "0"; setTimeout(() => d.remove(), 520);
+  };
+  const t0 = Date.now();
+  const auto = setInterval(() => { if (Date.now() - t0 > 8000) { clearInterval(auto); kill(); } }, 120);
+  b.onclick = () => {
+    const u = new SpeechSynthesisUtterance(title || "绘本影片");
+    u.lang = /[\u4e00-\u9fff]/.test(title || "") ? "zh-CN" : "en-US";
+    u.rate = 0.85; u.pitch = 1.02;
+    try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (_e) {}
+    b.textContent = "🔊 正在朗读…";
+    clearInterval(auto);
+    setTimeout(kill, 5200);
+  };
   video.addEventListener("play", kill, { once: true });
 }
-
 function dead(title, note) {
   const box = $("#empty");
   $("#emptyTitle").textContent = title;
