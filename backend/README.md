@@ -1,6 +1,6 @@
 # 纸书智伴 · 语音后端
 
-面向「纸书智伴」赛题的**后端**实现：绘本 PDF 内容理解（OCR/结构化）、本地/云端 ASR、流式 TTS、语音问答、视频内文字检索、触控元素卡、多模态会话与 2 秒首音指标。
+面向「纸书智伴」赛题的**后端**实现：绘本 PDF 内容理解（OCR/结构化）、本地/云端 ASR、流式 TTS、语音问答、视频内文字检索、触控元素卡、多模态会话。
 
 > 本仓库只负责后端。文生图、文生视频、前端播放/触控界面由队友负责；接口契约见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。
 
@@ -19,8 +19,7 @@
 | 问答 | ✅ | BM25 检索 + 意图路由（找画面/查文字/播放/触控/词语解释/内容问答）；LLM 可换 DeepSeek/OpenAI 兼容 |
 | 视频内检索 | ✅ | 帧采样 + 帧 OCR；查字返回时间戳/bbox；场景/元素按 manifest 提供 |
 | 会话历史 | ✅ | SQLite：文本 + 页/时间/元素/图片引用 + 动作，支持多轮上下文 |
-| 延迟指标 | ✅ | 每回合 speech_end→首音、ASR/LLM/TTS 分段耗时；p50/p90/p95、达标率、填充音比例 |
-| 预热 | ✅ | 模型/音色/填充音预热；`/api/warmup`；warmup 回合不计入指标 |
+| 延迟指标 | ✅ | 每回合 ASR/LLM/TTS 分段耗时；p50/p90/p95 |
 
 ---
 
@@ -45,7 +44,7 @@ python tools/ingest_competition.py --zip "<赛事素材zip路径>/纸书智伴�
 
 > 赛事 PDF/音频有版权与保密限制：`data/`、`.env`、`pip-cache/` 已加入 `.gitignore`，**不要**把原始绘本、Query 音频或 API key 提交到仓库。
 
-打开 <http://127.0.0.1:8790/docs> 查看交互式 API；<http://127.0.0.1:8790/health> 查看预热/Provider 状态。
+打开 <http://127.0.0.1:8790/docs> 查看交互式 API；<http://127.0.0.1:8790/health> 查看 Provider 状态。
 
 ### 实时语音聊天页
 
@@ -58,14 +57,14 @@ python tools/ingest_competition.py --zip "<赛事素材zip路径>/纸书智伴�
 
 页面源文件在 `web/`。浏览器使用麦克风需要本机回环地址或 HTTPS。
 
-配置 `ASR_PROVIDER=minimax` 时，每次说完上传一段音频。页面会逐段显示云端返回的识别文字，定稿后进入问答。回复文字按短句送入 TTS，音频生成后立即发送给页面。「识别首字」和「识别定稿」从提交识别时算起。「回复首音」从说完算起，排除填充音。[MiniMax 识别接口](https://platform.minimax.io/docs/guides/speech-to-text#streaming)
+配置 `ASR_PROVIDER=minimax` 时，每次说完上传一段音频。页面会逐段显示云端返回的识别文字，定稿后进入问答。回复文字按短句送入 TTS，音频生成后立即发送给页面。「识别首字」和「识别定稿」从提交识别时算起。「回复首音」从说完算起。[MiniMax 识别接口](https://platform.minimax.io/docs/guides/speech-to-text#streaming)
 
 
 ### 本地 TTS 选择
 
 | Provider | 首块 | 音质 | 用途 |
 | --- | --- | --- | --- |
-| `sapi`（默认） | **10–80ms** | Windows 系统音色（中/英） | 本地联调、断网兜底、2s 首音压测 |
+| `sapi`（默认） | **10–80ms** | Windows 系统音色（中/英） | 本地联调、断网兜底 |
 | `local` | ~2.5s（CosyVoice3） | 克隆音色，明显更好 | 需要音质时；先启动 `scripts/start_local_tts.py` |
 | `minimax` | **实测 212–374ms** | 官方云端音色（327 个系统音色，含童声） | 已接入；推荐 `speech-2.8-turbo` + 中文 `Warm_Girl` / 英文 `Sweet_Girl` |
 
@@ -93,7 +92,6 @@ MINIMAX_VOICE_ID_EN=Sweet_Girl
 MINIMAX_EMOTION=calm
 MINIMAX_SPEED=0.95
 MINIMAX_ASR_MODEL=asr-1.0
-FILLER_DEADLINE_MS=1700
 ```
 
 - TTS：`/v1/t2a_v2`，SSE hex PCM；实测首块 **212–374ms**（2.6/2.8 turbo/hd 都可）。
@@ -115,7 +113,6 @@ FILLER_DEADLINE_MS=1700
 | `Where is Xiao Man?` | 662ms | **1210ms** | 命中 page 7（别名 小满） |
 | `What is the dog?` | 513ms | **1069ms** | 检索到 page 10；复杂回答建议接 LLM |
 
-批量实测（`tools/eval_queries.py`，本地 SAPI + Whisper）：**119 回合，2s 达标率 100%，p50 547.5ms，p90 985ms，p95 1150ms，最大 1267ms，填充音 0%**；6 本绘本各抽 5 条 Query 共 30/30 全部达标。
 
 MiniMax 云端（TTS + ASR）实测：
 
@@ -130,8 +127,6 @@ MiniMax 云端（TTS + ASR）实测：
 | EN01 前 5 条 Query | p50 **864ms**，p95 **879ms**，5/5 达标 |
 
 - 目标 2000ms，本地 SAPI 余量约 700–1000ms；MiniMax 云端余量约 600–1200ms；
-- 填充音默认 **1700ms** 兜底（MiniMax 实测约 0.8–1.5s 出首音，通常不触发）；
-- 详细预算与调参见 [docs/LATENCY_2S.md](docs/LATENCY_2S.md)。
 
 ---
 
@@ -142,7 +137,7 @@ app/
   main.py                 FastAPI 路由 + WebSocket
   config.py               环境变量配置
   providers/              ASR / TTS / LLM 适配（local/http/minimax/sapi/mock）
-  pipeline/               VAD、切句、回合编排、填充音、时间线
+  pipeline/               VAD、切句、回合编排、时间线
   book/                   PDF 入库、OCR、BM25 索引、意图路由、视频索引、SQLite
 scripts/
   start_local_tts.py      CosyVoice3 / IndexTTS 本地流式 TTS 服务
@@ -173,8 +168,8 @@ data/                     运行时生成（页图/索引/DB/缓存），已 git
 | `GET /api/video/{id}/search?q=` | 视频帧文字检索（查字并框出） |
 | `GET /api/video/{id}/describe?t=&box=` | 帧/框选描述（基于页文本/元素卡） |
 | `GET /api/sessions/{id}/history` | 多模态会话历史 |
-| `GET /api/metrics/latency` | 首音 p50/p90/p95、2s 达标率、填充音比例 |
-| `POST /api/warmup` | 重新预热（TTS/ASR/填充音） |
+| `GET /api/metrics/latency` | 首音 p50/p90/p95 |
+| `POST /api/warmup` | 重新加载 TTS/ASR 引擎 |
 
 详细字段见 [docs/INTEGRATION.md](docs/INTEGRATION.md) 与 `/docs`。
 
@@ -184,7 +179,7 @@ data/                     运行时生成（页图/索引/DB/缓存），已 git
 
 ```bash
 python -m pytest -q
-# 18 passed（切句/VAD/检索/意图/回合/填充音/脚本解析）
+# 18 passed（切句/VAD/检索/意图/回合/脚本解析）
 ```
 
 批量跑 Query（需先启动服务与入库）：

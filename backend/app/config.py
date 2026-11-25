@@ -140,6 +140,9 @@ class Settings:
     # 每语言预合成句数；用掉一句后台补一句，避免 warmup 一次打 33 句触发 TTS 限流
     ack_prewarm_lines: int = field(default_factory=lambda: _i("ACK_PREWARM_LINES", 5))
     ack_refill: bool = field(default_factory=lambda: _b("ACK_REFILL", True))
+    # 真答案的最早播放起点（相对"话音结束"）。只推迟播放，不推迟计算：
+    # 缓存命中时答案 1ms 就绪，直接播会显得没有思考过程；统一压到 0.9s 再开口。
+    answer_min_start_ms: int = field(default_factory=lambda: _i("ANSWER_MIN_START_MS", 900))
     latency_budget_ms: int = field(default_factory=lambda: _i("LATENCY_BUDGET_MS", 2000))
     warmup_on_start: bool = field(default_factory=lambda: _b("WARMUP_ON_START", True))
 

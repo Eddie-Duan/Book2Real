@@ -68,6 +68,7 @@ def make_runner(tmp_path: Path, tts: TTSProvider, llm: LLMProvider, asr=None, fi
     cfg.data_dir = tmp_path
     cfg.filler_enabled = True
     cfg.filler_deadline_ms = filler_deadline
+    cfg.answer_min_start_ms = 0  # 既有用例按“立即出声”断言；新用例单独打开
     cfg.tts_sample_rate = 24000
     cfg.moderation_enabled = False
     cfg.session_history_turns = 4
@@ -201,6 +202,7 @@ def test_tts_starts_before_llm_finishes(tmp_path):
 
         cfg = Settings(data_dir=tmp_path, filler_enabled=False)
         cfg.fast_answer = False
+        cfg.answer_min_start_ms = 0  # 本用例测的是流式顺序，不是开口节奏
         cfg.ensure_dirs()
         store = Store(cfg)
         runner = VoiceTurnRunner(cfg, MockASR(), StreamingTTS(), StreamingLLM(), FillerBank(cfg), store)
@@ -213,3 +215,25 @@ def test_tts_starts_before_llm_finishes(tmp_path):
             store.close()
 
     asyncio.run(run())
+
+
+def test_answer_min_start_delays_first_audio(tmp_path):
+    """ANSWER_MIN_START_MS=900：真答案首音不许早于 0.9s，也不许超过 ~1.15s。"""
+    tts = MockTTS(delay=0.01)
+    cfg, runner, store = make_runner(tmp_path, tts, SlowLLM(delay=0.01))
+    cfg.answer_min_start_ms = 900
+
+    async def collect():
+        events = []
+        speech_end = now_ms()
+        async for event in runner.run_text("probe", make_book(), "他们在搭什么？",
+                                           speech_end_ms=speech_end):
+            events.append((now_ms() - speech_end, event))
+        return events
+
+    events = asyncio.run(collect())
+    answer = [e for _, e in events if e["type"] == "answer"][-1]
+    first = answer["metrics"]["first_audio_after_speech_ms"]
+    assert 880 <= first <= 1150, first
+    assert first < 2000
+    assert answer["metrics"]["used_filler"] is False

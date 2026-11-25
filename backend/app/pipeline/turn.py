@@ -599,8 +599,26 @@ class VoiceTurnRunner:
                     }
                 )
 
+        async def await_min_start() -> None:
+            """把第一块"真答案"音频的播放起点压到 speech_end + ANSWER_MIN_START_MS。
+
+            只推迟播放，不推迟计算：缓存命中时答案 1ms 就绪，立刻开口会显得没有思考过程。
+            垫话（ack）不受影响，它本来就排在 FILLER_DEADLINE_MS。
+            """
+            if state.get("min_start_done"):
+                return
+            state["min_start_done"] = True
+            min_ms = int(getattr(self.settings, "answer_min_start_ms", 0) or 0)
+            if min_ms <= 0:
+                return
+            remain = speech_end + min_ms - now_ms()
+            if remain > 0:
+                await asyncio.sleep(remain / 1000.0)
+
         async def tts_task() -> None:
             async def emit_pcm(text: str, pcm: bytes, rate: int, *, ack: bool = False) -> None:
+                if not ack:
+                    await await_min_start()
                 seq = state["audio_seq"]
                 state["audio_seq"] += 1
                 self.tts.sample_rate = rate
@@ -658,6 +676,7 @@ class VoiceTurnRunner:
                             if state["cancelled"] or not chunk:
                                 continue
                             if not started:
+                                await await_min_start()
                                 started = True
                                 if state["tts_first_chunk"] is None:
                                     state["tts_first_chunk"] = now_ms()
