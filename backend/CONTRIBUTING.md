@@ -42,13 +42,13 @@ python tools/ingest_competition.py --zip "<素材zip路径>"
 python -m pytest -q
 ```
 
-当前 18 个测试覆盖切句、VAD、BM25/意图、跨语言别名、脚本解析、回合与填充音。
+当前 18 个测试覆盖切句、VAD、BM25/意图、跨语言别名、脚本解析与回合编排。
 改 ASR/TTS/检索逻辑时请补测试；没有 GPU 也能跑这些单测。
 
 ## 5. 接口契约
 
 - 前端/视频组看 `docs/INTEGRATION.md`：WebSocket 事件、PCM 格式、`action` 类型、book.json、manifest。
-- 延迟设计与调参看 `docs/LATENCY_2S.md`。
+- 延迟自测用 `tools/eval_queries.py`（`--help` 看参数）。
 - 赛题要求对照看 `docs/REQUIREMENTS_MAPPING.md`。
 
 ## 6. 数据与合规

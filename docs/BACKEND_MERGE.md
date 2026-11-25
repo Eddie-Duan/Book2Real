@@ -32,7 +32,7 @@ Book2Real/
 │  ├─ app/frontend.py  #   融合层：阅读器/影院页面、旧 API 适配、/api/tts GET 兼容
 │  ├─ app/compat.py    #   融合层：老请求/老响应字段 ↔ backend 契约
 │  ├─ tools/           #   ingest_competition.py、ws_latency_probe.py、eval_queries.py
-│  └─ docs/            #   后端自己的契约文档（INTEGRATION.md / LATENCY_2S.md ...）
+│  └─ docs/            #   后端自己的契约文档（INTEGRATION.md / MINIMAX.md / OCR.md ...）
 ├─ book2real/          # 生成链 + 阅读器前端（web/）+ 旧 StdHTTP 服务（legacy）
 ├─ books/<id>/         # 页图、curation、reader 包（由 backend 入库结果重建）
 ├─ data/               # backend 运行时数据：data/books/<id>/book.json、页图、SQLite、缓存
