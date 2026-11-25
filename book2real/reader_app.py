@@ -308,8 +308,10 @@ def film_timeline(book_id: str) -> tuple[int, dict]:
         seg["mapping"] = how
         kinds.add(how)
     # the page needs to know whether the boxes are trustworthy; say so plainly
-    data["mapping"] = "fallback" if "fallback" in kinds else (
-        "book" if "book" in kinds else ("pages" if "pages" in kinds else "fallback"))
+    data["mapping"] = ("identity" if kinds == {"identity"} else
+                       "fallback" if "fallback" in kinds else
+                       "book" if "book" in kinds else
+                       "pages" if "pages" in kinds else "fallback")
     data.setdefault("book_id", bid)
     data["run"] = film_dir.name
     data["video_url"] = f"/api/film/{bid}/video"
