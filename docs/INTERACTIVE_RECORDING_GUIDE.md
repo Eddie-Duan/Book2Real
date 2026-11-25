@@ -1,6 +1,6 @@
 # 交互视频录制全流程（cn01 + en01）
 
-> 2026-11-25，代码基线 e49a97f。给“用自己电脑录官方交互视频”的人看。
+> 2026-11-25，代码基线 090680a。给“用自己电脑录官方交互视频”的人看。
 > 先给结论：**两个 final_movie.mp4 只是“非交互成片”，光有它们录不了交互视频。**
 > 还需要同一条片子的 timeline.json + 点击目标表 + 阅读器服务；这两样我打成了两个交接包。
 
@@ -14,7 +14,7 @@
 - 两个交接包（成片 + timeline + click_targets + 官方 wav）：
   - dist/interactive_handoff_cn01.zip（57 MB，含 2s 封面+书名朗读）
   - dist/interactive_handoff_en01_720p_cover2s.zip（73 MB，720p + 2s 封面+书名朗读）
-- 仓库代码（e49a97f）
+- 仓库代码（090680a）
 - 语音问答要 .env 里的 MINIMAX_API_KEY（只录点击/检索可以先不配）
 
 ## 1. 一次性准备
@@ -23,7 +23,7 @@
 
     git clone git@github.com:Eddie-Duan/Book2Real.git
     cd Book2Real
-    git checkout e49a97f
+    git checkout 090680a
 
 ### 1.2 放交接包
 
@@ -129,7 +129,7 @@ en01 页面自测：
 | /film 404 或回到旧片 | 没设 B2R_FILM_SEEDANCE=1；或端口连到了 ui 不是 reader |
 | 页面能开但没画面 | 交接包没解压到 runs/<id>/seedance_film/<stamp>/，或 film.mp4 不在 |
 | 点元素没反应 | 当前时间不在该 shot；用第 2 节的时间点；或框是 shot 级，角色已走动 |
-| 查字框很小 | 用了旧 timeline；用 e49a97f + 交接包里的 timeline |
+| 查字框很小 | 用了旧 timeline；用 090680a + 交接包里的 timeline |
 | 语音没反应 | .env 没配 MINIMAX_API_KEY；浏览器没给麦克风权限；系统声音没录进 OBS |
 | 录屏没声音 | OBS 只加了麦克风，没加“桌面音频”；或 Win+G 没开系统声音 |
 
