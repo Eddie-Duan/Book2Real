@@ -693,6 +693,41 @@ function wire() {
 }
 
 /* ---------------------------------------------------------------- voice */
+/* ---------------------------------------------------------------- voice Q&A */
+function speakAnswer(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(String(text || ""));
+    u.lang = /[\u4e00-\u9fff]/.test(text || "") ? "zh-CN" : "en-US";
+    u.rate = 0.95; u.pitch = 1.0;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch (_e) {}
+}
+
+function isQuestionText(text) {
+  const s = String(text || "").trim();
+  return /[?？]|为什么|谁|什么|哪里|哪儿|怎么|吗|多少|几个|How|Why|Who|What|Where|Which|Is |Are |Did |Does |Can |Do /i.test(s);
+}
+
+async function askQuestion(query) {
+  const seg = currentSeg();
+  const page = seg && seg.source_page ? "p" + String(seg.source_page).padStart(2, "0") : "";
+  video.pause();
+  showInfo("问一句", query, "正在想…", pageName(seg || {}));
+  try {
+    const res = await fetch("/api/ask", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({book_id: state.book, page, query}),
+    });
+    const data = await res.json();
+    const answer = (data && data.answer) || "这一页我还没想出答案，换个问法再试试？";
+    showInfo("问一句", query, answer, "来自 " + pageName(seg || {}));
+    speakAnswer(answer);
+  } catch (_e) {
+    showInfo("问一句", query, "问答服务暂时没连上，先点画面或换一个问题。", pageName(seg || {}));
+  }
+}
+
 function setupMic() {
   const btn = $("#btnMic");
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -712,7 +747,7 @@ function setupMic() {
       btn.title = "语音识别启动失败，改成打字搜索吧";
       return;
     }
-    rec.lang = "zh-CN";
+    rec.lang = (state.data && state.data.language === "en") ? "en-US" : "zh-CN";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.onstart = () => { state.listening = true; btn.textContent = "🎤 在听…"; };
@@ -720,8 +755,12 @@ function setupMic() {
       const alt = ev.results && ev.results[0] && ev.results[0][0];
       const text = alt ? String(alt.transcript || "").trim() : "";
       if (!text) return;
-      $("#findInput").value = text;
-      runFind(text);
+      if (isQuestionText(text)) {
+        askQuestion(text);
+      } else {
+        $("#findInput").value = text;
+        runFind(text);
+      }
     };
     rec.onerror = (ev) => {
       toast(ev && ev.error === "not-allowed"
