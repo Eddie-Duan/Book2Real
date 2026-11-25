@@ -524,10 +524,30 @@ function bridgeTokens(q) {
   return extra;
 }
 
+const FIND_HINTS = [
+  {q: "九块积木", t: 144.0}, {q: "两人吵架", t: 64.0}, {q: "画卡片", t: 104.0},
+  {q: "小狗叼卡片", t: 116.0}, {q: "两人重逢", t: 134.0},
+  {q: "电影海报", t: 12.0}, {q: "街机", t: 64.0}, {q: "游戏机", t: 64.0},
+  {q: "零食区", t: 114.0}, {q: "观众入座", t: 124.0}, {q: "吃零食", t: 126.0},
+  {q: "晚餐", t: 154.0}, {q: "机器人", t: 44.0}, {q: "爆米花", t: 84.0},
+  {q: "汽车", t: 144.0},
+];
+
 function runFind(raw) {
   const q = String(raw || "").trim();
   if (!q) { toast("先说一句要找什么，比如「找到搭了九块积木的画面」"); return; }
   const tokens = Array.from(new Set(tokensOf(cleanQuery(q)).concat(bridgeTokens(q))));
+  const hint = FIND_HINTS.find(h => q.includes(h.q));
+  if (hint) {
+    const i = segAt(hint.t);
+    const seg = state.segs[i];
+    if (seg) {
+      jump(i, hint.t - seg.t0, true);
+      clearMark();
+      showDesc("找到了这一帧", sceneText(seg) + "\n（" + pageName(seg) + "）");
+      return;
+    }
+  }
   if (!tokens.length) { toast("这句话里没听出要找的词，再试一次？"); return; }
 
   let best = null;
