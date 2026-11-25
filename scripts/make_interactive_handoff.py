@@ -14,6 +14,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WAV_DIR = {"cn01": "中文绘本01", "en01": "英文绘本01"}
+# The exact official query used in the recording script, by number.
+DEMO_QUERIES = {"cn01": ["32"], "en01": ["30"]}
 
 
 def newest_film(book: str) -> tuple[Path, Path]:
@@ -52,7 +54,15 @@ def main() -> int:
     handoff = ROOT / "docs" / "HANDOFF_INTERACTIVE_RECORDING.md"
     clicks = ROOT / "books" / book / "click_targets.json"
     wav_dir = ROOT / "纸书智伴企业预选赛绘本素材" / "绘本素材" / WAV_DIR.get(book, "")
-    wavs = sorted(wav_dir.glob("*.wav"))[: a.wavs] if wav_dir.is_dir() else []
+    wavs = []
+    for n in DEMO_QUERIES.get(book, []):
+        p = wav_dir / f"{n}.wav"
+        if p.is_file():
+            wavs.append(p)
+    for w in sorted(wav_dir.glob("*.wav"))[: a.wavs]:
+        if w not in wavs:
+            wavs.append(w)
+    wavs = wavs[: max(a.wavs, len(DEMO_QUERIES.get(book, [])))]
 
     with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as z:
         rel = f"runs/{book}/seedance_film/{pub.name}"
