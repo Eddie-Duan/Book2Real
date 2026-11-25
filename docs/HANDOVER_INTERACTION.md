@@ -154,3 +154,12 @@ python scripts/build_click_targets.py
 - **四能力实测**：点选暂停+介绍、描述当前帧、按画面搜索“找到搭了九块积木的画面”（跳 140.35s p12）、查字“小心”/“我又不是故意的”均可用。
 - **修复**：reader 之前把 `source_w/h` 回填成页图尺寸，查字框缩成 0.0002；已支持 `mapping=identity`，现在框正常。
 - **仍欠**：逐帧点击框、p01 视觉封面、en02/en03 spots。
+## 10. 2026-11-25 逐 shot 点击框（已补）
+
+- 新脚本 `scripts/one_take_timeline_shots.py`：优先按 `shot_script.shots[]` 切段；每个 shot 带 `page` 和 `targets[{name,box}]`。
+- cn01 已给 15 个 shot 全部写 page/targets；时间轴 16 段（含 p01 封面）、41 个 spot、197 条 OCR。
+- p09 拆成两段：s2（100–110s，小满+生日卡片，无狗）与 s3（110–120s，黄米团+卡片+小满），修掉了"106s 点狗框命中的是手"的错位。实测 106s 点旧狗框不再命中，116s 点狗框正确弹黄米团。
+- 用法：
+  `python scripts/one_take_timeline_shots.py --book books/cn01 --run runs/cn01/one_take --movie runs/cn01/one_take/final_movie.mp4 --publish-root runs/cn01/seedance_film`
+- 旧 `one_take_timeline.py` 保留为页级 fallback；没有 shots[].page/targets 的书仍能跑。
+- 仍不是逐帧：同一 shot 内角色移动时框不跟随；官方"所有可见帧可点"还需逐帧检测，但演示/必选三项已可用。
