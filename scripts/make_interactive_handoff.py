@@ -15,7 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WAV_DIR = {"cn01": "中文绘本01", "en01": "英文绘本01"}
 # The exact official query used in the recording script, by number.
-DEMO_QUERIES = {"cn01": ["32"], "en01": ["30"]}
+DEMO_QUERIES = {"cn01": ["05", "10", "17", "32", "35", "39", "41"],
+                "en01": ["11", "30", "39", "41", "48"]}
 
 
 def newest_film(book: str) -> tuple[Path, Path]:

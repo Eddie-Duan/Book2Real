@@ -730,6 +730,9 @@ async function askQuestion(query) {
 
 function setupMic() {
   const btn = $("#btnMic");
+  const langSel = $("#micLang");
+  const defaultLang = (state.data && state.data.language === "en") ? "en-US" : "zh-CN";
+  if (langSel) langSel.value = defaultLang;
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!Rec) {
     btn.disabled = true;
@@ -747,7 +750,7 @@ function setupMic() {
       btn.title = "语音识别启动失败，改成打字搜索吧";
       return;
     }
-    rec.lang = (state.data && state.data.language === "en") ? "en-US" : "zh-CN";
+    rec.lang = (langSel && langSel.value) || defaultLang;
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.onstart = () => { state.listening = true; btn.textContent = "🎤 在听…"; };
