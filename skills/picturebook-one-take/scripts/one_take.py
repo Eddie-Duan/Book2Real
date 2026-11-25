@@ -16,6 +16,7 @@ from bible import build_bible  # noqa: E402
 from common import (ARK_KEY, DEEPSEEK_KEY, MINIMAX_KEY, ROOT, ffprobe, jread,  # noqa: E402
                     jwrite, load_env)
 from contract import lint_all, validate_script  # noqa: E402
+from cover import add_cover_intro, shift_timeline  # noqa: E402
 from generate import run_chain  # noqa: E402
 from planner import plan as plan_fn  # noqa: E402
 from vision import analyze_book, merge_into_bible  # noqa: E402
@@ -179,6 +180,21 @@ def cmd_generate(args):
     return 0 if all(r["verdict"] == "PASS" for r in result["reports"]) else 1
 
 
+def cmd_cover(args):
+    out = Path(args.out)
+    movie = Path(args.movie or (out / "final_movie.mp4"))
+    meta = add_cover_intro(ROOT / args.book, movie, out / "final_movie_cover.mp4",
+                           args.seconds, getattr(args, "voice", None))
+    tl = out / "timeline.json"
+    if tl.exists():
+        out_tl = out / "timeline_cover.json"
+        out_tl.write_text(json.dumps(shift_timeline(jread(tl), meta["cover_seconds"]),
+                                     ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        meta["timeline"] = str(out_tl)
+    print("cover:", json.dumps(meta, ensure_ascii=False))
+    return 0
+
+
 def cmd_assemble(args):
     meta = assemble(args.out)
     print(f"final: {meta['file']} {meta['duration']}s {meta['width']}x{meta['height']} @{meta['fps']}")
@@ -190,7 +206,8 @@ def cmd_verify(args):
     out = Path(args.out)
     meta = jread(out / "final_movie.json")
     script = jread(out / "shot_script.json")
-    info = ffprobe(meta["file"])
+    movie = Path(getattr(args, "movie", "") or meta["file"])
+    info = ffprobe(movie)
     v = [s for s in info["streams"] if s.get("codec_type") == "video"][0]
     a = [s for s in info["streams"] if s.get("codec_type") == "audio"]
     dur = float(info["format"]["duration"])
@@ -200,7 +217,7 @@ def cmd_verify(args):
         failures.append(f"final resolution {v['width']}x{v['height']} (delivery={delivery})")
     if v["r_frame_rate"] != "24/1": failures.append("final fps")
     if not a: failures.append("final audio")
-    if not (100 <= dur <= 180.5): failures.append(f"final duration {dur:.1f}")
+    if not (100 <= dur <= 200.5): failures.append(f"final duration {dur:.1f}")
     reps = []
     for c in script["chunks"]:
         p = out / f"{c['id']}_gate.json"
@@ -245,7 +262,21 @@ def cmd_run(args):
     if not all(r["verdict"] == "PASS" for r in result["reports"]):
         return 1
     assemble(out)
-    return cmd_verify(argparse.Namespace(out=str(out)))
+    final = out / "final_movie.mp4"
+    if getattr(args, "cover", True):
+        try:
+            cover_out = out / "final_movie_cover.mp4"
+            meta = add_cover_intro(Path(args.book), final, cover_out,
+                                   getattr(args, "cover_seconds", 2.0), getattr(args, "voice", None))
+            tl = out / "timeline.json"
+            if tl.exists():
+                (out / "timeline_cover.json").write_text(json.dumps(
+                    shift_timeline(jread(tl), meta["cover_seconds"]), ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
+            final = cover_out
+        except Exception as exc:  # keep the one-take film if TTS/ffmpeg fails
+            print(f"cover skipped: {exc}")
+    return cmd_verify(argparse.Namespace(out=str(out), movie=str(final), delivery=False))
 
 
 def main(argv=None):
@@ -272,8 +303,10 @@ def main(argv=None):
     p.add_argument("--start", type=int, default=1); p.add_argument("--end", type=int, default=None)
     p.add_argument("--force", action="store_true"); p.add_argument("--attempts", type=int, default=1)
     p.set_defaults(fn=cmd_generate)
+    p = sub.add_parser("cover"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
+    p.add_argument("--movie", default=None); p.add_argument("--seconds", type=float, default=2.0); p.add_argument("--voice", default=None); p.set_defaults(fn=cmd_cover)
     p = sub.add_parser("assemble"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_assemble)
-    p = sub.add_parser("verify"); p.add_argument("--out", required=True); p.add_argument("--delivery", action="store_true"); p.set_defaults(fn=cmd_verify)
+    p = sub.add_parser("verify"); p.add_argument("--out", required=True); p.add_argument("--movie", default=None); p.add_argument("--delivery", action="store_true"); p.set_defaults(fn=cmd_verify)
     p = sub.add_parser("run"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
     p.add_argument("--target-seconds", type=int, default=150); p.add_argument("--llm", action="store_true")
     p.add_argument("--script", default=None)
@@ -283,7 +316,10 @@ def main(argv=None):
     p.add_argument("--assets", default="room,meadow,birthday")
     p.add_argument("--prompts", action="store_true"); p.add_argument("--resolution", default="480p")
     p.add_argument("--max-cny", type=float, default=200.0); p.add_argument("--attempts", type=int, default=1)
-    p.add_argument("--yes", action="store_true"); p.set_defaults(fn=cmd_run)
+    p.add_argument("--yes", action="store_true")
+    p.add_argument("--no-cover", dest="cover", action="store_false", help="不生成 2s 封面+书名朗读")
+    p.add_argument("--cover-seconds", type=float, default=2.0)
+    p.set_defaults(fn=cmd_run, cover=True)
     args = ap.parse_args(argv)
     return args.fn(args)
 

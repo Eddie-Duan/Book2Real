@@ -118,7 +118,7 @@ async function loadFilm(book) {
   $("#segLabel").textContent = segLabel(state.segs[0]);
 
   wire();
-  showCoverCard(title);
+  if (!state.segs[0] || state.segs[0].kind !== "cover") showCoverCard(title);
   if (data.mapping === "fallback") {
     toast("这一版时间轴没有源页尺寸，框的位置按 art 尺寸估算。", 4200);
   }

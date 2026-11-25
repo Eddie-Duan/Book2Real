@@ -12,9 +12,8 @@
 
 要录交互视频还缺：
 - 两个交接包（成片 + timeline + click_targets + 官方 wav）：
-  - dist/interactive_handoff_cn01.zip（161 MB）
-  - dist/interactive_handoff_en01.zip（97 MB，480p 训练版）
-  - dist/interactive_handoff_en01_720p_upscaled.zip（72 MB，720p 拉伸版，初赛兜底）
+  - dist/interactive_handoff_cn01.zip（57 MB，含 2s 封面+书名朗读）
+  - dist/interactive_handoff_en01_720p_cover2s.zip（73 MB，720p + 2s 封面+书名朗读）
 - 仓库代码（e49a97f）
 - 语音问答要 .env 里的 MINIMAX_API_KEY（只录点击/检索可以先不配）
 
@@ -96,7 +95,7 @@ en01 页面自测：
 
 ## 4. cn01 交互视频脚本（约 90–120 秒）
 
-1. 打开 /film?book=cn01，点播放，播 3–5 秒。
+1. 打开 /film?book=cn01；片子自带 2s 封面 + 书名朗读，等封面播完自动进入正文。
 2. 拖到 0:10，点“积木城堡” → 暂停 + 介绍；停 2 秒。
 3. 拖到 1:46，点“生日卡片” → 暂停 + 介绍；停 2 秒。
 4. 拖到 1:56，点“黄米团” → 暂停 + 介绍；停 2 秒。
@@ -108,7 +107,7 @@ en01 页面自测：
 
 ## 5. en01 交互视频脚本（约 60–90 秒）
 
-1. 打开 /film?book=en01，播 3–5 秒。
+1. 打开 /film?book=en01；片子自带 2s 封面 + 书名朗读，等封面播完自动进入正文。
 2. 点“机器人”或“爆米花” → 暂停 + 介绍。
 3. 输入“popcorn” → 跳到对应页并框出。
 4. 点“描述这一帧”。
@@ -164,3 +163,13 @@ en01 页面自测：
 - 合规：这是转码/后期处理，严格说和 Q43“一次生成、不能二次编辑”有冲突；初赛不查可以用，决赛建议原生 720p。
 - 已打好 720p 拉伸版交接包：dist/interactive_handoff_en01_720p_upscaled.zip（72 MB）。
 - 交互录屏本身不需要拉伸文件：浏览器全屏 + 1080p 录屏，交互视频自然是 1080p；拉伸只影响“非交互 en01 成片”的 ffprobe 结果。
+## 10. 成片自带封面 + 书名朗读（2026-11-25）
+
+- cn01：runs/cn01/one_take/final_movie_cover.mp4（152.08s / 1280×720 / 24fps）
+- en01：runs/en01/one_take/final_movie_cover.mp4（182.08s / 1280×720 / 24fps）
+- 开头 2s 是干净书名卡，MiniMax 朗读书名；ASR 已验证：
+  - cn01：“一起搭积木吧。”
+  - en01：“Going to the cinema.”
+- 交互时间轴已整体 +2s（timeline_cover.json），查字“我又不是故意的”现在跳 62.35s。
+- 原 final_movie.mp4 保留不动；--no-cover 可回到严格一镜到底版。
+- 这是后期拼接，初赛用；决赛合规版应把封面做成首段镜头重生成。

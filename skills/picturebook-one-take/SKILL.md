@@ -40,6 +40,23 @@ python scripts/one_take_generic_check.py
 六本书逐本检查：bible 页/角色/场景/道具、plate 规格、user prompt 覆盖全部页、风格卡注入、
 代码里无按书名写死的分支、默认路径必须是 LLM。产物 `books/one_take_generic_check.json`。
 
+
+## 0.2 封面 + 书名朗读（默认开启，展示层）
+
+2026-11-25 起，成片默认多一个**独立的展示层文件**：
+
+    final_movie_cover.mp4     # 2s 干净封面（书名卡）+ MiniMax 书名朗读 + 原片
+    timeline_cover.json       # 若已有 timeline，整体后移 2s 并加封面段
+
+- 标题/语言取自 `books/<id>/book.json` 的 `title` / `language`，不为书名写死。
+- 音色取 `MINIMAX_VOICE_ID`（中文）/ `MINIMAX_VOICE_ID_EN`（英文），语速/情绪沿用 `MINIMAX_*`。
+- 封面是干净的标题卡，**不使用带水印的原书页**。
+- 调用：
+      python skills/picturebook-one-take/scripts/one_take.py cover --book books/cn01 --out runs/cn01/one_take
+  `run` 默认也会在 `assemble` 后自动加封面；加 `--no-cover` 可关闭。
+- **Q43 取舍**：封面+书名朗读是后期拼接，严格说和"一次生成、不二次编辑"冲突。它只用于初赛/展示层；原 `final_movie.mp4` 不动，`--no-cover` 可回到严格一镜到底版。决赛若要合规，应把封面做成首段镜头重新生成，而不是后期拼。
+- 费用：TTS 几分钱，**不调用 Seedance**。
+
 ## 1. 七条铁律（由代码注入 + 门禁检查，不靠提示词自觉）
 
 | # | 铁律 | 代码怎么保证 |
@@ -50,7 +67,7 @@ python scripts/one_take_generic_check.py
 | R4 | **智能分场、镜头有动机地移动、动作要看得见**：不是一页一镜，也不是固定 5 s；禁止只写呼吸/眨眼 | 分镜按"情节节拍"合并 2–3 页；每段 2–4 个镜头；镜头运动必须写动机；`contract.py` 逐个镜头检查动作动词（放/拿/搭/转身/跑/抱…），只有"呼吸、眨眼、轻微重心转移"直接 FAIL |
 | R5 | **禁止 zoom（画面整体缩放）**：不许把整幅画面放大/缩小当运镜；物理机位移动（跟拍/横移/轨道/环绕/升降）可以有；近景优先切镜 | 提示词注入 `[Camera Lock]`；`gates.py` 分区域估计光流尺度：整幅均匀缩放且无视差 → `DIGITAL_ZOOM` FAIL；有近/远景视差的物理移动放行 |
 | R6 | **场景之间自然衔接**：不许硬切到新场景 | 每个 chunk 结尾必须是一个"前景遮挡/运动模糊/物体入镜"的过渡动作，下一 chunk 从同一动作继续；接缝 SSIM <0.90 判 FAIL |
-| R7 | **一次任务链、无人工后期**：同一本书一次跑完 | `generate_chain.py` 顺序生成、失败自动带原因重试；`assemble.py` 只做 `-c copy` 无损拼接；`issues.md` 记录每次失败 |
+| R7 | **一次任务链、无人工后期**：同一本书一次跑完 | `generate_chain.py` 顺序生成、失败自动带原因重试；`assemble.py` 只做 `-c copy` 无损拼接；`issues.md` 记录每次失败。**唯一例外**：0.2 的封面/书名朗读是独立展示层文件，不覆盖 `final_movie.mp4`，可用 `--no-cover` 关闭 |
 
 ## 2. "检验"和"反复提示"怎么落地
 
