@@ -648,6 +648,45 @@ def _llm_answer(cfg: dict, page: dict, page_id: str, chars: list[dict], query: s
     return re.sub(r"\s+", " ", content).strip()[:MAX_ANSWER]
 
 
+
+
+def _is_question(text: str) -> bool:
+    s = str(text or "").strip()
+    if not s:
+        return False
+    if "?" in s or "？" in s:
+        return True
+    return bool(re.search(r"为什么|谁|什么|哪里|哪儿|怎么|吗|多少|几个|How|Why|Who|What|Where|Which|Is |Are |Did |Does |Can |Do ", s, re.I))
+
+
+def _llm_answer_book(cfg: dict, book: dict, page_id: str, query: str, history: list[dict]) -> str:
+    """Cross-page fallback for a question the page-local rule cannot ground."""
+    pages = _pages(book)
+    lines = []
+    for p in pages:
+        text = str(p.get("text") or "").strip()
+        if text:
+            lines.append(f"{p.get('id') or ''}：{text}")
+    material = "\n".join(lines)[:6000]
+    system = (
+        "你是一个绘本共读助手。硬约束：\n"
+        "① 只依据下面给出的【整本绘本原文】回答，结论后标注页码，例如（p03）；\n"
+        "② 材料没有的，直接说“书里没提到”，不得编造；\n"
+        "③ 用提问的语言回答（中文问中文答，英文问英文答），口语化，不超过 120 字。"
+    )
+    turns = [f"读者问：{h.get('q') or ''}\n助手答：{h.get('a') or ''}" for h in history[-3:]]
+    user = ("【整本绘本原文】\n" + material + "\n\n"
+            + ("【之前的对话】\n" + "\n".join(turns) + "\n\n" if turns else "")
+            + f"【读者的问题】{query}")
+    payload = {"model": cfg["model"], "temperature": 0.2,
+               "messages": [{"role": "system", "content": system},
+                            {"role": "user", "content": user}]}
+    data = _post_json(cfg["url"], payload, {"Authorization": f"Bearer {cfg['key']}"})
+    content = data["choices"][0]["message"]["content"]
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("empty LLM answer")
+    return re.sub(r"\s+", " ", content).strip()[:MAX_ANSWER]
+
 # --------------------------------------------------------------------------- #
 # request normalisation
 # --------------------------------------------------------------------------- #
@@ -686,7 +725,7 @@ def _probe(socratic: dict) -> dict:
 # --------------------------------------------------------------------------- #
 def _answer(req) -> dict:
     req = req if isinstance(req, dict) else {}
-    book_id, book = _load_book(req.get("book"))
+    book_id, book = _load_book(req.get("book") or req.get("book_id"))
 
     raw_page = req.get("page")
     page_id = str(raw_page).strip()[:40] if isinstance(raw_page, (str, int)) else ""
@@ -764,6 +803,15 @@ def _answer(req) -> dict:
         # a spot click with no box hit and no usable query: never borrow an entity
         result = ("这块我没看清——可能是背景或者一个小细节。"
                   "你可以点画面里的人物，或者直接问我这一页发生了什么。", [], True)
+    if result is None and query and mode == "free" and _is_question(query):
+        cfg = _llm_config()
+        if cfg is not None:
+            try:
+                text = _llm_answer_book(cfg, book, pid, query, history)
+                return {"answer": text, "citations": [], "source": "llm_book",
+                        "fallback": None, "socratic": _probe(socratic), "page": pid}
+            except Exception:                  # noqa: BLE001 - degrade to no_evidence
+                pass
     if result is None:
         no_ev = _no_evidence(query or ent_name or ent_desc)
         result = (no_ev[0], no_ev[1], True)
@@ -804,11 +852,11 @@ def _finalize(resp) -> dict:
             if not isinstance(quote, str) or not quote.strip() or kind not in CITATION_KINDS:
                 continue
             cits.append({"page": str(pg or ""), "quote": quote, "kind": kind})
-    source = resp.get("source") if resp.get("source") in ("rule", "llm") else "rule"
+    source = resp.get("source") if resp.get("source") in ("rule", "llm", "llm_book") else "rule"
     fallback = resp.get("fallback")
     if fallback not in FALLBACKS:
         fallback = None
-    if not cits and fallback is None:
+    if not cits and fallback is None and source != "llm_book":
         fallback = "no_evidence"          # never claim evidence we do not carry
     soc = resp.get("socratic") if isinstance(resp.get("socratic"), dict) else {}
     level = soc.get("level")
