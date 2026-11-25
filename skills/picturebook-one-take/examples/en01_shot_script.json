@@ -5,119 +5,827 @@
  "language": "en",
  "chunks": [
   {
-   "id": "chunk_01", "duration": 30, "pages": ["p01","p02","p03","p04"],
-   "cast": ["kuan","dad"], "props": ["posters","seats"],
-   "location": "cinema_front", "location_name": "cinema lobby / poster wall",
+   "id": "chunk_01",
+   "duration": 30,
+   "pages": [
+    "p01",
+    "p02",
+    "p03",
+    "p04"
+   ],
+   "cast": [
+    "kuan",
+    "dad"
+   ],
+   "props": [
+    "posters",
+    "seats"
+   ],
+   "location": "cinema_front",
+   "location_name": "cinema lobby / poster wall",
    "scene_note": "A dark auditorium with a spotlight, then a warm cinema wall with three textless posters (kung fu, Chaplin, cars). Kuan and Dad walk in.",
    "first_frame": "cinema_front",
    "shots": [
-    {"id":"s1","duration":10,"camera":"low-angle tracking shot along the empty red seats, physical move","action":"the projector beam switches on and sweeps across the dark screen; dust floats in the light","space":"rows of seats in silhouette, screen at the far end","sound":"<projector hum>"},
-    {"id":"s2","duration":10,"camera":"cut to a slow lateral pan across the poster wall","action":"Kuan walks along the wall and points at the kung fu poster, then the Chaplin poster; Dad follows with his hands in his pockets","space":"three posters fill the wall, Kuan left, Dad right","sound":"<footsteps on tile>"},
-    {"id":"s3","duration":10,"camera":"cut to a medium shot; the camera moves physically toward the cars poster, with clear parallax","action":"Kuan taps the cars poster and grins; Dad leans in; the car's headlight on the poster glows and fills the frame","space":"the poster headlight grows and becomes the whole frame","sound":"<a soft engine rev>"}
+    {
+     "id": "s1",
+     "duration": 10,
+     "camera": "low-angle tracking shot along the empty red seats, physical move",
+     "action": "the projector beam switches on and sweeps across the dark screen; dust floats in the light",
+     "space": "rows of seats in silhouette, screen at the far end",
+     "sound": "<projector hum>",
+     "page": "p01",
+     "targets": []
+    },
+    {
+     "id": "s2",
+     "duration": 10,
+     "camera": "cut to a slow lateral pan across the poster wall",
+     "action": "Kuan walks along the wall and points at the kung fu poster, then the Chaplin poster; Dad follows with his hands in his pockets",
+     "space": "three posters fill the wall, Kuan left, Dad right",
+     "sound": "<footsteps on tile>",
+     "page": "p02",
+     "targets": [
+      {
+       "name": "电影海报",
+       "box": [
+        0.03,
+        0.12,
+        0.94,
+        0.55
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.3,
+        0.65,
+        0.15,
+        0.25
+       ]
+      },
+      {
+       "name": "Dad",
+       "box": [
+        0.55,
+        0.6,
+        0.2,
+        0.3
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s3",
+     "duration": 10,
+     "camera": "cut to a medium shot; the camera moves physically toward the cars poster, with clear parallax",
+     "action": "Kuan taps the cars poster and grins; Dad leans in; the car's headlight on the poster glows and fills the frame",
+     "space": "the poster headlight grows and becomes the whole frame",
+     "sound": "<a soft engine rev>",
+     "page": "p04",
+     "targets": [
+      {
+       "name": "电影海报",
+       "box": [
+        0.2,
+        0.1,
+        0.7,
+        0.6
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.25,
+        0.6,
+        0.2,
+        0.3
+       ]
+      },
+      {
+       "name": "Dad",
+       "box": [
+        0.55,
+        0.55,
+        0.2,
+        0.35
+       ]
+      }
+     ]
+    }
    ],
    "narration": [
-    {"text":"Going to the Cinema."},
-    {"text":"I like to go to the cinema to see films."},
-    {"text":"My favourite films have action, comedy, and cars that can talk."},
-    {"text":"I will never, ever watch a musical. If it has dancing and singing, I know I will cry."}
+    {
+     "text": "Going to the Cinema."
+    },
+    {
+     "text": "I like to go to the cinema to see films."
+    },
+    {
+     "text": "My favourite films have action, comedy, and cars that can talk."
+    },
+    {
+     "text": "I will never, ever watch a musical. If it has dancing and singing, I know I will cry."
+    }
    ],
-   "dialogue": [], "sfx": ["projector hum","footsteps","engine rev"], "music": "none",
-   "transition_out": {"type":"match_cut","element":"the glowing car headlight on the poster","note":"the headlight becomes the cinema screen"}
+   "dialogue": [],
+   "sfx": [
+    "projector hum",
+    "footsteps",
+    "engine rev"
+   ],
+   "music": "none",
+   "transition_out": {
+    "type": "match_cut",
+    "element": "the glowing car headlight on the poster",
+    "note": "the headlight becomes the cinema screen"
+   }
   },
   {
-   "id": "chunk_02", "duration": 30, "pages": ["p05","p06","p07","p08","p09"],
-   "cast": ["kuan","dad"], "props": ["seats","robot","popcorn"],
-   "location": "auditorium", "location_name": "cinema auditorium",
+   "id": "chunk_02",
+   "duration": 30,
+   "pages": [
+    "p05",
+    "p06",
+    "p07",
+    "p08",
+    "p09"
+   ],
+   "cast": [
+    "kuan",
+    "dad"
+   ],
+   "props": [
+    "seats",
+    "robot",
+    "popcorn"
+   ],
+   "location": "auditorium",
+   "location_name": "cinema auditorium",
    "scene_note": "The screen shows a bright musical with dancers and a king and queen. Kuan hides, then peeks. Dad comforts him. A blue robot toy and popcorn are on the seats.",
    "shots": [
-    {"id":"s1","duration":10,"camera":"cut to the glowing screen, slow lateral pan across the musical scene","action":"dancers spin, a king and queen ride in a carriage; the camera stays on the screen, not the audience","space":"screen fills the frame, film characters only inside the screen","sound":"<musical brass and singing from the screen>"},
-    {"id":"s2","duration":10,"camera":"cut to Kuan in his seat, handheld camera close, physical move","action":"Kuan squeezes his eyes shut and buries his face in Dad's green cardigan; Dad pats his back","space":"Kuan left, Dad right, red seats around them","sound":"<fabric rustle> <Kuan's small whimper>"},
-    {"id":"s3","duration":10,"camera":"cut to a medium close-up of Kuan peeking through his fingers","action":"Kuan slowly spreads two fingers and peeks at the screen; a small smile appears; the blue robot toy sits beside him","space":"Kuan center, screen glow on his face","sound":"<soft giggle>"}
+    {
+     "id": "s1",
+     "duration": 10,
+     "camera": "cut to the glowing screen, slow lateral pan across the musical scene",
+     "action": "dancers spin, a king and queen ride in a carriage; the camera stays on the screen, not the audience",
+     "space": "screen fills the frame, film characters only inside the screen",
+     "sound": "<musical brass and singing from the screen>",
+     "page": "p05",
+     "targets": []
+    },
+    {
+     "id": "s2",
+     "duration": 10,
+     "camera": "cut to Kuan in his seat, handheld camera close, physical move",
+     "action": "Kuan squeezes his eyes shut and buries his face in Dad's green cardigan; Dad pats his back",
+     "space": "Kuan left, Dad right, red seats around them",
+     "sound": "<fabric rustle> <Kuan's small whimper>",
+     "page": "p07",
+     "targets": [
+      {
+       "name": "机器人",
+       "box": [
+        0.55,
+        0.4,
+        0.25,
+        0.3
+       ]
+      },
+      {
+       "name": "爆米花",
+       "box": [
+        0.6,
+        0.6,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.35,
+        0.35,
+        0.2,
+        0.3
+       ]
+      },
+      {
+       "name": "Dad",
+       "box": [
+        0.15,
+        0.3,
+        0.2,
+        0.3
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s3",
+     "duration": 10,
+     "camera": "cut to a medium close-up of Kuan peeking through his fingers",
+     "action": "Kuan slowly spreads two fingers and peeks at the screen; a small smile appears; the blue robot toy sits beside him",
+     "space": "Kuan center, screen glow on his face",
+     "sound": "<soft giggle>",
+     "page": "p08",
+     "targets": [
+      {
+       "name": "机器人",
+       "box": [
+        0.55,
+        0.4,
+        0.25,
+        0.3
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.35,
+        0.4,
+        0.2,
+        0.3
+       ]
+      },
+      {
+       "name": "爆米花",
+       "box": [
+        0.4,
+        0.6,
+        0.2,
+        0.2
+       ]
+      }
+     ]
+    }
    ],
    "narration": [
-    {"text":"For a long time, Kuan has been afraid to see films."},
-    {"text":"He would just close his eyes and bury his head into Dad's chest whenever anything scary appeared on the screen."},
-    {"text":"He's braver now and only covers his eyes a little."}
+    {
+     "text": "For a long time, Kuan has been afraid to see films."
+    },
+    {
+     "text": "He would just close his eyes and bury his head into Dad's chest whenever anything scary appeared on the screen."
+    },
+    {
+     "text": "He's braver now and only covers his eyes a little."
+    }
    ],
-   "dialogue": [], "sfx": ["musical brass","fabric rustle","soft giggle"], "music": "none",
-   "transition_out": {"type":"match_cut","element":"Kuan's wide eye reflection","note":"the eye reflection becomes the arcade screen glow"}
+   "dialogue": [],
+   "sfx": [
+    "musical brass",
+    "fabric rustle",
+    "soft giggle"
+   ],
+   "music": "none",
+   "transition_out": {
+    "type": "match_cut",
+    "element": "Kuan's wide eye reflection",
+    "note": "the eye reflection becomes the arcade screen glow"
+   }
   },
   {
-   "id": "chunk_03", "duration": 30, "pages": ["p10","p11","p12","p13"],
-   "cast": ["kuan","dad"], "props": ["popcorn"],
-   "location": "lobby", "location_name": "cinema lobby / snack counter",
+   "id": "chunk_03",
+   "duration": 30,
+   "pages": [
+    "p10",
+    "p11",
+    "p12",
+    "p13"
+   ],
+   "cast": [
+    "kuan",
+    "dad"
+   ],
+   "props": [
+    "popcorn"
+   ],
+   "location": "lobby",
+   "location_name": "cinema lobby / snack counter",
    "scene_note": "Bright lobby with an arcade machine, candy counter, popcorn machine, and colorful snacks. Every screen, wrapper, and sign is blank: no letters, no numbers, no logos.",
    "location_ref": "lobby",
    "shots": [
-    {"id":"s1","duration":10,"camera":"close-up of Kuan's eye, then a hard cut to a wide lobby shot; camera tracks right at walking pace","action":"Kuan's eye fills the frame; hard cut to the bright lobby; Kuan and Dad walk past the arcade, whose screen faces away and stays blank; Kuan points toward the popcorn machine","space":"arcade left, candy counter right","sound":"<arcade beeps>"},
-    {"id":"s2","duration":10,"camera":"cut to a medium shot of Kuan at the candy counter, camera holds","action":"Kuan points at the candy jars; all packaging faces away from the camera and stays blank; Dad smiles beside him","space":"counter fills the frame, Kuan's reflection in the glass","sound":"<wrapper crinkle>"},
-    {"id":"s3","duration":10,"camera":"cut to the popcorn machine, camera moves in physically with parallax","action":"popcorn bursts out of the machine and spills over the rim of a red-and-white tub toward the lens","space":"popcorn fills the foreground and then the whole frame","sound":"<popcorn popping>"}
+    {
+     "id": "s1",
+     "duration": 10,
+     "camera": "close-up of Kuan's eye, then a hard cut to a wide lobby shot; camera tracks right at walking pace",
+     "action": "Kuan's eye fills the frame; hard cut to the bright lobby; Kuan and Dad walk past the arcade, whose screen faces away and stays blank; Kuan points toward the popcorn machine",
+     "space": "arcade left, candy counter right",
+     "sound": "<arcade beeps>",
+     "page": "p10",
+     "targets": [
+      {
+       "name": "游戏机",
+       "box": [
+        0.02,
+        0.2,
+        0.25,
+        0.55
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.3,
+        0.4,
+        0.2,
+        0.35
+       ]
+      },
+      {
+       "name": "Dad",
+       "box": [
+        0.45,
+        0.25,
+        0.25,
+        0.5
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "duration": 10,
+     "camera": "cut to a medium shot of Kuan at the candy counter, camera holds",
+     "action": "Kuan points at the candy jars; all packaging faces away from the camera and stays blank; Dad smiles beside him",
+     "space": "counter fills the frame, Kuan's reflection in the glass",
+     "sound": "<wrapper crinkle>",
+     "page": "p11",
+     "targets": [
+      {
+       "name": "爆米花",
+       "box": [
+        0.6,
+        0.3,
+        0.3,
+        0.3
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.2,
+        0.4,
+        0.25,
+        0.35
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s3",
+     "duration": 10,
+     "camera": "cut to the popcorn machine, camera moves in physically with parallax",
+     "action": "popcorn bursts out of the machine and spills over the rim of a red-and-white tub toward the lens",
+     "space": "popcorn fills the foreground and then the whole frame",
+     "sound": "<popcorn popping>",
+     "page": "p13",
+     "targets": [
+      {
+       "name": "爆米花",
+       "box": [
+        0.4,
+        0.3,
+        0.35,
+        0.35
+       ]
+      }
+     ]
+    }
    ],
    "narration": [
-    {"text":"The cinema has lots of video games, bright lights, and a huge place to buy candies and snacks."},
-    {"text":"I think the food is my favourite part of going to the cinema."},
-    {"text":"There's popcorn, chips, and sugar on everything."}
+    {
+     "text": "The cinema has lots of video games, bright lights, and a huge place to buy candies and snacks."
+    },
+    {
+     "text": "I think the food is my favourite part of going to the cinema."
+    },
+    {
+     "text": "There's popcorn, chips, and sugar on everything."
+    }
    ],
-   "dialogue": [], "sfx": ["arcade beeps","wrapper crinkle","popcorn popping"], "music": "none",
-   "transition_out": {"type":"object_into_lens","element":"overflowing popcorn from the red-and-white tub","note":"the popcorn clears to the counter"}
+   "dialogue": [],
+   "sfx": [
+    "arcade beeps",
+    "wrapper crinkle",
+    "popcorn popping"
+   ],
+   "music": "none",
+   "transition_out": {
+    "type": "object_into_lens",
+    "element": "overflowing popcorn from the red-and-white tub",
+    "note": "the popcorn clears to the counter"
+   }
   },
   {
-   "id": "chunk_04", "duration": 30, "pages": ["p14","p15","p16","p17","p18"],
-   "cast": ["kuan","dad"], "props": ["popcorn","coins"],
-   "location": "lobby", "location_name": "snack counter",
+   "id": "chunk_04",
+   "duration": 30,
+   "pages": [
+    "p14",
+    "p15",
+    "p16",
+    "p17",
+    "p18"
+   ],
+   "cast": [
+    "kuan",
+    "dad"
+   ],
+   "props": [
+    "popcorn",
+    "coins"
+   ],
+   "location": "lobby",
+   "location_name": "snack counter",
    "scene_note": "At the counter, the narrator asks who should buy popcorn. Dad says Kuan can buy it. Kuan and the narrator use their saved money.",
    "shots": [
-    {"id":"s1","duration":10,"camera":"medium shot at the counter, camera holds and follows Dad's hand","action":"Dad leans on the counter and looks at Kuan; Kuan holds the popcorn tub up hopefully","space":"Dad left, Kuan right, counter between them","sound":"<counter bell>"},
-    {"id":"s2","duration":10,"camera":"cut to a close-up of a hand opening, coins in the palm","action":"Kuan pours coins into the narrator's palm; the coins catch the light; the two small hands count them","space":"hands fill the frame, counter blurred behind","sound":"<coins clinking>"},
-    {"id":"s3","duration":10,"camera":"cut to the snack bag being filled, camera tracks the bag","action":"the snack seller drops snacks into a plain paper bag with no labels; Kuan reaches for it; one coin spins on the counter and fills the frame","space":"the spinning coin becomes the whole frame","sound":"<coin spinning>"}
+    {
+     "id": "s1",
+     "duration": 10,
+     "camera": "medium shot at the counter, camera holds and follows Dad's hand",
+     "action": "Dad leans on the counter and looks at Kuan; Kuan holds the popcorn tub up hopefully",
+     "space": "Dad left, Kuan right, counter between them",
+     "sound": "<counter bell>",
+     "page": "p14",
+     "targets": [
+      {
+       "name": "爆米花",
+       "box": [
+        0.45,
+        0.35,
+        0.3,
+        0.3
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.25,
+        0.3,
+        0.2,
+        0.4
+       ]
+      },
+      {
+       "name": "Dad",
+       "box": [
+        0.55,
+        0.3,
+        0.25,
+        0.4
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "duration": 10,
+     "camera": "cut to a close-up of a hand opening, coins in the palm",
+     "action": "Kuan pours coins into the narrator's palm; the coins catch the light; the two small hands count them",
+     "space": "hands fill the frame, counter blurred behind",
+     "sound": "<coins clinking>",
+     "page": "p16",
+     "targets": [
+      {
+       "name": "硬币",
+       "box": [
+        0.35,
+        0.55,
+        0.3,
+        0.2
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.25,
+        0.3,
+        0.25,
+        0.4
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s3",
+     "duration": 10,
+     "camera": "cut to the snack bag being filled, camera tracks the bag",
+     "action": "the snack seller drops snacks into a plain paper bag with no labels; Kuan reaches for it; one coin spins on the counter and fills the frame",
+     "space": "the spinning coin becomes the whole frame",
+     "sound": "<coin spinning>",
+     "page": "p18",
+     "targets": [
+      {
+       "name": "爆米花",
+       "box": [
+        0.45,
+        0.35,
+        0.25,
+        0.25
+       ]
+      },
+      {
+       "name": "硬币",
+       "box": [
+        0.4,
+        0.55,
+        0.2,
+        0.15
+       ]
+      }
+     ]
+    }
    ],
    "narration": [
-    {"text":"Who should buy popcorn? I say, interested to see if Dad gets the hint."},
-    {"text":"Kuan and I have saved some money this week for a new toy."},
-    {"text":"Still, snacks would be nice. Kuan and I decide to use our money and buy some snacks before the film begins."}
+    {
+     "text": "Who should buy popcorn? I say, interested to see if Dad gets the hint."
+    },
+    {
+     "text": "Kuan and I have saved some money this week for a new toy."
+    },
+    {
+     "text": "Still, snacks would be nice. Kuan and I decide to use our money and buy some snacks before the film begins."
+    }
    ],
-   "dialogue": [{"speaker":"dad","text":"Kuan can buy it","tone":"smiling, gentle"}],
-   "sfx": ["counter bell","coins clinking","coin spinning"], "music": "none",
-   "transition_out": {"type":"object_into_lens","element":"the spinning coin","note":"the coin lands in a palm, then the auditorium lights dim"}
+   "dialogue": [
+    {
+     "speaker": "dad",
+     "text": "Kuan can buy it",
+     "tone": "smiling, gentle"
+    }
+   ],
+   "sfx": [
+    "counter bell",
+    "coins clinking",
+    "coin spinning"
+   ],
+   "music": "none",
+   "transition_out": {
+    "type": "object_into_lens",
+    "element": "the spinning coin",
+    "note": "the coin lands in a palm, then the auditorium lights dim"
+   }
   },
   {
-   "id": "chunk_05", "duration": 30, "pages": ["p19","p20","p21","p22","p23","p24"],
-   "cast": ["kuan","dad"], "props": ["seats","popcorn"],
-   "location": "auditorium", "location_name": "cinema auditorium",
+   "id": "chunk_05",
+   "duration": 30,
+   "pages": [
+    "p19",
+    "p20",
+    "p21",
+    "p22",
+    "p23",
+    "p24"
+   ],
+   "cast": [
+    "kuan",
+    "dad"
+   ],
+   "props": [
+    "seats",
+    "popcorn"
+   ],
+   "location": "auditorium",
+   "location_name": "cinema auditorium",
    "scene_note": "They settle into their seats with snacks; the crowd goes quiet; the film starts. Kuan is nervous, then the film has talking cars and a karate car.",
    "location_ref": "auditorium",
    "shots": [
-    {"id":"s1","duration":10,"camera":"wide shot from behind the seats, camera tracks slowly down the row","action":"Kuan and Dad settle into their seats; Kuan puts the popcorn tub on his lap; the lights dim row by row","space":"rows of red seats, screen glowing ahead","sound":"<crowd hush>"},
-    {"id":"s2","duration":10,"camera":"cut to a close-up of Kuan's face lit by the screen","action":"Kuan grips the armrest, eyes wide; he takes a breath and leans forward","space":"screen light flickers on his face","sound":"<heartbeat>"},
-    {"id":"s3","duration":10,"camera":"cut to the screen: a car with a karate pose, then a car headlight fills the frame","action":"the film car spins and kicks; its headlight flares and fills the frame","space":"film world only inside the screen","sound":"<engine roar> <karate shout>"}
+    {
+     "id": "s1",
+     "duration": 10,
+     "camera": "wide shot from behind the seats, camera tracks slowly down the row",
+     "action": "Kuan and Dad settle into their seats; Kuan puts the popcorn tub on his lap; the lights dim row by row",
+     "space": "rows of red seats, screen glowing ahead",
+     "sound": "<crowd hush>",
+     "page": "p20",
+     "targets": [
+      {
+       "name": "Kuan",
+       "box": [
+        0.45,
+        0.35,
+        0.2,
+        0.3
+       ]
+      },
+      {
+       "name": "Dad",
+       "box": [
+        0.2,
+        0.3,
+        0.2,
+        0.3
+       ]
+      },
+      {
+       "name": "爆米花",
+       "box": [
+        0.6,
+        0.55,
+        0.2,
+        0.2
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "duration": 10,
+     "camera": "cut to a close-up of Kuan's face lit by the screen",
+     "action": "Kuan grips the armrest, eyes wide; he takes a breath and leans forward",
+     "space": "screen light flickers on his face",
+     "sound": "<heartbeat>",
+     "page": "p23",
+     "targets": [
+      {
+       "name": "Kuan",
+       "box": [
+        0.3,
+        0.3,
+        0.3,
+        0.4
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s3",
+     "duration": 10,
+     "camera": "cut to the screen: a car with a karate pose, then a car headlight fills the frame",
+     "action": "the film car spins and kicks; its headlight flares and fills the frame",
+     "space": "film world only inside the screen",
+     "sound": "<engine roar> <karate shout>",
+     "page": "p24",
+     "targets": [
+      {
+       "name": "汽车",
+       "box": [
+        0.25,
+        0.2,
+        0.5,
+        0.45
+       ]
+      }
+     ]
+    }
    ],
    "narration": [
-    {"text":"We bring our snacks to the cinema, the crowd gets quiet, and the film comes on the screen."},
-    {"text":"I always get a little nervous before the film starts."},
-    {"text":"This film has cars that talk, my favourite actor, and a car that knows karate."},
-    {"text":"In other words it has all of the parts of a great film."}
+    {
+     "text": "We bring our snacks to the cinema, the crowd gets quiet, and the film comes on the screen."
+    },
+    {
+     "text": "I always get a little nervous before the film starts."
+    },
+    {
+     "text": "This film has cars that talk, my favourite actor, and a car that knows karate."
+    },
+    {
+     "text": "In other words it has all of the parts of a great film."
+    }
    ],
-   "dialogue": [], "sfx": ["crowd hush","heartbeat","engine roar"], "music": "none",
-   "transition_out": {"type":"match_cut","element":"the film car's headlight becoming a warm table lamp","note":"the headlight fades into the dinner-table lamp"}
+   "dialogue": [],
+   "sfx": [
+    "crowd hush",
+    "heartbeat",
+    "engine roar"
+   ],
+   "music": "none",
+   "transition_out": {
+    "type": "match_cut",
+    "element": "the film car's headlight becoming a warm table lamp",
+    "note": "the headlight fades into the dinner-table lamp"
+   }
   },
   {
-   "id": "chunk_06", "duration": 30, "pages": ["p25","p26","p27","p28"],
-   "cast": ["kuan","dad","dog"], "props": [],
-   "location": "home_table", "location_name": "home dinner table",
+   "id": "chunk_06",
+   "duration": 30,
+   "pages": [
+    "p25",
+    "p26",
+    "p27",
+    "p28"
+   ],
+   "cast": [
+    "kuan",
+    "dad",
+    "dog"
+   ],
+   "props": [],
+   "location": "home_table",
+   "location_name": "home dinner table",
    "scene_note": "At home, Kuan and the narrator laugh about the film at the dinner table; Dad is already snoring.",
    "location_ref": "home_table",
    "shots": [
-    {"id":"s1","duration":10,"camera":"medium two-shot at the table, camera slowly tracks around the table","action":"Kuan acts out a karate kick with his arms; Dad leans back in his chair, eyes closed, snoring softly","space":"table center, warm lamp above","sound":"<soft snore>"},
-    {"id":"s2","duration":10,"camera":"cut to Kuan laughing, handheld, physical move","action":"Kuan laughs out loud and nearly spills his drink; he points at Dad and covers his mouth","space":"Kuan center, Dad blurred behind","sound":"<child laughter>"},
-    {"id":"s3","duration":10,"camera":"cut to a wide shot of the table, camera holds still","action":"the lamp dims; Dad's head nods; Kuan leans on the table and smiles; the frame gently settles","space":"whole table in frame, warm evening light","sound":"<soft snore> <lamp click>"}
+    {
+     "id": "s1",
+     "duration": 10,
+     "camera": "medium two-shot at the table, camera slowly tracks around the table",
+     "action": "Kuan acts out a karate kick with his arms; Dad leans back in his chair, eyes closed, snoring softly",
+     "space": "table center, warm lamp above",
+     "sound": "<soft snore>",
+     "page": "p26",
+     "targets": [
+      {
+       "name": "Dad",
+       "box": [
+        0.45,
+        0.2,
+        0.3,
+        0.4
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.2,
+        0.4,
+        0.3,
+        0.4
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "duration": 10,
+     "camera": "cut to Kuan laughing, handheld, physical move",
+     "action": "Kuan laughs out loud and nearly spills his drink; he points at Dad and covers his mouth",
+     "space": "Kuan center, Dad blurred behind",
+     "sound": "<child laughter>",
+     "page": "p27",
+     "targets": [
+      {
+       "name": "Kuan",
+       "box": [
+        0.2,
+        0.35,
+        0.3,
+        0.4
+       ]
+      },
+      {
+       "name": "Dad",
+       "box": [
+        0.5,
+        0.25,
+        0.3,
+        0.4
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s3",
+     "duration": 10,
+     "camera": "cut to a wide shot of the table, camera holds still",
+     "action": "the lamp dims; Dad's head nods; Kuan leans on the table and smiles; the frame gently settles",
+     "space": "whole table in frame, warm evening light",
+     "sound": "<soft snore> <lamp click>",
+     "page": "p28",
+     "targets": [
+      {
+       "name": "Dad",
+       "box": [
+        0.35,
+        0.35,
+        0.35,
+        0.4
+       ]
+      },
+      {
+       "name": "Kuan",
+       "box": [
+        0.15,
+        0.45,
+        0.25,
+        0.35
+       ]
+      }
+     ]
+    }
    ],
    "narration": [
-    {"text":"Kuan and I are laughing out loud! We have got to see it again."},
-    {"text":"We'll be talking about the film at the dinner table for a week."},
-    {"text":"Dad will not be. He's snoring."}
+    {
+     "text": "Kuan and I are laughing out loud! We have got to see it again."
+    },
+    {
+     "text": "We'll be talking about the film at the dinner table for a week."
+    },
+    {
+     "text": "Dad will not be. He's snoring."
+    }
    ],
-   "dialogue": [], "sfx": ["soft snore","child laughter","lamp click"], "music": "none",
-   "transition_out": {"type":"watercolor_bleed","element":"the warm lamp light bleeding into the paper texture","note":"gentle end"}
+   "dialogue": [],
+   "sfx": [
+    "soft snore",
+    "child laughter",
+    "lamp click"
+   ],
+   "music": "none",
+   "transition_out": {
+    "type": "watercolor_bleed",
+    "element": "the warm lamp light bleeding into the paper texture",
+    "note": "gentle end"
+   }
   }
  ]
 }
