@@ -184,7 +184,8 @@ def cmd_cover(args):
     out = Path(args.out)
     movie = Path(args.movie or (out / "final_movie.mp4"))
     meta = add_cover_intro(ROOT / args.book, movie, out / "final_movie_cover.mp4",
-                           args.seconds, getattr(args, "voice", None))
+                           args.seconds, getattr(args, "voice", None),
+                           audio=Path(args.audio) if getattr(args, "audio", None) else None)
     tl = out / "timeline.json"
     if tl.exists():
         out_tl = out / "timeline_cover.json"
@@ -267,7 +268,8 @@ def cmd_run(args):
         try:
             cover_out = out / "final_movie_cover.mp4"
             meta = add_cover_intro(Path(args.book), final, cover_out,
-                                   getattr(args, "cover_seconds", 2.0), getattr(args, "voice", None))
+                                   getattr(args, "cover_seconds", 2.0), getattr(args, "voice", None),
+                                   audio=Path(args.cover_audio) if getattr(args, "cover_audio", None) else None)
             tl = out / "timeline.json"
             if tl.exists():
                 (out / "timeline_cover.json").write_text(json.dumps(
@@ -304,7 +306,7 @@ def main(argv=None):
     p.add_argument("--force", action="store_true"); p.add_argument("--attempts", type=int, default=1)
     p.set_defaults(fn=cmd_generate)
     p = sub.add_parser("cover"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
-    p.add_argument("--movie", default=None); p.add_argument("--seconds", type=float, default=2.0); p.add_argument("--voice", default=None); p.set_defaults(fn=cmd_cover)
+    p.add_argument("--movie", default=None); p.add_argument("--seconds", type=float, default=2.0); p.add_argument("--voice", default=None); p.add_argument("--audio", default=None); p.set_defaults(fn=cmd_cover)
     p = sub.add_parser("assemble"); p.add_argument("--out", required=True); p.set_defaults(fn=cmd_assemble)
     p = sub.add_parser("verify"); p.add_argument("--out", required=True); p.add_argument("--movie", default=None); p.add_argument("--delivery", action="store_true"); p.set_defaults(fn=cmd_verify)
     p = sub.add_parser("run"); p.add_argument("--book", required=True); p.add_argument("--out", required=True)
@@ -319,6 +321,7 @@ def main(argv=None):
     p.add_argument("--yes", action="store_true")
     p.add_argument("--no-cover", dest="cover", action="store_false", help="不生成 2s 封面+书名朗读")
     p.add_argument("--cover-seconds", type=float, default=2.0)
+    p.add_argument("--cover-audio", default=None, help="预录书名音频（wav）")
     p.set_defaults(fn=cmd_run, cover=True)
     args = ap.parse_args(argv)
     return args.fn(args)

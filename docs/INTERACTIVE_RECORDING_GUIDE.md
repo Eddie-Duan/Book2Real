@@ -166,8 +166,10 @@ en01 页面自测：
 ## 10. 成片自带封面 + 书名朗读（仅 cn01，2026-11-25）
 
 - cn01：runs/cn01/one_take/final_movie_cover.mp4（152.08s / 1280×720 / 24fps）
+- 书名朗读用的是预录音频：`C:\Users\DUANboyang\Desktop\算法视频\一起搭积木吧_female_yujie.wav\一起搭积木吧_female_yujie.wav`（2.58s，剪掉首尾静音后约 1.9s）
 - 开头 2s 是 cn01 成片自己的第一帧（两个女孩搭积木），MiniMax 朗读书名；ASR 已验证：“一起搭积木吧。”
 - cn01 交互时间轴已整体 +2s（timeline_cover.json），查字“我又不是故意的”现在跳 62.35s。
 - en01 不加封面、不改时间轴；仍用 720p 拉伸版 + 原 timeline。
 - 原 final_movie.mp4 保留不动；--no-cover 可回到严格一镜到底版。
+- 预录音频用法：one_take.py cover --book books/cn01 --out runs/cn01/one_take --audio <wav>
 - 这是后期拼接，初赛用；决赛合规版应把封面做成首段镜头重生成。

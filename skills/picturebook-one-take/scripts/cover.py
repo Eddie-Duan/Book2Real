@@ -24,7 +24,7 @@ FONT = "C:/Windows/Fonts/msyhbd.ttc"
 
 
 def _run(cmd):
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if p.returncode != 0:
         raise RuntimeError("cmd failed: " + " ".join(cmd) + "\n" + p.stderr[-1200:])
     return p.stdout
@@ -99,8 +99,13 @@ def cover_png(title: str, subtitle: str, out: Path, size=(1280, 720)) -> None:
 
 
 def add_cover_intro(book_dir: Path, movie: Path, out: Path, seconds: float = 2.0,
-                    voice: str | None = None, subtitle: str | None = None) -> dict:
-    """Freeze the film's first frame for N seconds, speak the book title, then play it."""
+                    voice: str | None = None, subtitle: str | None = None,
+                    audio: Path | None = None) -> dict:
+    """Freeze the film's first frame for N seconds, speak the book title, then play it.
+
+    audio: optional prerecorded title line (e.g. a voice-actor wav); if absent,
+    MiniMax TTS reads books/<id>/book.json title.
+    """
     book = json.loads((book_dir / "book.json").read_text(encoding="utf-8-sig"))
     title = str(book.get("title") or book_dir.name)
     lang = str(book.get("language") or "zh")
@@ -108,8 +113,15 @@ def add_cover_intro(book_dir: Path, movie: Path, out: Path, seconds: float = 2.0
                             else "纸书智伴 · 绘本影片")
     work = Path(tempfile.mkdtemp(prefix=f"cover_{book_dir.name}_"))
     wav = work / "title.wav"
-    tts_sec = tts_title(title, lang, wav, voice)
-    cover_sec = max(seconds, min(3.0, tts_sec + 0.12))
+    if audio:
+        wav = Path(audio)
+        tts_sec = _duration(wav)
+        gain = 1.0
+        cover_sec = max(1.0, seconds)   # exact 2s unless caller asks longer
+    else:
+        tts_sec = tts_title(title, lang, wav, voice)
+        gain = 3.8
+        cover_sec = max(seconds, min(3.0, tts_sec + 0.12))
     # cover = the film's own first frame (frozen), not a generated title card
     png = work / "first_frame.png"
     _run(["ffmpeg", "-v", "error", "-y", "-ss", "0", "-i", str(movie),
@@ -117,7 +129,9 @@ def add_cover_intro(book_dir: Path, movie: Path, out: Path, seconds: float = 2.0
     clip = work / "cover.mp4"
     _run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "24", "-t", str(cover_sec),
           "-i", str(png), "-i", str(wav),
-          "-filter_complex", f"[1:a]volume=3.8,apad=pad_dur={cover_sec},"
+          "-filter_complex", f"[1:a]silenceremove=start_periods=1:start_duration=0.05:start_threshold=-35dB,"
+                             f"areverse,silenceremove=start_periods=1:start_duration=0.05:start_threshold=-35dB,"
+                             f"areverse,volume={gain},apad=pad_dur={cover_sec},"
                              f"atrim=0:{cover_sec},asetpts=N/SR/TB[a]",
           "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
           "-pix_fmt", "yuv420p", "-r", "24", "-c:a", "aac", "-ar", "48000", "-ac", "2",
@@ -158,8 +172,10 @@ def main() -> int:
     ap.add_argument("--out-timeline", default=None)
     ap.add_argument("--seconds", type=float, default=2.0)
     ap.add_argument("--voice", default=None)
+    ap.add_argument("--audio", default=None, help="预录书名音频（wav）；给了就不调 TTS")
     a = ap.parse_args()
-    meta = add_cover_intro(ROOT / a.book, Path(a.movie), Path(a.out), a.seconds, a.voice)
+    meta = add_cover_intro(ROOT / a.book, Path(a.movie), Path(a.out), a.seconds, a.voice,
+                           audio=Path(a.audio) if a.audio else None)
     if a.timeline:
         tl = json.loads(Path(a.timeline).read_text(encoding="utf-8"))
         tl2 = shift_timeline(tl, meta["cover_seconds"])
