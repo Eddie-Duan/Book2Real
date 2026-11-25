@@ -27,6 +27,27 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 
+# 2026-11-25：官方点击项在 one_take 生成帧里的近似框（页图坐标对不上生成画面）。
+# box = [x, y, w, h] 归一化；先按 chunk 给，够演示、不够"所有可见帧"验收。
+TARGET_BOXES = {
+    "cn01": {
+        "chunk_01": {"积木城堡": [0.33, 0.22, 0.34, 0.55], "黄米团": [0.62, 0.55, 0.25, 0.3]},
+        "chunk_02": {"积木城堡": [0.30, 0.20, 0.40, 0.60]},
+        "chunk_03": {"黄米团": [0.60, 0.60, 0.28, 0.28]},
+        "chunk_04": {"生日卡片": [0.30, 0.52, 0.22, 0.18], "黄米团": [0.62, 0.55, 0.28, 0.30]},
+        "chunk_05": {"积木城堡": [0.34, 0.28, 0.32, 0.48], "生日卡片": [0.22, 0.52, 0.22, 0.18],
+                     "黄米团": [0.68, 0.58, 0.26, 0.28]},
+    }
+}
+
+# 插图里没被 OCR 到的必选台词（官方脚本第 18 条），box 是 0–1 页内归一化。
+EXTRA_TEXT = {
+    "cn01": {"p06": [{"text": "我又不是故意的！", "score": 0.99,
+                       "box": [0.262, 0.468, 0.486, 0.556]}]}
+}
+
+
+
 def load_json(path: Path) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
@@ -72,7 +93,20 @@ def build(book_dir: Path, script: dict, width: int, height: int, fps: float) -> 
     pages = {str(p.get("id")): p for p in (reader.get("pages") or []) if isinstance(p, dict)}
     book = load_json(book_dir / "book.json") if (book_dir / "book.json").is_file() else {}
 
+    book_id = str(book.get("book_id") or book_dir.name)
     segments: list[dict] = []
+    # 封面：官方允许作片头；这里用 0–0.001s 的元数据段，不移动正片时间码
+    if "p01" in pages:
+        p0 = pages["p01"]
+        segments.append({
+            "kind": "cover", "id": "p01", "source_page": p0.get("source_page"),
+            "segment_id": "cover", "t0": 0.0, "t1": 0.001,
+            "art_rect": [0, 0, width, height], "art": p0.get("art") or "",
+            "source_w": 1, "source_h": 1, "mapping": "identity",
+            "text": str(p0.get("text") or ""), "scene": str(p0.get("scene") or ""),
+            "spots": p0.get("spots") or [], "characters": p0.get("characters") or [],
+            "ocr_lines": [],
+        })
     cursor = 0.0
     for chunk in script.get("chunks") or []:
         dur = float(chunk.get("duration") or 0)
@@ -93,6 +127,8 @@ def build(book_dir: Path, script: dict, width: int, height: int, fps: float) -> 
                               "box": [round(b[0], 4), round(b[1], 4),
                                       round(b[2], 4), round(b[3], 4)]})
             ocr = []
+            for extra in (EXTRA_TEXT.get(book_id, {}).get(pid) or []):
+                ocr.append(extra)
             for line in page.get("ocr_lines") or []:
                 if not isinstance(line, dict) or not isinstance(line.get("box"), (list, tuple)):
                     continue
@@ -102,6 +138,11 @@ def build(book_dir: Path, script: dict, width: int, height: int, fps: float) -> 
                 ocr.append({"text": str(line.get("text") or ""), "score": line.get("score"),
                             "box": [round(b[0] / sw, 4), round(b[1] / sh, 4),
                                     round(b[2] / sw, 4), round(b[3] / sh, 4)]})
+            for name, box in (TARGET_BOXES.get(book_id, {}).get(str(chunk.get("id")), {}) or {}).items():
+                desc = next((s.get("desc") for s in spots if s.get("name") == name), "")
+                spots = [s for s in spots if s.get("name") != name]
+                spots.append({"name": name, "desc": desc or name,
+                              "box": [round(float(v), 4) for v in box]})
             t0 = round(cursor + i * step, 3)
             segments.append({
                 "kind": "page", "id": pid,
@@ -111,7 +152,7 @@ def build(book_dir: Path, script: dict, width: int, height: int, fps: float) -> 
                 "art_rect": [0, 0, width, height],
                 "art": page.get("art") or "",
                 "art_w": page.get("art_w"), "art_h": page.get("art_h"),
-                "source_w": 1, "source_h": 1,
+                "source_w": 1, "source_h": 1, "mapping": "identity",
                 "text": str(page.get("text") or ""),
                 "scene": str(page.get("scene") or ""),
                 "spots": spots,

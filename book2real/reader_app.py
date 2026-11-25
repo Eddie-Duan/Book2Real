@@ -299,6 +299,10 @@ def film_timeline(book_id: str) -> tuple[int, dict]:
             # the closing card has no page art, so it has no source page either
             seg["source_w"], seg["source_h"], seg["mapping"] = 0, 0, "none"
             continue
+        if seg.get("mapping") == "identity":
+            seg["source_w"], seg["source_h"] = 1, 1
+            kinds.add("identity")
+            continue
         w, h, how = _segment_source_size(bid, seg, pages, by_id)
         seg["source_w"], seg["source_h"] = w, h
         seg["mapping"] = how
