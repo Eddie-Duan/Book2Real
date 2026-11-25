@@ -1,6 +1,6 @@
 # 交互视频录制全流程（cn01 + en01）
 
-> 2026-11-25，代码基线 090680a。给“用自己电脑录官方交互视频”的人看。
+> 2026-11-25，代码基线 feat/skills-tuning。给“用自己电脑录官方交互视频”的人看。
 > 先给结论：**两个 final_movie.mp4 只是“非交互成片”，光有它们录不了交互视频。**
 > 还需要同一条片子的 timeline.json + 点击目标表 + 阅读器服务；这两样我打成了两个交接包。
 
@@ -12,9 +12,9 @@
 
 要录交互视频还缺：
 - 两个交接包（成片 + timeline + click_targets + 官方 wav）：
-  - dist/interactive_handoff_cn01.zip（57 MB，含 2s 封面+书名朗读）
-  - dist/interactive_handoff_en01_720p_cover2s.zip（73 MB，720p + 2s 封面+书名朗读）
-- 仓库代码（090680a）
+  - dist/interactive_handoff_cn01.zip（57.3 MB，含第一帧定格 2s + 书名朗读）
+  - dist/interactive_handoff_en01_720p_upscaled.zip（75.5 MB，720p，无封面朗读）
+- 仓库代码（feat/skills-tuning）
 - 语音问答要 .env 里的 MINIMAX_API_KEY（只录点击/检索可以先不配）
 
 ## 1. 一次性准备
@@ -23,7 +23,7 @@
 
     git clone git@github.com:Eddie-Duan/Book2Real.git
     cd Book2Real
-    git checkout 090680a
+    git checkout feat/skills-tuning
 
 ### 1.2 放交接包
 
@@ -107,7 +107,7 @@ en01 页面自测：
 
 ## 5. en01 交互视频脚本（约 60–90 秒）
 
-1. 打开 /film?book=en01；片子自带 2s 封面 + 书名朗读，等封面播完自动进入正文。
+1. 打开 /film?book=en01；en01 不加封面，直接进入正文。
 2. 点“机器人”或“爆米花” → 暂停 + 介绍。
 3. 输入“popcorn” → 跳到对应页并框出。
 4. 点“描述这一帧”。
@@ -129,7 +129,7 @@ en01 页面自测：
 | /film 404 或回到旧片 | 没设 B2R_FILM_SEEDANCE=1；或端口连到了 ui 不是 reader |
 | 页面能开但没画面 | 交接包没解压到 runs/<id>/seedance_film/<stamp>/，或 film.mp4 不在 |
 | 点元素没反应 | 当前时间不在该 shot；用第 2 节的时间点；或框是 shot 级，角色已走动 |
-| 查字框很小 | 用了旧 timeline；用 090680a + 交接包里的 timeline |
+| 查字框很小 | 用了旧 timeline；用 feat/skills-tuning + 交接包里的 timeline |
 | 语音没反应 | .env 没配 MINIMAX_API_KEY；浏览器没给麦克风权限；系统声音没录进 OBS |
 | 录屏没声音 | OBS 只加了麦克风，没加“桌面音频”；或 Win+G 没开系统声音 |
 
@@ -163,13 +163,11 @@ en01 页面自测：
 - 合规：这是转码/后期处理，严格说和 Q43“一次生成、不能二次编辑”有冲突；初赛不查可以用，决赛建议原生 720p。
 - 已打好 720p 拉伸版交接包：dist/interactive_handoff_en01_720p_upscaled.zip（72 MB）。
 - 交互录屏本身不需要拉伸文件：浏览器全屏 + 1080p 录屏，交互视频自然是 1080p；拉伸只影响“非交互 en01 成片”的 ffprobe 结果。
-## 10. 成片自带封面 + 书名朗读（2026-11-25）
+## 10. 成片自带封面 + 书名朗读（仅 cn01，2026-11-25）
 
 - cn01：runs/cn01/one_take/final_movie_cover.mp4（152.08s / 1280×720 / 24fps）
-- en01：runs/en01/one_take/final_movie_cover.mp4（182.08s / 1280×720 / 24fps）
-- 开头 2s 是干净书名卡，MiniMax 朗读书名；ASR 已验证：
-  - cn01：“一起搭积木吧。”
-  - en01：“Going to the cinema.”
-- 交互时间轴已整体 +2s（timeline_cover.json），查字“我又不是故意的”现在跳 62.35s。
+- 开头 2s 是 cn01 成片自己的第一帧（两个女孩搭积木），MiniMax 朗读书名；ASR 已验证：“一起搭积木吧。”
+- cn01 交互时间轴已整体 +2s（timeline_cover.json），查字“我又不是故意的”现在跳 62.35s。
+- en01 不加封面、不改时间轴；仍用 720p 拉伸版 + 原 timeline。
 - 原 final_movie.mp4 保留不动；--no-cover 可回到严格一镜到底版。
 - 这是后期拼接，初赛用；决赛合规版应把封面做成首段镜头重生成。

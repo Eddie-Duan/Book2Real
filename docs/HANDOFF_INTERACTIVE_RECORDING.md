@@ -1,6 +1,6 @@
 # 交互视频录制/验收 · 队友交接
 
-> 2026-11-25，代码基线 090680a（feat/skills-tuning = feat/tuning-sync）。
+> 2026-11-25，代码基线 feat/skills-tuning（feat/skills-tuning = feat/tuning-sync）。
 > 结论：可以交给队友，但代码在 git 里、成片/时间轴/官方 wav 不在 git 里，必须把非 git 产物单独打包发过去。
 
 ## 1. 为什么不能只丢 git 仓库
@@ -40,7 +40,7 @@
 
     git clone git@github.com:Eddie-Duan/Book2Real.git
     cd Book2Real
-    git checkout 090680a
+    git checkout feat/skills-tuning
     # 解压交接包，把 film.mp4/timeline.json 放到 runs/cn01/seedance_film/<stamp>/
     $env:B2R_FILM_SEEDANCE="1"
     python -m book2real reader --books books --port 8796
@@ -82,7 +82,7 @@
 ## 7. 已知边界（录之前知道）
 
 - 点击框是 shot 级，同一 shot 内角色走动时框不跟随；官方“所有可见帧可点”严格说还差逐帧跟踪。
-- p01 封面是 0–0.001s 元数据段，画面里没有封面原图。
+- cn01 已加“成片第一帧定格 2s + 书名朗读”；en01 仍只有 p01 元数据段，画面里没有封面原图。
 - en01 目前只有 480p 成片，且时间轴还没按 shot 生成；要录英文交互，先跑：
   python scripts/one_take_timeline_shots.py --book books/en01 --run runs/en01/one_take --movie runs/en01/one_take/final_movie.mp4 --publish-root runs/en01/seedance_film
   （en01 的 shot_script 还缺 page/targets，需要补；否则走页级 fallback。）

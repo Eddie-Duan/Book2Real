@@ -45,12 +45,12 @@ python scripts/one_take_generic_check.py
 
 2026-11-25 起，成片默认多一个**独立的展示层文件**：
 
-    final_movie_cover.mp4     # 2s 干净封面（书名卡）+ MiniMax 书名朗读 + 原片
+    final_movie_cover.mp4     # 成片第一帧定格 2s + MiniMax 书名朗读 + 原片
     timeline_cover.json       # 若已有 timeline，整体后移 2s 并加封面段
 
 - 标题/语言取自 `books/<id>/book.json` 的 `title` / `language`，不为书名写死。
 - 音色取 `MINIMAX_VOICE_ID`（中文）/ `MINIMAX_VOICE_ID_EN`（英文），语速/情绪沿用 `MINIMAX_*`。
-- 封面是干净的标题卡，**不使用带水印的原书页**。
+- 封面直接用**成片自己的第一帧**（无字、无水印），不做生成标题卡。
 - 调用：
       python skills/picturebook-one-take/scripts/one_take.py cover --book books/cn01 --out runs/cn01/one_take
   `run` 默认也会在 `assemble` 后自动加封面；加 `--no-cover` 可关闭。

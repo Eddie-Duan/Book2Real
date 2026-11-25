@@ -100,6 +100,7 @@ def cover_png(title: str, subtitle: str, out: Path, size=(1280, 720)) -> None:
 
 def add_cover_intro(book_dir: Path, movie: Path, out: Path, seconds: float = 2.0,
                     voice: str | None = None, subtitle: str | None = None) -> dict:
+    """Freeze the film's first frame for N seconds, speak the book title, then play it."""
     book = json.loads((book_dir / "book.json").read_text(encoding="utf-8-sig"))
     title = str(book.get("title") or book_dir.name)
     lang = str(book.get("language") or "zh")
@@ -109,8 +110,10 @@ def add_cover_intro(book_dir: Path, movie: Path, out: Path, seconds: float = 2.0
     wav = work / "title.wav"
     tts_sec = tts_title(title, lang, wav, voice)
     cover_sec = max(seconds, min(3.0, tts_sec + 0.12))
-    png = work / "cover.png"
-    cover_png(title, subtitle, png)
+    # cover = the film's own first frame (frozen), not a generated title card
+    png = work / "first_frame.png"
+    _run(["ffmpeg", "-v", "error", "-y", "-ss", "0", "-i", str(movie),
+          "-frames:v", "1", str(png)])
     clip = work / "cover.mp4"
     _run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "24", "-t", str(cover_sec),
           "-i", str(png), "-i", str(wav),
