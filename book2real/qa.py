@@ -623,7 +623,7 @@ def _material(page: dict, chars: list[dict], pages: list[dict], page_id: str) ->
     return "\n".join(lines)
 
 
-def _llm_answer(cfg: dict, page: dict, page_id: str, chars: list[dict], query: str, history: list[dict]) -> str:
+def _llm_answer(cfg: dict, page: dict, page_id: str, chars: list[dict], query: str, history: list[dict], lang: str = "zh") -> str:
     material = _material(page, chars, [], page_id)
     system = (
         "你是一个中文绘本共读助手，正在陪一个孩子读绘本。硬约束：\n"
@@ -631,6 +631,8 @@ def _llm_answer(cfg: dict, page: dict, page_id: str, chars: list[dict], query: s
         "② 材料未覆盖的内容，直接说“本页未提及”，不得编造。\n"
         "用口语化的中文回答，不超过 120 字，不要输出 Markdown。"
     )
+    if lang == "en":
+        system += "\n④ 这本书是英文绘本：必须全程用英文回答，不要用中文。"
     turns = [f"读者问：{h.get('q') or ''}\n助手答：{h.get('a') or ''}" for h in history[-3:]]
     user = ("【绘本原文】\n" + material + "\n\n"
             + ("【之前的对话】\n" + "\n".join(turns) + "\n\n" if turns else "")
@@ -674,6 +676,8 @@ def _llm_answer_book(cfg: dict, book: dict, page_id: str, query: str, history: l
         "② 材料没有的，直接说“书里没提到”，不得编造；\n"
         "③ 用提问的语言回答（中文问中文答，英文问英文答），口语化，不超过 120 字。"
     )
+    if str(book.get("language") or "").lower() == "en":
+        system += "\n④ 这本书是英文绘本：必须全程用英文回答，不要用中文。"
     turns = [f"读者问：{h.get('q') or ''}\n助手答：{h.get('a') or ''}" for h in history[-3:]]
     user = ("【整本绘本原文】\n" + material + "\n\n"
             + ("【之前的对话】\n" + "\n".join(turns) + "\n\n" if turns else "")
@@ -826,7 +830,8 @@ def _answer(req) -> dict:
     cfg = _llm_config()
     if cfg is not None:
         try:
-            llm_text = _llm_answer(cfg, page, pid, chars, query or ent_name, history)
+            llm_text = _llm_answer(cfg, page, pid, chars, query or ent_name, history,
+                                    lang=str(book.get("language") or "zh"))
         except Exception:                      # noqa: BLE001 - degradation is the feature
             return {"answer": answer_text, "citations": cits, "source": "rule",
                     "fallback": "llm_error", "socratic": socratic, "page": pid}
