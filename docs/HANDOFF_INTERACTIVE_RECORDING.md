@@ -1,6 +1,6 @@
 # 交互视频录制/验收 · 队友交接
 
-> 2026-11-25，代码基线 dfd2a7a（feat/skills-tuning = feat/tuning-sync）。
+> 2026-11-25，代码基线 e49a97f（feat/skills-tuning = feat/tuning-sync）。
 > 结论：可以交给队友，但代码在 git 里、成片/时间轴/官方 wav 不在 git 里，必须把非 git 产物单独打包发过去。
 
 ## 1. 为什么不能只丢 git 仓库
@@ -40,7 +40,7 @@
 
     git clone git@github.com:Eddie-Duan/Book2Real.git
     cd Book2Real
-    git checkout dfd2a7a
+    git checkout e49a97f
     # 解压交接包，把 film.mp4/timeline.json 放到 runs/cn01/seedance_film/<stamp>/
     $env:B2R_FILM_SEEDANCE="1"
     python -m book2real reader --books books --port 8796
