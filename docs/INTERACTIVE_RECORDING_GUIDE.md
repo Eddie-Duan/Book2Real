@@ -13,7 +13,7 @@
 要录交互视频还缺：
 - 两个交接包（成片 + timeline + click_targets + 官方 wav）：
   - dist/interactive_handoff_cn01.zip（54.6 MB，含第一帧定格 2s + 书名朗读）
-  - dist/interactive_handoff_en01_720p_upscaled.zip（72.0 MB，720p，无封面朗读）
+  - dist/interactive_handoff_en01.zip（97.4 MB，无封面朗读）
 - 仓库代码（feat/skills-tuning）
 - 语音问答要 .env 里的 MINIMAX_API_KEY（只录点击/检索可以先不配）
 
@@ -149,27 +149,13 @@ en01 页面自测：
 
 结论：**录一版能演示、能讲清四能力；但“所有可见帧点击精度”这一项还不是满分。** 如果时间够，先补逐帧框再录；不够就先录这一版。
 
-## 9. 480p→720p 拉伸（初赛兜底，0 元）
-
-如果初赛不查“原生 720p”，可以把 en01 的 480p 成片用 ffmpeg 拉到 1280×720：
-
-    ffmpeg -i runs/en01/one_take/final_movie.mp4 \
-      -vf "scale=1280:720:flags=lanczos,unsharp=5:5:0.35:5:5:0.0" \
-      -c:v libx264 -crf 18 -preset medium -c:a copy \
-      runs/en01/one_take/final_movie_720p_upscaled.mp4
-
-- 产物：1280×720 / 24fps / 180.08s / 有声；ffprobe 能过 A8 的分辨率检查。
-- 画质：细节仍是 480p，放大后会偏软；卡通线条可接受，但 400% 看会糊。
-- 合规：这是转码/后期处理，严格说和 Q43“一次生成、不能二次编辑”有冲突；初赛不查可以用，决赛建议原生 720p。
-- 已打好 720p 拉伸版交接包：dist/interactive_handoff_en01_720p_upscaled.zip（72 MB）。
-- 交互录屏本身不需要拉伸文件：浏览器全屏 + 1080p 录屏，交互视频自然是 1080p；拉伸只影响“非交互 en01 成片”的 ffprobe 结果。
 ## 10. 成片自带封面 + 书名朗读（仅 cn01，2026-11-25）
 
 - cn01：runs/cn01/one_take/final_movie_cover.mp4（152.08s / 1280×720 / 24fps）
 - 书名朗读用的是预录音频：`C:\Users\DUANboyang\Desktop\算法视频\一起搭积木吧_female_yujie.wav\一起搭积木吧_female_yujie.wav`（2.58s，剪掉首尾静音后约 1.9s）
 - 开头 2s 是 cn01 成片自己的第一帧（两个女孩搭积木），MiniMax 朗读书名；ASR 已验证：“一起搭积木吧。”
 - cn01 交互时间轴已整体 +2s（timeline_cover.json），查字“我又不是故意的”现在跳 62.35s。
-- en01 不加封面、不改时间轴；仍用 720p 拉伸版 + 原 timeline。
+- en01 不加封面、不改时间轴；仍用原 timeline。
 - 原 final_movie.mp4 保留不动；--no-cover 可回到严格一镜到底版。
 - 预录音频用法：one_take.py cover --book books/cn01 --out runs/cn01/one_take --audio <wav>
 - 这是后期拼接，初赛用；决赛合规版应把封面做成首段镜头重生成。

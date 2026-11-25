@@ -126,4 +126,4 @@ python -m book2real cloud --check
 - `runs/cn01/one_take/final_movie.mp4`：5 段全部 PASS，1280×720 / 24 fps / 有声 / 150.08s；
 - chunk_05 的返修根因：① 音频 10 句太密，段尾还在说话 → 减到 8 句 + "第 27 秒前说完"；② 积木城堡道具漂移 → **道具参考图**。
 - 通用修改：`bible.props[].ref` 指定道具参考图，`generate.py` 把它作为 `reference_image` 发给 Seedance，`[Props]` 里标"参考图片N"；不是只对积木有效，en01 的爆米花/机器人/座椅也走同一机制。
-- 两条片状态：cn01 720p 交付 PASS；en01 480p 训练 PASS（180.08s）。
+- 两条片状态：cn01 720p 交付 PASS；en01 交付 PASS（180.08s）。
